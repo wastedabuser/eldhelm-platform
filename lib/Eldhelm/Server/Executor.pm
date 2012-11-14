@@ -55,7 +55,7 @@ sub run {
 
 		# check the task queue
 		$self->fetchTask;
-		
+
 		# connection events
 		eval {
 			$self->triggerConnectionEvents;
@@ -95,7 +95,7 @@ sub fetchTask {
 	{
 		my $queue = $self->{workerQueue};
 		lock($queue);
-		
+
 		$task = shift @$queue;
 	}
 	return if !$task;
@@ -110,25 +110,26 @@ sub fetchTask {
 
 sub checkTimeout {
 	my ($self) = @_;
-	my ($tm, @ids) = (time);
+	my ($tm, @persists) = (time);
 	{
-		lock($self->{persists});
-		@ids = keys %{ $self->{persists} };
+		my $ref = $self->{persists};
+		lock($ref);
+		
+		@persists = values %$ref;
 	}
-	return if !@ids;
+	return unless @persists;
 
-	foreach (@ids) {
-		my $p = $self->{persists}{$_};
-		next unless $p;
+	foreach my $p (@persists) {
 		lock($p);
 
 		my $hasTo = ($tm >= $p->{updatedon} + $p->{timeout});
 		next unless $hasTo;
 
+		my $id = $p->{id};
 		if ($p->{persistType} eq "Eldhelm::Server::Session") {
-			$self->cleanUp($_) unless $p->{connected};
+			$self->cleanUp($id) unless $p->{connected};
 		} else {
-			$self->cleanUp($_);
+			$self->cleanUp($id);
 		}
 	}
 }
@@ -154,67 +155,74 @@ sub checkShedule {
 
 sub checkConnectionTimeout {
 	my ($self) = @_;
-	lock($self->{connections});
-
-	my @ids = keys %{ $self->{connections} };
-	return if !@ids;
+	my @connections;
+	{
+		my $conns = $self->{connections};
+		lock($conns);
+		
+		@connections = values %$conns;
+	}
+	return unless @connections;
 
 	my ($ct, $to) = (time, $self->{connectionTimeout});
-	
-	foreach (@ids) {
-		my $c = $self->{connections}{$_};
+
+	foreach my $c (@connections) {
 		lock($c);
-		
+
 		next if $c->{keepalive};
-		next if $c->{lastActivityTime} + $ct > $ct;
-		
+		next if $c->{lastActivityTime} + $to > $ct;
+
+		my $fno = $c->{fno};
 		$self->closeConnection(
-			$_,
+			$fno,
 			{   reason    => "connectionTimeout",
 				initiator => "server",
 			},
 		);
-		$self->log("Connection timeout for $_");
-		
+		$self->log("Connection timeout for $fno");
 	}
-	
+
 }
 
 sub pingConnections {
 	my ($self) = @_;
-	lock($self->{connections});
-
-	my @ids = keys %{ $self->{connections} };
-	return if !@ids;
-
-	foreach (@ids) {
-		my $c = $self->{connections}{$_};
-		lock($c);
+	my @connections;
+	{
+		my $conns = $self->{connections};
+		lock($conns);
 		
-		next unless $c->{keepalive};
+		@connections = values %$conns;
+	}
+	return unless @connections;
 
+	foreach my $c (@connections) {
+		lock($c);
+
+		next unless $c->{keepalive};
+		
+		my $fno = $c->{fno};
 		if ($c->{timeSample1} && !$c->{timeSample2}) {
 			$self->closeConnection(
-				$_,
+				$fno,
 				{   reason    => "keepaliveTimeout",
 					avgPing   => $c->{avgPing},
 					initiator => "server",
 				},
 			);
-			$self->log("Connection keepalive timeout for $_");
+			$self->log("Connection keepalive timeout for $fno");
 			next;
 		}
 
 		if ($c->{timeSample1}) {
 			$c->{ping} = int(($c->{timeSample2} - $c->{timeSample1}) * 1000);
 			$self->calcAvgPing($c);
-			$self->debug("Ping for $_ from $c->{peerhost} is $c->{ping} ($c->{avgPing})");
+			$self->debug("Ping for $fno from $c->{peerhost} is $c->{ping} ($c->{avgPing})");
 		}
 
 		$c->{timeSample1} = time;
 		$c->{timeSample2} = 0;
 
-		$self->sendData("-ping-", $_);
+		$self->sendData("-ping-", $fno);
 	}
 }
 

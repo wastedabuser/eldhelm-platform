@@ -42,8 +42,13 @@ sub getConnection {
 	$fno ||= $self->{fno};
 	return if !$fno;
 
-	lock($self->{connections});
-	my $connData = $self->{connections}{$fno};
+	my $connData;
+	{
+		my $conns = $self->{connections};
+		lock($conns);
+		
+		$connData = $conns->{$fno};
+	}
 	return if !$connData;
 
 	lock($connData);
@@ -52,11 +57,17 @@ sub getConnection {
 
 sub getAllConnections {
 	my ($self) = @_;
-	lock($self->{connections});
+	my @connections;
+	{
+		my $conns = $self->{connections};
+		lock($conns);
+		
+		@connections = values %$conns;
+	}
+	return [] unless @connections;
 
 	my @list;
-	foreach (keys %{ $self->{connections} }) {
-		my $conn = $self->{connections}{$_};
+	foreach my $conn (@connections) {
 		lock($conn);
 
 		push @list, Eldhelm::Util::Tool::cloneStructure($conn);

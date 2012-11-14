@@ -139,17 +139,24 @@ sub addEvent {
 sub unbind {
 	my ($self, $type, $id) = @_;
 	my $events = $self->get("__events");
-	lock($events);
 
 	if ($id =~ /^\d+$/) {
-		my $tpEvents = $events->{$type};
+		my $tpEvents;
+		{
+			lock($events);
+			$tpEvents = $events->{$type};
+		}
 		return $self unless $tpEvents;
 		lock($tpEvents);
 
 		delete $tpEvents->{$id};
 
 	} elsif ($id) {
-		my $tpEvents = $events->{$type};
+		my $tpEvents;
+		{
+			lock($events);
+			$tpEvents = $events->{$type};
+		}
 		return $self unless $tpEvents;
 		lock($tpEvents);
 
@@ -159,6 +166,7 @@ sub unbind {
 		}
 
 	} else {
+		lock($events);
 		delete $events->{$type};
 	}
 	return $self;
@@ -167,19 +175,28 @@ sub unbind {
 sub trigger {
 	my ($self, $type, $options) = @_;
 	my $events = $self->get("__events");
-	return $self if !$events;
-	lock($events);
+	return $self unless $events;
 
-	my ($tpEvents, $id, $ev, $handle) = ($events->{$type});
-	return $self if !$tpEvents;
-	lock($tpEvents);
-
-	my @ids = keys %$tpEvents;
-	foreach $id (@ids) {
-		$ev = $tpEvents->{$id};
-		$self->doEvent($ev, $options);
-		delete $tpEvents->{$id} if $ev->{one};
+	my $tpEvents;
+	{
+		lock($events);
+		$tpEvents = $events->{$type};
 	}
+	return $self unless $tpEvents;
+
+	my @events;
+	{
+		lock($tpEvents);
+		my ($ev, $id);
+		my @ids = keys %$tpEvents;
+		foreach $id (@ids) {
+			$ev = $tpEvents->{$id};
+			push @events, Eldhelm::Util::Tool::cloneStructure($ev);
+			delete $tpEvents->{$id} if $ev->{one};
+		}
+	}
+
+	$self->doEvent($_, $options) foreach @events;
 
 	return $self;
 }
