@@ -33,6 +33,7 @@ sub connect {
 		$self->{pass},
 		{   RaiseError => 1,
 			PrintError => 0,
+			AutoCommit => 0,
 		}
 	);
 	$self->{dbh}->do("SET NAMES UTF8");
@@ -261,6 +262,21 @@ sub insertArray {
 sub createInPlaceholder {
 	my ($self, $field, $list) = @_;
 	return "$field IN (".join(",", map { "?" } @$list).")";
+}
+
+sub transaction {
+	my ($_currentPackageSelfRef_, $_currentPackageCodeRef_, @_currentPackageArgs_) = @_;
+	my $dbh = $_currentPackageSelfRef_->dbh;
+	my $result;
+	eval {
+		$result = $_currentPackageCodeRef_->($_currentPackageSelfRef_, @_currentPackageArgs_);
+		$dbh->commit;
+	};
+	if ($@) {
+		warn "Transaction aborted because: $@";
+		eval { $dbh->rollback };
+	}
+	return $result;
 }
 
 1;
