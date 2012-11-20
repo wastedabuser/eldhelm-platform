@@ -17,6 +17,11 @@ sub new {
 	return $self;
 }
 
+sub worker {
+	my ($self) = @_;
+	return Eldhelm::Server::Child->instance;
+}
+
 sub init {
 	my ($self, $data) = @_;
 	$self->setRule($data->[0]);
@@ -29,6 +34,21 @@ sub setRule {
 	if ($rule =~ /^(\d+):(\d+):?(\d*)$/) {
 		$self->{time} = Date_to_Time(Today(), $1, $2, $3 || 0);
 		$self->{interval} = [ 0, 0, 1, 0, 0, 0 ];
+	} elsif ($rule =~ /^(\d+)h/) {
+		$self->{time} = $self->curTime;
+		$self->{interval} = [ 0, 0, 0, $1, 0, 0 ];
+	} elsif ($rule =~ /^(\d+)m/) {
+		$self->{time} = $self->curTime;
+		$self->{interval} = [ 0, 0, 0, 0, $1, 0 ];
+	} elsif ($rule =~ /^(\d+)s/) {
+		$self->{time} = $self->curTime;
+		$self->{interval} = [ 0, 0, 0, 0, 0, $1 ];
+	} elsif ($rule > 0) {
+		$self->{time} = $self->curTime;
+		$self->{interval} = [ 0, 0, 0, 0, 0, int($rule) ];
+	} else {
+		$self->worker->error("Unable to set shedule rule for: $rule");
+		$self->{wait} = 1;
 	}
 	$self->nextTime if $self->{time} <= $self->curTime;
 }
@@ -59,7 +79,7 @@ sub setTime {
 
 sub nextTime {
 	my ($self) = @_;
-	$self->{time} = Date_to_Time(Add_Delta_YMDHMS(Time_to_Date($self->{time}), @{ $self->{interval} }));
+	return $self->{time} = Date_to_Time(Add_Delta_YMDHMS(Time_to_Date($self->{time}), @{ $self->{interval} }));
 }
 
 sub curTime {

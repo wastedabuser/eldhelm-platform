@@ -213,6 +213,11 @@ sub redirect {
 	return $self;
 }
 
+sub redirectNoCache {
+	my ($self, $url) = @_;
+	return $self->redirect($url)->addHeaders("Cache-Control: no-cache, must-revalidate");
+}
+
 sub addHeaders {
 	my ($self, @headers) = @_;
 	push @{ $self->{responseHeaders} }, @headers
