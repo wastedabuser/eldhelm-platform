@@ -149,13 +149,7 @@ sub init {
 
 	$SIG{INT} = sub {
 		my $sig = shift @_;
-		$self->error("Server shutting down by user command");
-		$self->saveStateAndShutDown;
-	};
-
-	$SIG{KILL} = sub {
-		my $sig = shift @_;
-		$self->error("Server shutting down by kill command");
+		$self->error("Server shutting down by int command");
 		$self->saveStateAndShutDown;
 	};
 	
@@ -163,6 +157,12 @@ sub init {
 		my $sig = shift @_;
 		$self->error("Server shutting down by term command");
 		$self->saveStateAndShutDown;
+	};
+	
+	$SIG{HUP} = sub {
+		my $sig = shift @_;
+		$self->error("Server restarting gracefully by hup command");
+		$self->gracefullRestart;
 	};
 }
 
