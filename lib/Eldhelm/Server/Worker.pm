@@ -8,7 +8,7 @@ use Thread::Suspend;
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Handler::Factory;
 use Data::Dumper;
-use Time::HiRes;
+use Time::HiRes qw(usleep);
 use Carp;
 use Carp qw(longmess);
 
@@ -27,9 +27,15 @@ sub new {
 		bless $self, $class;
 
 		$self->addInstance;
+		$self->init;
 		$self->run;
 	}
 	return $self;
+}
+
+sub init {
+	my ($self) = @_;
+	$self->{suspendWorkers} = $self->getConfig("server.suspendWorkers");
 }
 
 # =================================
@@ -38,13 +44,17 @@ sub new {
 
 sub run {
 	my ($self) = @_;
-	my ($conn, $data); 
+	my ($conn, $data);
 	while (1) {
 		($conn, $data) = $self->fetchTask;
 		if ($conn && $conn eq "connectionError") {
 			next;
 		} elsif (!$data) {
-			$self->suspend;
+			if ($self->{suspendWorkers}) {
+				$self->suspend;
+			} else {
+				usleep(1000);
+			}
 			next;
 		}
 		$self->runTask($conn, $data);
@@ -64,7 +74,11 @@ sub fetchTask {
 	{
 		my $queue = $self->{workerQueue};
 		lock($queue);
-		$self->log("Fetching (queue length ".scalar(@$queue).")");
+
+		my $ln = scalar(@$queue);
+		return () unless $ln;
+
+		$self->log("Fetching (queue length $ln)");
 		$task = shift @$queue;
 	}
 	return () if !$task;

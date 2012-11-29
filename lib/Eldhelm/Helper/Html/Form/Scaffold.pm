@@ -24,22 +24,12 @@ sub new {
 sub createFields {
 	my ($self) = @_;
 
-	my $dbh = $self->{dbPool}->getDbh;
-
-	my $sth = $dbh->column_info(undef, $self->{dbPool}{dbs}, $self->{table}, "%");
-	my $list = $sth->fetchall_arrayref({});
-
-	my $sth = $dbh->foreign_key_info(undef, undef, undef, undef, $self->{dbPool}{dbs}, $self->{table});
-	my $allKeys = $sth->fetchall_arrayref({});
-	my %fks;
-	foreach (grep { $_->{PKTABLE_NAME} } @$allKeys) {
-		$fks{ $_->{FKCOLUMN_NAME} } = $_;
-	}
+	my ($list, $fks) = $self->{dbPool}->getDb->getColumnAndFkInfo($self->{table});
 
 	my $field;
-	foreach (sort { $a->{ORDINAL_POSITION} <=> $b->{ORDINAL_POSITION} } @$list) {
+	foreach (@$list) {
 		(my $lbl = ucfirst $_->{COLUMN_NAME}) =~ s/_+(.)/" ".uc($1)/ge;
-		my $fk = $fks{ $_->{COLUMN_NAME} };
+		my $fk = $fks->{ $_->{COLUMN_NAME} };
 
 		next if $self->{skipMap}{ $_->{COLUMN_NAME} };
 

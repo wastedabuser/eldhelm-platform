@@ -75,7 +75,7 @@ sub init {
 	my $httpConfig = $self->worker->getConfig("server.http");
 	my $hostConfig = $httpConfig->{host}{ $self->{host} };
 
-	foreach (qw(documentRoot directoryIndex rewriteUrl statusHandlers)) {
+	foreach (qw(documentRoot directoryIndex rewriteUrl rewriteUrlCache statusHandlers)) {
 		my $prop = $httpConfig->{$_};
 		if (!$hostConfig || !$hostConfig->{$_}) {
 			$self->{$_} = $prop;
@@ -90,6 +90,8 @@ sub init {
 			$self->{$_} = $hostProp || $prop;
 		}
 	}
+
+	$self->{urlCache} = $self->worker->{urlCache}{$host} ||= {} if $self->{rewriteUrlCache};
 }
 
 sub parseContent {
@@ -166,6 +168,14 @@ sub routeAction {
 
 sub rewriteUrl {
 	my ($self, $url) = @_;
+
+	my $origUrl = $url;
+	if ($self->{urlCache} && $self->{urlCache}{$origUrl}) {
+		my $cache = $self->{urlCache}{$origUrl};
+		%{ $self->{get} } = %{ $cache->[1] };
+		return $cache->[0];
+	}
+
 	if ($self->{rewriteUrl}) {
 		foreach (@{ $self->{rewriteUrl} }) {
 			if (!$_->[0] && !$url) {
@@ -180,6 +190,10 @@ sub rewriteUrl {
 			}
 		}
 	}
+
+	$self->{urlCache}{$origUrl} = [ $url, { %{ $self->{get} } } ]
+		if $self->{urlCache};
+
 	return $url;
 }
 

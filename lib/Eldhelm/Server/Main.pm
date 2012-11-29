@@ -30,28 +30,29 @@ sub new {
 	my $instance = $class->instance;
 	if (!defined $instance) {
 		$instance = {
-			info                => { version => "1.1.0" },
-			ioSocketList        => [],
-			config              => {},
-			workers             => [],
-			workerQueue         => {},
-			connId              => 1,
-			connidMap           => {},
-			filenoMap           => {},
-			streamMap           => {},
-			buffMap             => {},
-			connectionHandles   => {},
-			connections         => shared_clone({}),
-			connectionEvents    => shared_clone({}),
-			delayedEvents       => shared_clone({}),
-			responseQueue       => shared_clone({}),
-			closeQueue          => shared_clone({}),
-			persists            => shared_clone({}),
-			persistsByType      => shared_clone({}),
-			persistLookup       => shared_clone({}),
-			workerStats         => {},
-			connectionWorkerMap => {},
-			jobQueue            => shared_clone([]),
+			info                 => { version => "1.1.0" },
+			ioSocketList         => [],
+			config               => {},
+			workers              => [],
+			workerQueue          => {},
+			connId               => 1,
+			connidMap            => {},
+			filenoMap            => {},
+			streamMap            => {},
+			buffMap              => {},
+			connectionHandles    => {},
+			connections          => shared_clone({}),
+			connectionEvents     => shared_clone({}),
+			delayedEvents        => shared_clone({}),
+			responseQueue        => shared_clone({}),
+			closeQueue           => shared_clone({}),
+			persists             => shared_clone({}),
+			persistsByType       => shared_clone({}),
+			persistLookup        => shared_clone({}),
+			workerStats          => {},
+			connectionWorkerMap  => {},
+			connectionWorkerLoad => {},
+			jobQueue             => shared_clone([]),
 		};
 		bless $instance, $class;
 
@@ -133,6 +134,7 @@ sub init {
 	$self->createExecutor;
 
 	# start workers
+	$self->{suspendWorkers} = $cnf->{suspendWorkers};
 	foreach (1 .. $cnf->{workerCount} || 1) {
 		$self->createWorker;
 	}
@@ -152,13 +154,13 @@ sub init {
 		$self->error("Server shutting down by int command");
 		$self->saveStateAndShutDown;
 	};
-	
+
 	$SIG{TERM} = sub {
 		my $sig = shift @_;
 		$self->error("Server shutting down by term command");
 		$self->saveStateAndShutDown;
 	};
-	
+
 	$SIG{HUP} = sub {
 		my $sig = shift @_;
 		$self->error("Server restarting gracefully by hup command");
@@ -200,8 +202,9 @@ sub createWorker {
 			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents jobQueue)
 	);
 	$self->log("Created worker: ".$t->tid);
-	$self->{workerQueue}{ $t->tid } = $workerQueue;
-	$self->{workerStats}{ $t->tid }{jobs} = 0;
+	$self->{workerQueue}{ $t->tid }          = $workerQueue;
+	$self->{workerStats}{ $t->tid }{jobs}    = 0;
+	$self->{connectionWorkerLoad}{ $t->tid } = 0;
 	$t->detach();
 	push @{ $self->{workers} }, $t;
 	return;
@@ -210,18 +213,15 @@ sub createWorker {
 sub listen {
 	my ($self) = @_;
 
-	my ($socketList, $select, $config, $acceptFlag, $hasWork, $hasPending, $data, @clients) =
+	my ($socketList, $select, $config, $acceptFlag, $hasPending, $data, @clients) =
 		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server});
 	$self->log("Eldhelm server ready and listening ...");
 
 	while (1) {
 
-		$hasWork = $self->activeWorkersCount;
-		usleep(5000 * $hasWork) if !$config->{multicore} && $hasWork;
-
 		$self->message("will read from socket");
 		@clients =
-			$select->can_read($hasPending || $hasWork || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
+			$select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
 		foreach my $fh (@clients) {
 			$acceptFlag = 0;
 			foreach my $socket (@$socketList) {
@@ -447,7 +447,8 @@ sub removeConnection {
 		$event = delete $self->{closeQueue}{$id};
 	}
 	delete $self->{connidMap}{$id};
-	delete $self->{connectionWorkerMap}{$id};
+	my $t = delete $self->{connectionWorkerMap}{$id};
+	$self->{connectionWorkerLoad}{ $t->tid }-- if $t;
 
 	return if !$fileno;
 	delete $self->{filenoMap}{$fileno};
@@ -605,7 +606,8 @@ sub delegateToWorker {
 		push @$queue, shared_clone([ $id, $data ]);
 	}
 	$self->{workerStats}{$tid}{jobs}++;
-	$t->resume if $t->is_suspended;
+	
+	$t->resume if $self->{suspendWorkers};
 
 	return;
 }
@@ -618,27 +620,32 @@ sub selectWorker {
 
 	foreach my $t (@{ $self->{workers} }) {
 		my $isSusp = $t->is_suspended;
-		$chosen = $t if !$chosen && $isSusp;
-		my $tid = $t->tid;
-		push @list,
-			{
-			tid    => $tid,
-			status => $isSusp ? "_" : "W",
-			size   => scalar @{ $self->{workerQueue}{$tid} },
-			trd    => $t
-			};
+		my $tid    = $t->tid;
+		my %stats  = (
+			tid      => $tid,
+			sleeping => $isSusp ? 1 : 2,
+			status   => $isSusp ? "_" : "W",
+			queue    => scalar @{ $self->{workerQueue}{$tid} },
+			conn     => $self->{connectionWorkerLoad}{$tid},
+			trd      => $t
+		);
+		$stats{weight} = ($stats{queue} + $stats{conn}) * $stats{sleeping};
+		push @list, \%stats;
 
 	}
 	$self->log(
 		"Worker load: ["
 			.join(", ",
-			map { "$_->{tid}:$_->{status}:$_->{size}\($self->{workerStats}{$_->{tid}}{jobs}\)" } @list)
+			map { "$_->{tid}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" } @list)
 			."]"
 	);
-	$chosen = [ sort { $a->{size} <=> $b->{size} } @list ]->[0]{trd}
+	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
 		if !$chosen;
 
-	$self->{connectionWorkerMap}{$id} ||= $chosen if $id;
+	if ($id && !$self->{connectionWorkerMap}{$id}) {
+		$self->{connectionWorkerMap}{$id} = $chosen;
+		$self->{connectionWorkerLoad}{ $chosen->tid }++;
+	}
 
 	return $chosen;
 }

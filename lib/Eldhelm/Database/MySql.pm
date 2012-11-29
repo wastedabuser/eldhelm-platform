@@ -96,7 +96,11 @@ sub fetchArrayOfArrays {
 sub fetchColumn {
 	my ($self, $query, @params) = @_;
 	my $sth = $self->query($query, @params);
-	return $sth->fetchall_arrayref([0]) || [];
+	my @result;
+	while (my @row = $sth->fetchrow_array) {
+		push @result, $row[0];
+	}
+	return \@result;
 }
 
 sub fetchHash {
@@ -129,16 +133,6 @@ sub fetchAssocArray {
 	return Eldhelm::Util::Tool->assocArray($data, $key);
 }
 
-sub fetchColumn {
-	my ($self, $query, @params) = @_;
-	my $sth = $self->query($query, @params);
-	my @result;
-	while (my @row = $sth->fetchrow_array) {
-		push @result, $row[0];
-	}
-	return \@result;
-}
-
 sub desc {
 	my ($self, $table) = @_;
 	return $self->fetchArray("DESC `$table`");
@@ -151,6 +145,26 @@ sub descHash {
 		$self->{descCache}{$table} = { map { +$_->{Field} => $_ } @$cols };
 	}
 	return $self->{descCache}{$table};
+}
+
+sub getColumnAndFkInfo {
+	my ($self, $table) = @_;
+	if (!$self->{colAndFkInfoCache}{$table}) {
+		my $dbh     = $self->dbh;
+		my $sth     = $dbh->column_info(undef, $self->{dbs}, $table, "%");
+		my $list    = $sth->fetchall_arrayref({});
+		my $sth     = $dbh->foreign_key_info(undef, undef, undef, undef, $self->{dbs}, $table);
+		my $allKeys = $sth->fetchall_arrayref({});
+
+		my %fks;
+		foreach (grep { $_->{PKTABLE_NAME} } @$allKeys) {
+			$fks{ $_->{FKCOLUMN_NAME} } = $_;
+		}
+
+		$self->{colAndFkInfoCache}{$table} =
+			[ [ sort { $a->{ORDINAL_POSITION} <=> $b->{ORDINAL_POSITION} } @$list ], \%fks ];
+	}
+	return @{ $self->{colAndFkInfoCache}{$table} };
 }
 
 sub parseDate {
