@@ -22,7 +22,7 @@ sub new {
 sub readFile {
 	my ($self, $path) = @_;
 	open FR, $path or confess $!;
-	$self->{lines} = [<FR>];
+	$self->{lines} = [ map { s/[\n\r]//g; $_ } <FR> ];
 	Encode::_utf8_on($_) foreach @{ $self->{lines} };
 	close FR;
 	return;
@@ -43,7 +43,7 @@ sub parse {
 
 sub tokenize {
 	my ($self, $stream) = @_;
-	my ($buffer, $flag, $esc);
+	my ($buffer, $flag, $esc, $inlineCommentFlag);
 	my $tokens = $self->{tokens} = [];
 	my ($lnum, $cnum) = (0);
 	foreach my $l (@{ $self->{lines} }) {
@@ -82,6 +82,10 @@ sub tokenize {
 				$flag = !$flag;
 				next;
 			}
+			if ($_ eq "/" && $chars[$cnum] eq "/") {
+				$inlineCommentFlag = 1;
+				last;
+			}
 			next if /[\s\t]/;
 			if (/[\[\]]/) {
 				push @$tokens, [ "array", $_, $lnum, $cnum ];
@@ -96,6 +100,11 @@ sub tokenize {
 				next;
 			}
 			confess "Unexpected symbol '$_' in line '$l' at line $lnum, character $cnum";
+		}
+		if ($inlineCommentFlag && @$tokens) {
+			$inlineCommentFlag = 0;
+			my $lastTkn = $tokens->[-1][0] eq "symbol" ? $tokens->[-2] : $tokens->[-1];
+			push @$lastTkn, join "", @chars[ $cnum + 1 .. $#chars ];
 		}
 	}
 }

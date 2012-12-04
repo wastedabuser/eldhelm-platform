@@ -30,7 +30,7 @@ sub new {
 	my $instance = $class->instance;
 	if (!defined $instance) {
 		$instance = {
-			info                 => { version => "1.1.0" },
+			info                 => { version => "1.2.0" },
 			ioSocketList         => [],
 			config               => {},
 			workers              => [],

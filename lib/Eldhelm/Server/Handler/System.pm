@@ -52,13 +52,22 @@ sub handleAction {
 
 sub handleConnectionEvent {
 	my ($self) = @_;
-	$_->trigger($self->{eventType}, $self->{eventOptions}) foreach $self->worker->findPersist("eventFno", $self->{eventFno});
+	$_->trigger($self->{eventType}, $self->{eventOptions})
+		foreach $self->worker->findPersist("eventFno", $self->{eventFno});
 }
 
 sub handleDelayEvent {
 	my ($self) = @_;
-	my $persist = $self->worker->getPersist($self->{data}{persistId});
-	$persist->doEvent($self->{data}) if $persist;
+	my $event = $self->{data};
+
+	my $persistId = $event->{persistId};
+	if ($persistId) {
+		my $persist = $self->worker->getPersist($persistId);
+		$persist->doEvent($event) if $persist;
+		return;
+	}
+
+	$self->router->executeAction($event->{handle}, $self, $event->{args});
 }
 
 sub evaluateCode {

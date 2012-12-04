@@ -98,7 +98,7 @@ sub getPersist {
 sub getPersistFromRef {
 	my ($self, $persistData) = @_;
 	lock($persistData);
-	
+
 	return Eldhelm::Util::Factory->instanceFromScalar($persistData->{persistType}, $persistData);
 }
 
@@ -177,6 +177,45 @@ sub unregisterPersistLookup {
 	delete $plkp->{$key};
 
 	return $key;
+}
+
+sub delay {
+	my ($self, $interval, $handle, $args, $persistId) = @_;
+	my $devs = $self->{delayedEvents};
+	lock($devs);
+
+	my $stamp = time + $interval;
+	my $list  = $devs->{$stamp};
+	$list = $devs->{$stamp} = shared_clone([]) if !$list;
+
+	my $num = scalar @$list;
+	push @$list,
+		shared_clone(
+		{   persistId => $persistId,
+			stamp     => $stamp,
+			handle    => $handle,
+			args      => $args,
+		}
+		);
+
+	return "$stamp-$num";
+}
+
+sub cancelDelay {
+	my ($self, $delayId) = @_;
+
+	my ($stamp, $num) = split /-/, $delayId;
+	return $self if !$stamp || !defined $num;
+
+	my $devs = $self->{delayedEvents};
+	lock($devs);
+
+	my $list = $devs->{$stamp};
+	return $self unless $list;
+
+	$list->[$num]{canceled} = 1;
+
+	return $self;
 }
 
 # =================================
