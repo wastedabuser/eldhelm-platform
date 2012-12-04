@@ -32,7 +32,7 @@ sub arrayShuffle {
 sub assocArray {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
-	my @keys = ref $key eq "ARRAY" ? @$key : $key;
+	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
 	my $lk = pop @keys;
 	my %result;
 	foreach my $it (@$array) {
@@ -46,7 +46,7 @@ sub assocArray {
 sub mapArray {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
-	my @keys = ref $key eq "ARRAY" ? @$key : $key;
+	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
 	my $lk = pop @keys;
 	my %result;
 	foreach my $it (@$array) {
@@ -103,9 +103,9 @@ sub cloneStructure {
 	my ($ref) = @_;
 	my $nRef;
 	if (Scalar::Util::reftype($ref) eq 'ARRAY') {
-		$nRef = [map { cloneStructure($_) } @$ref];
+		$nRef = [ map { cloneStructure($_) } @$ref ];
 	} elsif (Scalar::Util::reftype($ref) eq 'HASH') {
-		$nRef = { map { +$_ => cloneStructure($ref->{$_}) } keys %$ref }
+		$nRef = { map { +$_ => cloneStructure($ref->{$_}) } keys %$ref };
 	} elsif (!ref $ref) {
 		$nRef = $ref;
 	}
