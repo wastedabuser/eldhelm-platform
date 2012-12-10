@@ -218,7 +218,8 @@ sub indent {
 
 sub deparse {
 	my ($self) = @_;
-	$self->{stream} = $self->deparseChunk($self->{syntax}, 0);
+	my @chunks = $self->deparseChunk($self->{syntax}, 0);
+	$self->{stream} = $chunks[0];
 	Encode::_utf8_off($self->{stream});
 	return $self->{stream};
 }
@@ -232,12 +233,18 @@ sub deparseChunk {
 
 sub _deparse_string {
 	my ($self, $data, $level) = @_;
-	return qq~"$data->[1]"~;
+	confess "Can not deparse a new line character in string: $data->[1]" if $data->[1] =~ /[\n\r]/;
+	return (qq~"$data->[1]"~, $data->[4] || ());
 }
 
 sub _deparse_comment {
 	my ($self, $data, $level) = @_;
-	return qq~//$data->[1]$self->{le}~;
+	return (qq~//$data->[1]$self->{le}~);
+}
+
+sub deparseInlineComment {
+	my ($self, $str) = @_;
+	return qq~ //$str~;
 }
 
 sub _deparse_array {
@@ -246,12 +253,16 @@ sub _deparse_array {
 	my $ret  = "[$self->{le}";
 	my $i    = 0;
 	foreach (@list) {
-		$ret .= $self->indent($level + 1).$self->deparseChunk($_, $level + 1);
-		$ret .= ",$self->{le}" if $_->[0] ne "comment" && $i < @list - 1;
+		my @chunks = $self->deparseChunk($_, $level + 1);
+		$ret .= $self->indent($level + 1).$chunks[0];
+		my $flag = $_->[0] ne "comment" && $i < @list - 1;
+		$ret .= "," if $flag;
+		$ret .= $self->deparseInlineComment($chunks[1]) if $chunks[1];
+		$ret .= $self->{le} if $flag;
 		$i++;
 	}
 	$ret .= $self->{le}.$self->indent($level)."]";
-	return $ret;
+	return ($ret);
 }
 
 sub _deparse_object {
@@ -260,17 +271,24 @@ sub _deparse_object {
 	my $ret  = "{$self->{le}";
 	my $i    = 0;
 	foreach (@list) {
-		$ret .= $self->indent($level + 1).$self->deparseChunk($_, $level + 1);
-		$ret .= ",$self->{le}" if $_->[0] ne "comment" && $i < @list - 1;
+		my @chunks = $self->deparseChunk($_, $level + 1);
+		$ret .= $self->indent($level + 1).$chunks[0];
+		my $flag = $_->[0] ne "comment" && $i < @list - 1;
+		$ret .= "," if $flag;
+		$ret .= $self->deparseInlineComment($chunks[1]) if $chunks[1];
+		$ret .= $self->{le} if $flag;
 		$i++;
 	}
 	$ret .= $self->{le}.$self->indent($level)."}";
-	return $ret;
+	return ($ret);
 }
 
 sub _deparse_pair {
 	my ($self, $data, $level) = @_;
-	return qq~"$data->[1]": ~.$self->deparseChunk($data->[2], $level);
+	my @chunks = $self->deparseChunk($data->[2], $level);
+	my $ch0 = shift @chunks;
+	confess "Can not deparse a new line character in pair key: $data->[1]" if $data->[1] =~ /[\n\r]/;
+	return (qq~"$data->[1]": $ch0~, @chunks);
 }
 
 sub deparseToFile {

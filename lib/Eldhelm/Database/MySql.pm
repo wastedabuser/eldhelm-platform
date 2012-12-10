@@ -116,14 +116,9 @@ sub fetchHash {
 
 sub fetchKeyValue {
 	my ($self, $query, @params) = @_;
-	my $value = pop @params;
-	my $key   = pop @params;
-	my $sth   = $self->query($query, @params);
-	my %result;
-	while (my $row = $sth->fetchrow_hashref) {
-		$result{ $row->{$key} } = $row->{$value};
-	}
-	return \%result;
+	my $key = pop @params;
+	my $data = $self->fetchArray($query, @params);
+	return Eldhelm::Util::Tool->assocKeyValue($data, $key);
 }
 
 sub fetchAssocArray {
