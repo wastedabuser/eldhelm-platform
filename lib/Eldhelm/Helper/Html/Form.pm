@@ -1,17 +1,20 @@
 package Eldhelm::Helper::Html::Form;
 
 use strict;
+use Carp;
 use Data::Dumper;
 
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
-		fields     => $args{fields}     || [],
+		items => $args{items} || [],
 		action     => $args{action},
-		method     => $args{method}     || "post",
+		method     => $args{method} || "post",
 		formValues => $args{formValues} || {},
 	};
 	bless $self, $class;
+
+	$self->addFields($args{fields}) if $args{fields};
 
 	return $self;
 }
@@ -28,22 +31,32 @@ sub enc {
 sub compile {
 	my ($self) = @_;
 
-	my $fields = join "\n", map { "\t<p>$_</p>" } @{ $self->{fields} };
+	my $items = join "\n", map { "\t<p>$_</p>" } @{ $self->{items} };
 
 	return qq~<form action="$self->{action}" method="$self->{method}">
-$fields
+$items
 </form>~;
+}
+
+sub addFields {
+	my ($self, $list) = @_;
+	foreach (@$list) {
+		confess "Unknown field type $_->{type}" unless $_->{type};
+		my $fn = "create".ucfirst($_->{type});
+		$self->add($self->$fn($_));
+	}
 }
 
 sub add {
 	my ($self, $field) = @_;
-	push @{ $self->{fields} }, $field;
+	push @{ $self->{items} }, $field;
 	return $self;
 }
 
 sub createFieldProperties {
 	my ($self, $args, $custom) = @_;
 	$custom ||= [];
+
 	# $args->{value} ||= $self->{formValues}{ $args->{name} } if $args->{name};
 	return join " ", map { qq~$_="~.$self->enc($args->{$_}).'"' }
 		grep { defined $args->{$_} } qw(type id name value class), @$custom;
@@ -76,7 +89,7 @@ sub createValue {
 sub createHidden {
 	my ($self, $args) = @_;
 	$args ||= {};
-	$args->{type} = "hidden";
+	$args->{type}  = "hidden";
 	$args->{value} = $self->createValue($args);
 	return $self->createInput($args);
 }
@@ -84,7 +97,7 @@ sub createHidden {
 sub createText {
 	my ($self, $args) = @_;
 	$args ||= {};
-	$args->{type} = "text";
+	$args->{type}  = "text";
 	$args->{value} = $self->createValue($args);
 	return $self->createInput($args);
 }
@@ -94,9 +107,9 @@ sub createCheckbox {
 	$args ||= {};
 	$args->{type} = "checkbox";
 	$args->{checkedValue} ||= 1;
-	$args->{value} = $self->createValue($args);
+	$args->{value}   = $self->createValue($args);
 	$args->{checked} = ($args->{value} eq $args->{checkedValue}) || undef;
-	$args->{value} = $args->{checkedValue};
+	$args->{value}   = $args->{checkedValue};
 	return $self->createHidden({ staticValue => 0, name => $args->{name} })
 		.$self->createInput($args, { customAttributes => ["checked"] });
 }
@@ -105,11 +118,11 @@ sub createCombo {
 	my ($self, $args, $items) = @_;
 	$args  ||= {};
 	$items ||= [];
-	$args->{type} = "select";
+	$args->{type}  = "select";
 	$args->{value} = $self->createValue($args);
-	my $cont = join "\n",
-		map { qq~\t\t<option value="$_->{key}" ~.($args->{value} eq $_->{key} ? "selected" : "").qq~>$_->{value}</option>~ }
-		@$items;
+	my $cont = join "\n", map {
+		qq~\t\t<option value="$_->{key}" ~.($args->{value} eq $_->{key} ? "selected" : "").qq~>$_->{value}</option>~
+	} @$items;
 	delete $args->{value};
 	return $self->createInput(
 		$args,
@@ -136,6 +149,13 @@ sub createSubmit {
 	my ($self, $args) = @_;
 	$args ||= {};
 	$args->{type} = "submit";
+	return $self->createInput($args);
+}
+
+sub createReset {
+	my ($self, $args) = @_;
+	$args ||= {};
+	$args->{type} = "reset";
 	return $self->createInput($args);
 }
 

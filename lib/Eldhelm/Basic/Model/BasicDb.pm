@@ -46,12 +46,28 @@ sub orderClause {
 	return @list ? "ORDER BY ".join(",", @list) : "";
 }
 
+sub setPage {
+	my ($self, $page, $size) = @_;
+	$self->{limitOffset} = ($page - 1) * $size;
+	$self->{limitAmount} = $size;
+}
+
+sub limitClause {
+	my ($self, $value) = @_;
+	unless ($value) {
+		$value = "$self->{limitOffset}, $self->{limitAmount}"
+			if $self->{limitOffset} =~ /^\d+$/ && $self->{limitAmount};
+	}
+	return $value ? "LIMIT $value" : "";
+}
+
 sub getAll {
 	my ($self, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;
 	my $what  = $self->chooseFields($fields) || "*";
 	my $order = $self->orderClause;
-	return $sql->fetchArray("SELECT $what FROM `$self->{table}` $order");
+	my $limit = $self->limitClause;
+	return $sql->fetchArray("SELECT $what FROM `$self->{table}` $order $limit");
 }
 
 sub getHash {
@@ -103,7 +119,8 @@ sub filter {
 	my $what   = $self->chooseFields($fields) || "*";
 	my $filter = $self->createFilter($filter);
 	my $order  = $self->orderClause;
-	return $sql->fetchArray("SELECT $what FROM `$self->{table}` WHERE $filter->{compiled} $order",
+	my $limit  = $self->limitClause;
+	return $sql->fetchArray("SELECT $what FROM `$self->{table}` WHERE $filter->{compiled} $order $limit",
 		@{ $filter->{data} });
 }
 
@@ -128,6 +145,19 @@ sub remove {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
 	$sql->deleteRow($self->{table}, $data);
+}
+
+sub countAll {
+	my ($self) = @_;
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchScalar("SELECT COUNT(*) FROM `$self->{table}`");
+}
+
+sub countByFilter {
+	my ($self, $filter) = @_;
+	my $sql    = $self->{dbPool}->getDb;
+	my $filter = $self->createFilter($filter);
+	return $sql->fetchScalar("SELECT COUNT(*) FROM `$self->{table}` WHERE $filter->{compiled}", @{ $filter->{data} });
 }
 
 1;
