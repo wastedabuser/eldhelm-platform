@@ -155,7 +155,7 @@ sub compile {
 			push @controls, qq~<a href="$purl">prev page</a>~;
 		}
 		my $pn = $self->{page} + 1;
-		if ($pn < $self->{pageCount}) {
+		if ($pn <= $self->{pageCount}) {
 			my $nurl = $baseUrl->compileWithParams({ helper_html_table_page => $pn });
 			my $lurl = $baseUrl->compileWithParams({ helper_html_table_page => $self->{pageCount} });
 			push @controls, qq~<a href="$nurl">next page</a>~;
