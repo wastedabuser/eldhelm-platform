@@ -9,6 +9,7 @@ use Socket;
 use POSIX;
 use IO::Handle;
 use IO::Select;
+use IO::Socket::SSL qw(debug3);
 use IO::Socket::INET;
 use Eldhelm::Server::Worker;
 use Eldhelm::Server::Logger;
@@ -30,7 +31,7 @@ sub new {
 	my $instance = $class->instance;
 	if (!defined $instance) {
 		$instance = {
-			info                 => { version => "1.2.0" },
+			info                 => { version => "1.2.1" },
 			ioSocketList         => [],
 			config               => {},
 			workers              => [],
@@ -108,24 +109,47 @@ sub init {
 	my $cnf = $self->{config}{server};
 	my ($host, $port) = ($cnf->{host}, $cnf->{port});
 	my @listen;
-	@listen = map { { host => $_->{host} || $cnf->{host}, port => $_->{port} || $cnf->{port} } } @{ $cnf->{listen} }
+	@listen = map {
+		{   host => $_->{host} || $cnf->{host},
+			port => $_->{port} || $cnf->{port},
+			ssl  => $_->{ssl}  || $cnf->{ssl}
+		}
+		} @{ $cnf->{listen} }
 		if ref $cnf->{listen};
+
 	foreach ($cnf, @listen) {
 		my ($h, $p) = ($_->{host}, $_->{port});
 		next if !$h || !$p;
 
-		push @{ $self->{ioSocketList} },
-			IO::Socket::INET->new(
-			LocalHost => $h,
-			LocalPort => $p,
-			Proto     => 'tcp',
-			Listen    => SOMAXCONN,
-			Type      => SOCK_STREAM,
-			Reuse     => 1,
-			Blocking  => 0,
+		my $sockObj;
+		if ($_->{ssl}) {
+			$sockObj = IO::Socket::SSL->new(
+				LocalHost    => $h,
+				LocalPort    => $p,
+				Proto        => 'tcp',
+				Listen       => SOMAXCONN,
+				Type         => SOCK_STREAM,
+				Reuse        => 1,
+				Blocking     => 0,
+				SSL_server   => 1,
+				SSL_use_cert => 1,
+				%{ $_->{ssl} },
 			) or die "IO::Socket: $!";
+			$self->log("Listening $h:$p ssl");
+		} else {
+			$sockObj = IO::Socket::INET->new(
+				LocalHost => $h,
+				LocalPort => $p,
+				Proto     => 'tcp',
+				Listen    => SOMAXCONN,
+				Type      => SOCK_STREAM,
+				Reuse     => 1,
+				Blocking  => 0,
+			) or die "IO::Socket: $!";
+			$self->log("Listening $h:$p");
+		}
 
-		$self->log("Listening $h:$p");
+		push @{ $self->{ioSocketList} }, $sockObj;
 	}
 
 	$self->{ioSelect} = IO::Select->new(@{ $self->{ioSocketList} }) || die "IO::Select $!\n";
@@ -213,29 +237,47 @@ sub createWorker {
 sub listen {
 	my ($self) = @_;
 
-	my ($socketList, $select, $config, $acceptFlag, $hasPending, $data, @clients) =
+	my ($socketList, $select, $config, $acceptFlag, $hasPending, $data, @clients, %sslClients) =
 		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server});
 	$self->log("Eldhelm server ready and listening ...");
 
 	while (1) {
 
 		$self->message("will read from socket");
-		@clients =
-			$select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
-		foreach my $fh (@clients) {
+		@clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
+		foreach my $fh (@clients, values %sslClients) {
+			next unless ref $fh;
+			
 			$acceptFlag = 0;
 			foreach my $socket (@$socketList) {
 				next unless $fh == $socket;
+				
+				$acceptFlag = 1;
 				my $conn = $socket->accept();
+				unless ($conn) {
+					$sslClients{$fh} = $fh;
+					next;
+				}
+				delete $sslClients{$fh};
+				
+				# my $conn;
+				# while (!$conn) {
+					# $conn = $socket->accept();
+				# }
+				
 				$self->createConnection($conn);
 				$self->configConnection($conn);
-				$acceptFlag = 1;
 			}
 
 			next if $acceptFlag;
 			$currentFh = $fh;
 			$data      = "";
-			$fh->recv($data, POSIX::BUFSIZ, 0);    # 65536
+
+			if (ref($fh) =~ /SSL/) {
+				$fh->sysread($data, 2048);
+			} else {
+				$fh->recv($data, POSIX::BUFSIZ, 0);    # 65536
+			}
 			unless (defined($data) && length $data) {
 				$self->removeConnection($fh, "remote");
 			} else {
@@ -318,7 +360,11 @@ sub sendToSock {
 			die "send blocked: ".length($$data);
 		};
 		alarm 3;
-		$charCnt = $fh->send($$data, 0);
+		if (ref($fh) =~ /SSL/) {
+			$charCnt = syswrite($fh, $$data, 0);
+		} else {
+			$charCnt = $fh->send($$data, 0);
+		}
 		$block = 1 if $! == POSIX::EWOULDBLOCK;
 		alarm 0;
 	};
@@ -360,18 +406,19 @@ sub createConnection {
 	{
 		lock($self->{connections});
 		$self->{connections}{$id} = shared_clone(
-			{   fno            => $id,
-				fileno         => $fileno,
-				peeraddr       => $sock->peeraddr,
-				peerport       => $sock->peerport,
-				peerhost       => $sock->peerhost,
-				sockaddr       => $sock->sockaddr,
-				sockport       => $sock->sockport,
-				sockhost       => $sock->sockhost,
-				recvLength     => 0,
-				connected      => 1,
-				connectedOn    => time,
-				avgPingSamples => [],
+			{   fno              => $id,
+				fileno           => $fileno,
+				peeraddr         => $sock->peeraddr,
+				peerport         => $sock->peerport,
+				peerhost         => $sock->peerhost,
+				sockaddr         => $sock->sockaddr,
+				sockport         => $sock->sockport,
+				sockhost         => $sock->sockhost,
+				recvLength       => 0,
+				connected        => 1,
+				connectedOn      => time,
+				lastActivityTime => time,
+				avgPingSamples   => [],
 			}
 		);
 	}
@@ -606,7 +653,7 @@ sub delegateToWorker {
 		push @$queue, shared_clone([ $id, $data ]);
 	}
 	$self->{workerStats}{$tid}{jobs}++;
-	
+
 	$t->resume if $self->{suspendWorkers};
 
 	return;

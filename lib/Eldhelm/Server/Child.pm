@@ -46,7 +46,7 @@ sub getConnection {
 	{
 		my $conns = $self->{connections};
 		lock($conns);
-		
+
 		$connData = $conns->{$fno};
 	}
 	return if !$connData;
@@ -61,7 +61,7 @@ sub getAllConnections {
 	{
 		my $conns = $self->{connections};
 		lock($conns);
-		
+
 		@connections = values %$conns;
 	}
 	return [] unless @connections;
@@ -102,8 +102,11 @@ sub sendData {
 		return $self;
 	}
 	lock($queue);
+	
+	return $self->addDataToQueueChunked($queue, $data, $fno)
+		if $chunked;
 
-	return $chunked ? $self->addDataToQueueChunked($queue, $data, $fno) : $self->addDataToQueue($queue, $data, $fno);
+	return $self->addDataToQueue($queue, $data, $fno);
 }
 
 sub addDataToQueue {
@@ -115,12 +118,11 @@ sub addDataToQueue {
 
 sub addDataToQueueChunked {
 	my ($self, $queue, $data, $fno) = @_;
-
 	my $ln = length($data);
 	my ($cs, $i) = (65536, 0);
-	if ($ln <= $cs) {
-		$self->addDataToQueue($queue, $data);
-	}
+
+	return $self->addDataToQueue($queue, $data, $fno)
+		if $ln <= $cs;
 
 	while (1) {
 		my $pos    = $i * $cs;
