@@ -22,6 +22,7 @@ sub new {
 		tplParams     => $args{tplParams} || {},
 		config        => $args{config},
 		debug         => $args{debug},
+		limit         => $args{limit},
 		packetSize    => $args{packetSize} || 50,
 		packetWait    => $args{packetWait} || 1_000_000 / 4,
 		printProgress => $args{printProgress},
@@ -46,8 +47,8 @@ sub send {
 	my %defaultParams = %{ $self->{tplParams} };
 	my $size          = $self->{packetSize};
 	my %langs = map { +$_ => $_ } @{ $self->{allowedLangs} };
-
-	my @list = @{ $self->{recipients} };
+	my $limit = 0;
+	my @list  = @{ $self->{recipients} };
 
 	$self->printProgress("Sending a total of ".@list." emails.\n");
 	while (@list) {
@@ -73,6 +74,12 @@ sub send {
 		my $i = 0;
 		foreach my $rcp (@packet) {
 			$i++;
+
+			if (defined $self->{limit} && $limit >= $self->{limit}) {
+				$self->printProgress("\nStopping due limit: $limit\n");
+				last;
+			}
+			$limit++;
 
 			my ($sender_name, $sender, $reciever, $subject, $lng) = (
 				$cfg->{name}, $cfg->{from},
@@ -129,6 +136,8 @@ sub send {
 
 		$self->printProgress("\nDone\n");
 
+		last if defined $self->{limit} && $limit >= $self->{limit};
+		
 		usleep $self->{packetWait};
 	}
 
