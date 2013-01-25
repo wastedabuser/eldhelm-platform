@@ -415,17 +415,31 @@ sub _merge_object {
 	foreach (@list) {
 		$i++;
 		next if $_->[0] ne "pair";
-		my $mNode = $data->{ $_->[1] };
-		if ($mNode && !$base->{ $_->[1] }) {
-			$base->{ $_->[1] } = $mNode;
-			splice @$set1, $i, 0, [ "pair", $_->[1], $mNode ];
+		my $key = $_->[1];
+		my $mNode = $data->{ $key };
+		if ($mNode && !$base->{ $key }) {
+			$base->{ $key} = $mNode;
+			splice @$set1, $i, 0, [ "pair", $key, $mNode ];
 
 		} elsif ($mNode && $_->[2][0] =~ /array|object/) {
-			$self->mergeSubset($_->[2], $base->{ $_->[1] }, $mNode);
+			$self->mergeSubset($_->[2], $base->{ $key }, $mNode);
 
-		} elsif ($mNode && $base->{ $_->[1] }) {
-			$base->{ $_->[1] } = $mNode;
-			splice @$set1, $i, 1, [ "pair", $_->[1], $mNode ];
+		} elsif ($mNode && $base->{ $key }) {
+			
+			$base->{ $key } = $mNode;
+			my $replaceIndex;
+			if ($key ne $set1->[$i][1]) {
+				$self->outputWarning("Indexing position missmatch: $key <=> $set1->[$i][1] at position $i. Will search for item...");
+				$replaceIndex = 0;
+				foreach my $si (@$set1) {
+					last if ref $si eq "ARRAY" && $si->[1] eq $key;
+					$replaceIndex++;
+				}
+				$self->outputWarning("$key found at position $replaceIndex");
+			} else {
+				$replaceIndex = $i;
+			}
+			splice @$set1, $replaceIndex, 1, [ "pair", $key, $mNode ];
 		}
 	}
 }
@@ -467,6 +481,11 @@ sub parseString {
 	my ($self, $ref) = @_;
 	$ref =~ s/(["])/\\$1/g;
 	return [ "string", $ref ];
+}
+
+sub outputWarning {
+	my ($self,$str) = @_;
+	warn $str;
 }
 
 1;
