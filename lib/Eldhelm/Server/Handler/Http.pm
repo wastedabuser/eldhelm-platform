@@ -180,6 +180,7 @@ sub rewriteUrl {
 		foreach (@{ $self->{rewriteUrl} }) {
 			if (!$_->[0] && !$url) {
 				$url = $_->[1];
+				$self->parseGet(eval "qq~$_->[2]~") if $_->[2];
 				last;
 			}
 			next if !$_->[0];
