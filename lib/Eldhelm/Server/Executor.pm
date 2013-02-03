@@ -114,7 +114,7 @@ sub checkTimeout {
 	{
 		my $ref = $self->{persists};
 		lock($ref);
-		
+
 		@persists = values %$ref;
 	}
 	return unless @persists;
@@ -122,7 +122,7 @@ sub checkTimeout {
 	foreach my $p (@persists) {
 		lock($p);
 
-		my $hasTo = ($tm >= $p->{updatedon} + $p->{timeout});
+		my $hasTo = ($tm >= $p->{updatedon} + $p->{timeout}) || $p->{_forceDispose_};
 		next unless $hasTo;
 
 		my $id = $p->{id};
@@ -159,7 +159,7 @@ sub checkConnectionTimeout {
 	{
 		my $conns = $self->{connections};
 		lock($conns);
-		
+
 		@connections = values %$conns;
 	}
 	return unless @connections;
@@ -190,7 +190,7 @@ sub pingConnections {
 	{
 		my $conns = $self->{connections};
 		lock($conns);
-		
+
 		@connections = values %$conns;
 	}
 	return unless @connections;
@@ -199,7 +199,7 @@ sub pingConnections {
 		lock($c);
 
 		next unless $c->{keepalive};
-		
+
 		my $fno = $c->{fno};
 		if ($c->{timeSample1} && !$c->{timeSample2}) {
 			$self->closeConnection(
