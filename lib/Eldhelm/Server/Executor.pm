@@ -137,9 +137,13 @@ sub checkTimeout {
 sub cleanUp {
 	my ($self, $id) = @_;
 	my $persist = $self->getPersist($id);
-	return if !$persist;
+	unless ($persist) {
+		$self->error("Unable to cleanup persist '$id'");
+		return;
+	}
 	$self->log("Timeout for '$id' - ".ref $persist);
 	$persist->dispose;
+	return 1;
 }
 
 sub checkShedule {

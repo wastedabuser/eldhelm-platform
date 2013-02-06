@@ -18,7 +18,7 @@ sub new {
 	bless $self, $class;
 
 	$self->bind("disconnect", "onDisconnect");
-	$self->set("timeout", $self->worker->getConfig("server.session.timeout"));
+	$self->set("timeout", $self->worker->getConfig("server.session.".($args{http} ? "httpTimeout" : "timeout")));
 
 	$self->setConnection($args{connection}) if $args{connection};
 

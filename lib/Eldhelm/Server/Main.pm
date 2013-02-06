@@ -237,7 +237,7 @@ sub createWorker {
 sub listen {
 	my ($self) = @_;
 
-	my ($socketList, $select, $config, $acceptFlag, $hasPending, $data, @clients, %sslClients) =
+	my ($socketList, $select, $config, $acceptFlag, $hasPending, @clients, %sslClients) =
 		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server});
 	$self->log("Eldhelm server ready and listening ...");
 
@@ -247,11 +247,11 @@ sub listen {
 		@clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
 		foreach my $fh (@clients, values %sslClients) {
 			next unless ref $fh;
-			
+
 			$acceptFlag = 0;
 			foreach my $socket (@$socketList) {
 				next unless $fh == $socket;
-				
+
 				$acceptFlag = 1;
 				my $conn = $socket->accept();
 				unless ($conn) {
@@ -259,25 +259,21 @@ sub listen {
 					next;
 				}
 				delete $sslClients{$fh};
-				
+
 				# my $conn;
 				# while (!$conn) {
-					# $conn = $socket->accept();
+				# $conn = $socket->accept();
 				# }
-				
+
 				$self->createConnection($conn);
 				$self->configConnection($conn);
 			}
 
 			next if $acceptFlag;
 			$currentFh = $fh;
-			$data      = "";
 
-			if (ref($fh) =~ /SSL/) {
-				$fh->sysread($data, 2048);
-			} else {
-				$fh->recv($data, POSIX::BUFSIZ, 0);    # 65536
-			}
+			my $data = $self->readFromSock($fh);
+			
 			unless (defined($data) && length $data) {
 				$self->removeConnection($fh, "remote");
 			} else {
@@ -341,6 +337,28 @@ sub listen {
 
 	$self->error("Server is going down");
 
+}
+
+sub readFromSock {
+	my ($self, $fh) = @_;
+	my $data = "";
+	eval {
+		local $SIG{ALRM} = sub {
+			die "read blocked";
+		};
+		alarm 3;
+		if (ref($fh) =~ /SSL/) {
+			$fh->sysread($data, 2048);
+		} else {
+			$fh->recv($data, POSIX::BUFSIZ, 0);    # 65536
+		}
+		alarm 0;
+	};
+	if ($@) {
+		$self->error("An alarm was fired while reading over $fh:\n$@");
+		return;
+	}
+	return $data;
 }
 
 sub sendToSock {
