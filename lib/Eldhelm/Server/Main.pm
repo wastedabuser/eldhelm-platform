@@ -273,7 +273,7 @@ sub listen {
 			$currentFh = $fh;
 
 			my $data = $self->readFromSock($fh);
-			
+
 			unless (defined($data) && length $data) {
 				$self->removeConnection($fh, "remote");
 			} else {
@@ -548,6 +548,7 @@ sub removeConnection {
 
 sub addToStream {
 	my ($self, $sock, $data) = @_;
+	$self->message("adding chunk to stream ".length($data));
 	$self->{streamMap}{ $sock->fileno } .= $data;
 	$self->readSocketData($sock);
 }
@@ -617,6 +618,7 @@ sub detectProto {
 
 sub executeBufferedTask {
 	my ($self, $sock, $buff) = @_;
+	$self->message("execute bufered task");
 	delete $self->{buffMap}{ $sock->fileno };
 	$self->executeTask($sock, $buff);
 	return;
@@ -641,12 +643,16 @@ sub handleTransmissionFlags {
 	my ($self, $sock, $id, $data) = @_;
 	my $cmd = $data->{command};
 	return if !$cmd;
+
+	$self->message("handle flags");
 	if ($cmd eq "ping") {
-		lock($self->{connections});
+		my $conn;
+		{
+			lock($self->{connections});
+			$conn = $self->{connections}{$id};
+		}
 
-		my $conn = $self->{connections}{$id};
 		lock($conn);
-
 		$conn->{keepalive}   = 1;
 		$conn->{timeSample2} = time;
 
@@ -674,12 +680,14 @@ sub delegateToWorker {
 
 	$t->resume if $self->{suspendWorkers};
 
+	$self->message("delegated worker");
 	return;
 }
 
 sub selectWorker {
 	my ($self, $id) = @_;
 
+	$self->message("select worker");
 	my ($chosen, @list);
 	$chosen = $self->{connectionWorkerMap}{$id} if $id;
 
@@ -921,6 +929,21 @@ sub saveStateAndShutDown {
 sub DESTROY {
 	my ($self) = @_;
 	$self->log("Termination successful");
+}
+
+sub message {
+	my ($self, $msg) = @_;
+	return unless $self->{config}{debugMode};
+
+	my $path = "$self->{config}{server}{logger}{path}/messages.log";
+	unlink $path if $self->{debugMessageCount} > 0 && !($self->{debugMessageCount} % 100_000);
+	$self->{debugMessageCount}++;
+
+	open FW, ">>$path";
+	print FW "$msg\n";
+	close FW;
+
+	return;
 }
 
 1;
