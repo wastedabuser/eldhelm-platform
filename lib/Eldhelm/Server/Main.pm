@@ -149,7 +149,6 @@ sub init {
 			$self->log("Listening $h:$p");
 		}
 		
-		$sockObj->autoflush(1);
 		push @{ $self->{ioSocketList} }, $sockObj;
 	}
 
@@ -267,8 +266,8 @@ sub listen {
 				# $conn = $socket->accept();
 				# }
 
+				$self->configConnection($conn);
 				$self->createConnection($conn);
-				# $self->configConnection($conn);
 			}
 
 			next if $acceptFlag;
@@ -454,7 +453,8 @@ sub createConnection {
 
 sub configConnection {
 	my ($self, $sock) = @_;
-
+	$self->message("config $sock");
+	
 	$sock->autoflush(1);
 
 	if (!$isWin) {
