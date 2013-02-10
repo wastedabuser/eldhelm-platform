@@ -148,7 +148,8 @@ sub init {
 			) or die "IO::Socket: $!";
 			$self->log("Listening $h:$p");
 		}
-		
+
+		$self->configConnection($sockObj);
 		push @{ $self->{ioSocketList} }, $sockObj;
 	}
 
@@ -345,17 +346,21 @@ sub acceptSock {
 	my ($self, $socket) = @_;
 	$self->message("accept $socket");
 	my $conn;
-	eval {
-		local $SIG{ALRM} = sub {
-			die "accept blocked";
-		};
-		alarm 1;
+	if ($isWin) {
 		$conn = $socket->accept();
-		alarm 0;
-	};
-	if ($@) {
-		$self->error("An alarm was fired while accepting $socket:\n$@");
-		return;
+	} else {
+		eval {
+			local $SIG{ALRM} = sub {
+				die "accept blocked";
+			};
+			Time::HiRes::ualarm(10_000);
+			$conn = $socket->accept();
+			Time::HiRes::ualarm(0);
+		};
+		if ($@) {
+			$self->error("An alarm was fired while accepting $socket:\n$@");
+			return;
+		}
 	}
 	return $conn;
 }
@@ -430,7 +435,7 @@ sub sendToSock {
 sub createConnection {
 	my ($self, $sock) = @_;
 	$self->message("create connection $sock");
-	
+
 	$self->{ioSelect}->add($sock);
 	my $fileno = $sock->fileno;
 
@@ -476,13 +481,13 @@ sub createConnection {
 sub configConnection {
 	my ($self, $sock) = @_;
 	$self->message("config $sock");
-	
+
 	$sock->autoflush(1);
 
 	if (!$isWin) {
 		use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
-		my $flags = $sock->fcntl(F_GETFL, 0) or die "Can't get flags for the socket: $!\n";
-		$sock->fcntl(F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the socket: $!\n";
+		my $flags = $sock->fcntl(F_GETFL, 0) or warn "Can't get flags for the socket: $!";
+		$sock->fcntl(F_SETFL, $flags | O_NONBLOCK) or warn "Can't set flags for the socket: $!";
 	} else {
 		IO::Handle::blocking($sock, 0);
 	}
@@ -491,7 +496,7 @@ sub configConnection {
 sub monitorConnection {
 	my ($self, $sock, $data) = @_;
 	$self->message("monitor $sock");
-	
+
 	my $fileno = $sock->fileno;
 	my $id     = $self->{filenoMap}{$fileno};
 	my $conn   = $self->{connections}{$id};
@@ -506,7 +511,7 @@ sub monitorConnection {
 sub removeConnection {
 	my ($self, $fh, $initiator) = @_;
 	$self->message("remove connection $fh, $initiator");
-	
+
 	my ($id, $fileno, $sock);
 	if (ref $fh) {
 		$fileno = $fh->fileno;
