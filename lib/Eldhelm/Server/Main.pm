@@ -54,6 +54,7 @@ sub new {
 			connectionWorkerMap  => {},
 			connectionWorkerLoad => {},
 			jobQueue             => shared_clone([]),
+			stash                => shared_clone({}),
 		};
 		bless $instance, $class;
 
@@ -209,7 +210,7 @@ sub createExecutor {
 		\&Eldhelm::Server::Executor::create,
 		workerQueue => $executorQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents connectionEvents jobQueue)
+			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents connectionEvents jobQueue stash)
 	);
 	$self->log("Created executor: ".$t->tid);
 	$self->{workerQueue}{ $t->tid } = $executorQueue;
@@ -224,7 +225,7 @@ sub createWorker {
 		\&Eldhelm::Server::Worker::create,
 		workerQueue => $workerQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents jobQueue)
+			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents jobQueue stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }          = $workerQueue;

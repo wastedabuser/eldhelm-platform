@@ -27,6 +27,14 @@ sub addInstance {
 # Persist
 # =================================
 
+sub stash {
+	my ($self) = @_;
+	return $self->{stashObject} if $self->{stashObject};
+	
+	lock($self->{stash});
+	return $self->{stashObject} = Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{stash});
+}
+
 sub registerPersist {
 	my ($self, $args) = @_;
 

@@ -5,6 +5,7 @@ use Eldhelm::Server::Main;
 use Eldhelm::Util::Factory;
 use strict;
 use threads::shared;
+use Eldhelm::Util::Tool;
 
 sub worker {
 	my ($self) = @_;
@@ -119,6 +120,14 @@ sub inc {
 	return $var->{$key} += $amount || 1;
 }
 
+sub dec {
+	my ($self, $key, $amount) = @_;
+	lock($self);
+
+	my ($var, $key) = $self->getRefByNotation($key);
+	return $var->{$key} -= $amount || 1;
+}
+
 sub pushItem {
 	my ($self, $key, $item) = @_;
 	lock($self);
@@ -204,6 +213,23 @@ sub getHashrefValues {
 	}
 
 	return values %$ref;
+}
+
+sub clone {
+	my ($self, $key) = @_;
+	lock($self);
+	
+	my ($var, $key) = $self->getRefByNotation($key);
+	my $ref = $var->{$key};
+
+	return Eldhelm::Util::Tool::cloneStructure($ref);
+}
+
+sub doFn {
+	my ($self, $fn, @options) = @_;
+	lock($self);
+	
+	return $fn->($self, @options);
 }
 
 1;
