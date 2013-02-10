@@ -148,7 +148,8 @@ sub init {
 			) or die "IO::Socket: $!";
 			$self->log("Listening $h:$p");
 		}
-
+		
+		$sockObj->autoflush(1);
 		push @{ $self->{ioSocketList} }, $sockObj;
 	}
 
@@ -245,6 +246,7 @@ sub listen {
 
 		$self->message("will read from socket");
 		@clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
+		$self->message("will iterate over sockets");
 		foreach my $fh (@clients, values %sslClients) {
 			next unless ref $fh;
 
@@ -266,7 +268,7 @@ sub listen {
 				# }
 
 				$self->createConnection($conn);
-				$self->configConnection($conn);
+				# $self->configConnection($conn);
 			}
 
 			next if $acceptFlag;
@@ -407,7 +409,8 @@ sub sendToSock {
 
 sub createConnection {
 	my ($self, $sock) = @_;
-
+	$self->message("create connection $sock");
+	
 	$self->{ioSelect}->add($sock);
 	my $fileno = $sock->fileno;
 
@@ -465,6 +468,8 @@ sub configConnection {
 
 sub monitorConnection {
 	my ($self, $sock, $data) = @_;
+	$self->message("monitor $sock");
+	
 	my $fileno = $sock->fileno;
 	my $id     = $self->{filenoMap}{$fileno};
 	my $conn   = $self->{connections}{$id};
@@ -478,7 +483,8 @@ sub monitorConnection {
 
 sub removeConnection {
 	my ($self, $fh, $initiator) = @_;
-
+	$self->message("remove connection $fh, $initiator");
+	
 	my ($id, $fileno, $sock);
 	if (ref $fh) {
 		$fileno = $fh->fileno;
@@ -531,8 +537,13 @@ sub removeConnection {
 
 	$sock->close;
 
-	if (ref $event) {
-		$self->registerConnectionEvent("disconnect", $event, $id);
+	if (is_shared($event)) {
+		my $eventsClone;
+		{
+			lock($event);
+			$eventsClone = Eldhelm::Util::Tool::cloneStructure($event);
+		}
+		$self->registerConnectionEvent("disconnect", $eventsClone, $id);
 		return;
 	}
 
