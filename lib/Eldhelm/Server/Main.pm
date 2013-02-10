@@ -245,7 +245,7 @@ sub listen {
 
 		$self->message("will read from socket");
 		@clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
-		$self->message("will iterate over sockets");
+		$self->message("will iterate over sockets ".scalar @clients);
 		foreach my $fh (@clients, values %sslClients) {
 			next unless ref $fh;
 
@@ -254,7 +254,7 @@ sub listen {
 				next unless $fh == $socket;
 
 				$acceptFlag = 1;
-				my $conn = $socket->accept();
+				my $conn = $self->acceptSock($socket);
 				unless ($conn) {
 					$sslClients{$fh} = $fh;
 					next;
@@ -282,6 +282,7 @@ sub listen {
 				$self->addToStream($fh, $data);
 			}
 		}
+		$self->message("will write to sockets");
 
 		$hasPending = 0;
 		@clients    = $select->can_write(0);
@@ -340,8 +341,28 @@ sub listen {
 
 }
 
+sub acceptSock {
+	my ($self, $socket) = @_;
+	$self->message("accept $socket");
+	my $conn;
+	eval {
+		local $SIG{ALRM} = sub {
+			die "accept blocked";
+		};
+		alarm 1;
+		$conn = $socket->accept();
+		alarm 0;
+	};
+	if ($@) {
+		$self->error("An alarm was fired while accepting $socket:\n$@");
+		return;
+	}
+	return $conn;
+}
+
 sub readFromSock {
 	my ($self, $fh) = @_;
+	$self->message("read from $fh");
 	my $data = "";
 	eval {
 		local $SIG{ALRM} = sub {
@@ -443,6 +464,7 @@ sub createConnection {
 		);
 	}
 
+	$self->message("create connection response queue");
 	{
 		lock($self->{responseQueue});
 		$self->{responseQueue}{$id} = shared_clone([]);
@@ -460,7 +482,7 @@ sub configConnection {
 	if (!$isWin) {
 		use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 		my $flags = $sock->fcntl(F_GETFL, 0) or die "Can't get flags for the socket: $!\n";
-		$sock->fcntl(F_SETFL, O_NONBLOCK) or die "Can't set flags for the socket: $!\n";
+		$sock->fcntl(F_SETFL, $flags | O_NONBLOCK) or die "Can't set flags for the socket: $!\n";
 	} else {
 		IO::Handle::blocking($sock, 0);
 	}
