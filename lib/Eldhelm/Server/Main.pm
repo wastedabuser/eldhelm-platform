@@ -246,7 +246,9 @@ sub listen {
 	while (1) {
 
 		$self->message("will read from socket");
-		@clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
+
+		# @clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
+		@clients = $select->can_read($hasPending ? 0 : .0001);
 		$self->message("will iterate over sockets ".scalar @clients);
 		foreach my $fh (@clients, values %sslClients) {
 			next unless ref $fh;
@@ -295,25 +297,32 @@ sub listen {
 			my $fileno = $fh->fileno;
 			my $fno    = $self->{filenoMap}{$fileno};
 			my $queue  = $self->{responseQueue}{$fno};
+			my $invalid;
 
 			$self->message("lock $h");
-			lock($queue);
-			$self->message("sending $h");
-			if (@$queue) {
-				if ($fh->connected) {
-					$self->message("do send $h");
-					shift @$queue unless length ${ $self->sendToSock($fh, \$queue->[0]) };
-				} else {
-					$self->error("A connection error occured while sending to $fno($fileno)");
-					$self->message("remove $h");
-					$self->removeConnection($fh, "unknown");
-					$self->message("removed $h");
+			{
+				lock($queue);
+				$self->message("sending $h");
+				if (@$queue) {
+					if ($fh->connected) {
+						$self->message("do send $h");
+						shift @$queue unless length ${ $self->sendToSock($fh, \$queue->[0]) };
+					} else {
+						$self->error("A connection error occured while sending to $fno($fileno)");
+						$invalid = 1;
+					}
 				}
+				$hasPending = 1 if @$queue;
 			}
 			$self->message("writen to $h");
 
+			if ($invalid) {
+				$self->message("remove $h");
+				$self->removeConnection($fh, "unknown");
+				$self->message("removed $h");
+			}
+
 			$h++;
-			$hasPending = 1 if @$queue;
 		}
 		$self->message("writen to socket");
 
@@ -325,11 +334,21 @@ sub listen {
 		$h = 0;
 		foreach (@clients) {
 			my $queue = $self->{responseQueue}{$_};
-			if (!$queue || !@$queue) {
-				$self->message("remove $h");
-				$self->removeConnection($_, "server");
-				$self->message("removed $h");
+			next unless $queue;
+			my $len;
+
+			$self->message("lock close $h");
+			{
+				lock($queue);
+				$len = @$queue;
 			}
+			$self->message("check close $h");
+			if ($len < 1) {
+				$self->message("close remove $h");
+				$self->removeConnection($_, "server");
+				$self->message("close removed $h");
+			}
+
 			$h++;
 		}
 		$self->message("closed sockets");
@@ -359,7 +378,8 @@ sub acceptSock {
 			Time::HiRes::ualarm(0);
 		};
 		if ($@) {
-			$self->error("An alarm was fired while accepting $socket:\n$@");
+
+			# $self->error("An alarm was fired while accepting $socket:\n$@");
 			return;
 		}
 	}
