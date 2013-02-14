@@ -373,7 +373,7 @@ sub acceptSock {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
 			};
-			Time::HiRes::ualarm(10_000);
+			Time::HiRes::ualarm(5000);
 			$conn = $socket->accept();
 			Time::HiRes::ualarm(0);
 		};
