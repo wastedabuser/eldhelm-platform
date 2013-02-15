@@ -999,7 +999,7 @@ sub message {
 	$self->{debugMessageCount}++;
 
 	open FW, ">>$path";
-	print FW "$msg\n";
+	print FW time." $msg\n";
 	close FW;
 
 	return;
