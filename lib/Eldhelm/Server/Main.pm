@@ -250,7 +250,12 @@ sub listen {
 		# @clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
 		@clients = $select->can_read($hasPending ? 0 : .0001);
 		$self->message("will iterate over sockets ".scalar @clients);
-		foreach my $fh (@clients, values %sslClients) {
+
+		push @clients, values %sslClients;
+		my %acceptedClients;
+
+		foreach my $fh (@clients) {
+			next if $acceptedClients{$fh};
 			next unless ref $fh;
 
 			$acceptFlag = 0;
@@ -261,19 +266,17 @@ sub listen {
 				my $conn = $self->acceptSock($socket);
 				unless ($conn) {
 					$sslClients{$fh} = $fh;
-					next;
+					last;
 				}
 				delete $sslClients{$fh};
 
-				# my $conn;
-				# while (!$conn) {
-				# $conn = $socket->accept();
-				# }
-
 				$self->configConnection($conn);
 				$self->createConnection($conn);
+
+				last;
 			}
 
+			$acceptedClients{$fh} = 1;
 			next if $acceptFlag;
 			$currentFh = $fh;
 
@@ -373,7 +376,7 @@ sub acceptSock {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
 			};
-			Time::HiRes::ualarm(5000);
+			Time::HiRes::ualarm(10_000);
 			$conn = $socket->accept();
 			Time::HiRes::ualarm(0);
 		};
