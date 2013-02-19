@@ -55,6 +55,7 @@ sub new {
 			connectionWorkerLoad => {},
 			jobQueue             => shared_clone([]),
 			stash                => shared_clone({}),
+			slowSocket           => {},
 		};
 		bless $instance, $class;
 
@@ -369,22 +370,25 @@ sub acceptSock {
 	my ($self, $socket) = @_;
 	$self->message("accept $socket");
 	my $conn;
-	if ($isWin) {
+	if ($isWin || ref($socket) !~ /SSL/) {
 		$conn = $socket->accept();
 	} else {
+		my $ss = $self->{slowSocket};
+		return if $ss->{$socket} && $ss->{$socket} + 5 < time;
 		eval {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
 			};
-			Time::HiRes::ualarm(10_000);
+			Time::HiRes::ualarm(100_000);
 			$conn = $socket->accept();
 			Time::HiRes::ualarm(0);
 		};
 		if ($@) {
-
-			# $self->error("An alarm was fired while accepting $socket:\n$@");
+			$self->error("An alarm was fired while accepting $socket:\n$@");
+			$ss->{$socket} = time;
 			return;
 		}
+		delete $ss->{$socket} if $ss->{$socket} && $conn;
 	}
 	return $conn;
 }

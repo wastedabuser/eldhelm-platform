@@ -30,9 +30,10 @@ sub addInstance {
 sub stash {
 	my ($self) = @_;
 	return $self->{stashObject} if $self->{stashObject};
-	
+
 	lock($self->{stash});
-	return $self->{stashObject} = Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{stash});
+	return $self->{stashObject} =
+		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{stash});
 }
 
 sub registerPersist {
@@ -137,19 +138,40 @@ sub findPersist {
 	return @list > 1 ? @list : $list[0] || ();
 }
 
-sub searchPersist {
-	my ($self, $filter) = @_;
+sub findAndFilterPersist {
+	my ($self, $var, $values, $filter) = @_;
+	my @list = $self->getPersistId($var, @$values);
+	return $self->filterPersist($filter, \@list);
+}
+
+sub filterPersist {
+	my ($self, $filter, $ids) = @_;
 	my $per = $self->{persists};
-	lock($per);
+	my @list;
+	if ($ids) {
+		@list = @$ids;
+	} else {
+		lock($per);
+		@list = keys %$per;
+	}
 
 	my $i;
-	my @list       = keys %$per;
 	my @filterKeys = keys %$filter;
 	my @result;
 	foreach my $s (@list) {
+		my $pItem;
+		{
+			lock($per);
+			$pItem = $per->{$s};
+		}
+		next unless $pItem;
+
 		$i = 0;
-		foreach my $fk (@filterKeys) {
-			$i++ if $per->{$s}{$fk} eq $filter->{$fk};
+		{
+			lock($pItem);
+			foreach my $fk (@filterKeys) {
+				$i++ if defined($pItem->{$fk}) && $pItem->{$fk} eq $filter->{$fk};
+			}
 		}
 		push @result, $s if @filterKeys == $i;
 	}
@@ -157,12 +179,20 @@ sub searchPersist {
 }
 
 sub getPersistsByType {
-	my ($self, $type) = @_;
-	my $per = $self->{persistsByType};
-	lock($per);
+	my ($self, $type, $filter) = @_;
+	my @list;
+	{
+		my $per = $self->{persistsByType};
+		lock($per);
 
-	my $pmap = $per->{$type} || {};
-	return map { $self->getPersist($_) || () } keys %$pmap;
+		my $pmap = $per->{$type} || {};
+		@list = keys %$pmap;
+	}
+
+	return $self->filterPersist($filter, \@list)
+		if $filter;
+
+	return map { $self->getPersist($_) || () } @list;
 }
 
 sub registerPersistLookup {

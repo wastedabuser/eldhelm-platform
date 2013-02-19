@@ -77,6 +77,8 @@ sub evaluateProperty {
 
 sub log {
 	my ($self, $msg) = @_;
+	return unless $self->{logEnabled};
+	
 	my $path = $self->{logPath};
 	if ($path) {
 		open FW, ">>$path" or confess "Can not find path: $path";
