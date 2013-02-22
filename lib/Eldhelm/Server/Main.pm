@@ -374,7 +374,7 @@ sub acceptSock {
 		$conn = $socket->accept();
 	} else {
 		my $ss = $self->{slowSocket};
-		return if $ss->{$socket} && $ss->{$socket} + 5 < time;
+		return if $ss->{$socket} && $ss->{$socket} + 5 > time;
 		eval {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
