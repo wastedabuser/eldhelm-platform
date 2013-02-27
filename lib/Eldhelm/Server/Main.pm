@@ -379,7 +379,7 @@ sub acceptSock {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
 			};
-			Time::HiRes::ualarm(100_000);
+			Time::HiRes::ualarm(500_000);
 			$conn = $socket->accept();
 			Time::HiRes::ualarm(0);
 		};
@@ -388,7 +388,7 @@ sub acceptSock {
 			$ss->{$socket} = time;
 			return;
 		}
-		delete $ss->{$socket} if $ss->{$socket} && $conn;
+		delete $ss->{$socket} if $ss->{$socket};
 	}
 	return $conn;
 }
@@ -527,7 +527,12 @@ sub monitorConnection {
 
 	my $fileno = $sock->fileno;
 	my $id     = $self->{filenoMap}{$fileno};
-	my $conn   = $self->{connections}{$id};
+	my $conn;
+	{
+		lock($self->{connections});
+		$conn = $self->{connections}{$id};
+	}
+
 	lock($conn);
 
 	$conn->{recvLength} += length $$data;
