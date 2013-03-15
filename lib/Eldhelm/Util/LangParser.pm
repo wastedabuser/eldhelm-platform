@@ -386,7 +386,7 @@ sub mergeDiff {
 
 sub mergeSubset {
 	my ($self, $model, $set1, $set2) = @_;
-	confess "Can not merge $set1->[0] with $set2->[0]" if $set1->[0] ne $set2->[0];
+	confess "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1])" if $set1->[0] ne $set2->[0];
 	my $fn = "_merge_$model->[0]";
 	return $self->$fn($model, $set1, $set2);
 }
