@@ -102,6 +102,12 @@ sub getById {
 	return $self->getListByIds([$id], $fields)->[0] || {};
 }
 
+sub getFieldById {
+	my ($self, $id, $field) = @_;
+	my $row = $self->getById($id, [$field]);
+	return $row->{$field};
+}
+
 sub getAssocArrayByIds {
 	my ($self, $list, $key, $fields) = @_;
 	$key = $self->fieldList($fields, $key);
@@ -139,6 +145,12 @@ sub save {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
 	$sql->saveRow($self->{table}, $data, $self->{pkFields});
+}
+
+sub saveByFilter {
+	my ($self, $data, $filter) = @_;
+	my $sql = $self->{dbPool}->getDb;
+	$sql->updateRow($self->{table}, $data, $filter);
 }
 
 sub remove {

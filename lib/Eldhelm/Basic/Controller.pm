@@ -209,11 +209,10 @@ sub rpcRespond {
 	return unless $conn;
 
 	my $rpcId = $self->{requestHeaders}{rpcId};
-
-	# unless ($rpcId) {
-	# $self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders}));
-	# return;
-	# }
+	unless ($rpcId) {
+		$self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders}));
+		return;
+	}
 
 	$conn->say(
 		{   success => !defined($success) ? 1 : $success,
@@ -221,7 +220,7 @@ sub rpcRespond {
 			$errors ? (errors => $errors) : (),
 			$flags  ? (flags  => $flags)  : (),
 		},
-		{ $rpcId ? (rpcId => $rpcId) : () },    # this check is obsolete
+		{ rpcId => $rpcId },
 	);
 }
 
