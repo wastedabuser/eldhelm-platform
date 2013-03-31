@@ -249,7 +249,7 @@ sub listen {
 		$self->message("will read from socket");
 
 		# @clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
-		@clients = $select->can_read($hasPending ? 0 : .0001);
+		@clients = $select->can_read($hasPending ? .0001 : .001);
 		$self->message("will iterate over sockets ".scalar @clients);
 
 		push @clients, values %sslClients;

@@ -37,7 +37,7 @@ sub init {
 	$self->{connectionTimeout} = $self->getConfig("server.connectionTimeout");
 	$self->{keepaliveInterval} = $self->getConfig("server.keepaliveInterval");
 	$self->{pingAvgSamples}    = (60 / $self->{keepaliveInterval}) * 10;
-	$self->{interval}          = 25_000;
+	$self->{interval}          = 100_000;
 	$self->{sheduled} =
 		[ map { Eldhelm::Server::Shedule->new(init => $_) }
 			Eldhelm::Util::Tool->toList($self->getConfig("server.shedule.action")) ];
