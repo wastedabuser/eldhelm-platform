@@ -874,9 +874,22 @@ sub doOtherJobs {
 		$self->gracefullRestart;
 		return;
 	}
+	
+	if ($job->{job} eq "evaluateCodeMain") {
+		$self->evaluateCodeMain($job);
+		return;
+	}
 
 	$self->delegateToWorker(undef, $job);
 	return;
+}
+
+sub evaluateCodeMain {
+	my ($self, $job) = @_;
+	return unless $job->{code};
+	
+	eval $job->{code};
+	$self->error("Error while evaluating code in main context: $@") if $@;
 }
 
 # =================================
