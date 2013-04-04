@@ -6,6 +6,7 @@ use Data::Dumper;
 use LWP::UserAgent;
 use Eldhelm::Util::Url;
 use Digest::MD5 qw(md5_hex);
+use MIME::Base64;
 
 sub simpleHttpGetRequest {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -29,12 +30,13 @@ sub httpGetWithChecksum {
 	my ($host, $params, $secret) = @_;
 
 	my @keys = keys %$params;
+	$params->{$_} = encode_base64($params->{$_}) foreach @keys;
 	$params->{checksum} = md5_hex(join "", $secret, map { $params->{$_} } @keys);
 	$params->{checkprops} = join ",", @keys;
 
-	my $url      = Eldhelm::Util::Url->new( uri => $host );
+	my $url      = Eldhelm::Util::Url->new(uri => $host);
 	my $ua       = LWP::UserAgent->new;
-	my $reqUrl = $url->compileWithParams($params);
+	my $reqUrl   = $url->compileWithParams($params);
 	my $response = $ua->get($reqUrl);
 
 	if ($response->is_success) {
@@ -53,7 +55,7 @@ sub acceptGetWithChecksum {
 	die "Invalid checksum: ".Dumper($params)
 		if $params->{checksum} ne md5_hex(join "", $secret, map { $params->{$_} } @keys);
 
-	return { map { +$_ => $params->{$_} } @keys };
+	return { map { +$_ => decode_base64($params->{$_}) } @keys };
 }
 
 1;
