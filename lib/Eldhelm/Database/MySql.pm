@@ -199,6 +199,13 @@ sub updateFields {
 
 sub insertFields {
 	my ($self, $table, $data) = @_;
+	my $hcols = $self->descHash($table);
+	my @fields = $self->prepareFields($table, [ grep { $hcols->{$_} } keys %$data ], $data);
+	return (join(",", map { $_->[0] } @fields), join(",", map { "?" } @fields), [ map { $_->[1] } @fields ]);
+}
+
+sub insertFieldsArray {
+	my ($self, $table, $data) = @_;
 	if (ref $data eq "ARRAY") {
 		return unless $data->[0];
 		my @fields = keys %{ $data->[0] };
@@ -252,10 +259,20 @@ sub deleteRow {
 	$self->query($query, @fValues);
 }
 
-sub insertArray {
+sub insertRow {
 	my ($self, $table, $data, $options) = @_;
 	$options ||= {};
 	my ($fields, $values, $valuesData) = $self->insertFields($table, $data);
+	return unless $fields;
+
+	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
+	return $self->query($query, @$valuesData);
+}
+
+sub insertArray {
+	my ($self, $table, $data, $options) = @_;
+	$options ||= {};
+	my ($fields, $values, $valuesData) = $self->insertFieldsArray($table, $data);
 	return unless $fields;
 
 	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
