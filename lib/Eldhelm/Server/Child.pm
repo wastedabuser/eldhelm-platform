@@ -36,6 +36,11 @@ sub getConfig {
 	return $ref;
 }
 
+sub getConfigList {
+	my ($self, @list) = @_;
+	return map { $self->getConfig($_) } @list;
+}
+
 sub getConnection {
 	my ($self, $fno) = @_;
 
@@ -102,7 +107,7 @@ sub sendData {
 		return $self;
 	}
 	lock($queue);
-	
+
 	return $self->addDataToQueueChunked($queue, $data, $fno)
 		if $chunked;
 

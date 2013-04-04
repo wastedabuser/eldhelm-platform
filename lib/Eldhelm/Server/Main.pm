@@ -55,6 +55,7 @@ sub new {
 			connectionWorkerLoad => {},
 			jobQueue             => shared_clone([]),
 			stash                => shared_clone({}),
+			sslClients           => {},
 			slowSocket           => {},
 		};
 		bless $instance, $class;
@@ -240,8 +241,8 @@ sub createWorker {
 sub listen {
 	my ($self) = @_;
 
-	my ($socketList, $select, $config, $acceptFlag, $hasPending, @clients, %sslClients) =
-		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server});
+	my ($socketList, $select, $config, $sslClients, $acceptFlag, $hasPending, @clients) =
+		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server}, $self->{sslClients});
 	$self->log("Eldhelm server ready and listening ...");
 
 	while (1) {
@@ -252,7 +253,7 @@ sub listen {
 		@clients = $select->can_read($hasPending ? .0001 : .001);
 		$self->message("will iterate over sockets ".scalar @clients);
 
-		push @clients, values %sslClients;
+		push @clients, values %$sslClients;
 		my %acceptedClients;
 
 		foreach my $fh (@clients) {
@@ -266,10 +267,10 @@ sub listen {
 				$acceptFlag = 1;
 				my $conn = $self->acceptSock($socket);
 				unless ($conn) {
-					$sslClients{$fh} = $fh;
+					$sslClients->{$fh} = $fh;
 					last;
 				}
-				delete $sslClients{$fh};
+				delete $sslClients->{$fh};
 
 				$self->configConnection($conn);
 				$self->createConnection($conn);
@@ -874,7 +875,7 @@ sub doOtherJobs {
 		$self->gracefullRestart;
 		return;
 	}
-	
+
 	if ($job->{job} eq "evaluateCodeMain") {
 		$self->evaluateCodeMain($job);
 		return;
@@ -887,7 +888,7 @@ sub doOtherJobs {
 sub evaluateCodeMain {
 	my ($self, $job) = @_;
 	return unless $job->{code};
-	
+
 	eval $job->{code};
 	$self->error("Error while evaluating code in main context: $@") if $@;
 }

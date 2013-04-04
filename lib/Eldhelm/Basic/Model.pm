@@ -17,6 +17,11 @@ sub new {
 	return $self;
 }
 
+sub worker {
+	my ($self) = @_;
+	return $self->{worker};
+}
+
 sub getModel {
 	my ($self, $model, $args) = @_;
 	$args ||= {};

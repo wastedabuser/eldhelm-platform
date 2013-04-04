@@ -1,7 +1,11 @@
 package Eldhelm::Util::Communication;
 
 use strict;
+
+use Data::Dumper;
 use LWP::UserAgent;
+use Eldhelm::Util::Url;
+use Digest::MD5 qw(md5_hex);
 
 sub simpleHttpGetRequest {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -18,6 +22,38 @@ sub simpleHttpGetRequest {
 	} else {
 		die $response->status_line;
 	}
+}
+
+sub httpGetWithChecksum {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($host, $params, $secret) = @_;
+
+	my @keys = keys %$params;
+	$params->{checksum} = md5_hex(join "", $secret, map { $params->{$_} } @keys);
+	$params->{checkprops} = join ",", @keys;
+
+	my $url      = Eldhelm::Util::Url->new( uri => $host );
+	my $ua       = LWP::UserAgent->new;
+	my $reqUrl = $url->compileWithParams($params);
+	my $response = $ua->get($reqUrl);
+
+	if ($response->is_success) {
+		return $response->content;
+	} else {
+		die $response->status_line.": $reqUrl";
+	}
+}
+
+sub acceptGetWithChecksum {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($params, $secret) = @_;
+
+	my @keys = split /,/, $params->{checkprops};
+
+	die "Invalid checksum: ".Dumper($params)
+		if $params->{checksum} ne md5_hex(join "", $secret, map { $params->{$_} } @keys);
+
+	return { map { +$_ => $params->{$_} } @keys };
 }
 
 1;
