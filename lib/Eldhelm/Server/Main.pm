@@ -963,7 +963,7 @@ sub saveStateAndShutDown {
 	$self->removeWorker($_) foreach @{ $self->{workers} };
 
 	# wait for threads to stop
-	sleep 1;
+	sleep 5;
 
 	# my @jobs;
 	# push @jobs, @{ $self->removeWorker($_) } foreach @{ $self->{workers} };

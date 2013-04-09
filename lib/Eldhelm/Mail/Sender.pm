@@ -1,6 +1,7 @@
 package Eldhelm::Mail::Sender;
 
 use strict;
+use Eldhelm::Util::Tool;
 use Eldhelm::Util::Template;
 use Eldhelm::Mail::TLS;
 use Data::Dumper;
@@ -34,7 +35,7 @@ sub send {
 	if ($self->{tpl}) {
 		$data = Eldhelm::Util::Template->new(
 			name   => $self->{tpl},
-			params => $self->{tplParams},
+			params => Eldhelm::Util::Tool::merge({}, $cfg->{globalTemplateParams}, $self->{tplParams}),
 		)->compile;
 	} else {
 		$data = $self->{content};
