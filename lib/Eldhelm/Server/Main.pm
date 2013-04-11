@@ -630,7 +630,7 @@ sub readSocketData {
 	my $fileno = $sock->fileno;
 	my $stream = \$self->{streamMap}{$fileno};
 	my $buff   = $self->{buffMap}{$fileno} ||= { len => 0 };
-	my $flag;
+	my ($flag, $exec);
 
 	my $proto = $self->detectProto($$stream);
 	if ($proto && !$buff->{content}) {
@@ -646,28 +646,34 @@ sub readSocketData {
 		$flag = 1 if $buff->{len} != -2;
 
 	} elsif ($buff->{len} > 0) {
-		my $ln = length $$stream;
-		if ($ln > $buff->{len}) {
-			my $dln = $buff->{len};
-			my $chunk = substr $$stream, 0, $dln;
-			substr($$stream, 0, $dln) = "";
-			$buff->{content} .= $chunk;
-			$buff->{len} = 0;
-			$self->executeBufferedTask($sock, $buff);
-			$flag = 1;
+		$exec = 0;
+		{
+			use bytes;
+			my $ln = length $$stream;
+			if ($ln > $buff->{len}) {
+				my $dln = $buff->{len};
+				my $chunk = substr $$stream, 0, $dln;
+				substr($$stream, 0, $dln) = "";
+				$buff->{content} .= $chunk;
+				$buff->{len} = 0;
+				$exec        = 1;
+				$flag        = 1;
 
-		} elsif ($ln == $buff->{len}) {
-			$buff->{content} .= $$stream;
-			$$stream = "";
-			$buff->{len} = 0;
-			$self->executeBufferedTask($sock, $buff);
+			} elsif ($ln == $buff->{len}) {
+				$buff->{content} .= $$stream;
+				$$stream     = "";
+				$buff->{len} = 0;
+				$exec        = 1;
 
-		} else {
-			$buff->{content} .= $$stream;
-			$$stream = "";
-			$buff->{len} -= $ln;
+			} else {
+				$buff->{content} .= $$stream;
+				$$stream = "";
+				$buff->{len} -= $ln;
 
+			}
 		}
+		$self->executeBufferedTask($sock, $buff) if $exec;
+
 	} elsif (length $$stream >= 20) {
 		$self->error("Unsupported protocol for message: ".$$stream);
 		$$stream = "";

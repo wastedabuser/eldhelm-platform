@@ -32,18 +32,21 @@ sub parse {
 	}
 
 	($parsed{protocolVersion}) = $parsed{protocolId} =~ /(\d+\.\d+)/;
-	my $ln  = int $parsed{headers}{contentLength};
-	my $dln = length $data;
-	if ($ln == 0) {
-		$parsed{len} = 0;
-		$more = $data;
-	} elsif ($ln < $dln) {
-		$parsed{content} = substr $data, 0, $ln;
-		$more            = substr $data, $ln;
-		$parsed{len}     = -1;
-	} else {
-		$parsed{content} = $data;
-		$parsed{len}     = $ln - $dln;
+	my $ln = int $parsed{headers}{contentLength};
+	{
+		use bytes;
+		my $dln = length $data;
+		if ($ln == 0) {
+			$parsed{len} = 0;
+			$more = $data;
+		} elsif ($ln < $dln) {
+			$parsed{content} = substr $data, 0, $ln;
+			$more            = substr $data, $ln;
+			$parsed{len}     = -1;
+		} else {
+			$parsed{content} = $data;
+			$parsed{len}     = $ln - $dln;
+		}
 	}
 
 	return (\%parsed, $more);

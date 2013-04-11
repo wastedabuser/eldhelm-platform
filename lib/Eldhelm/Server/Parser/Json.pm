@@ -28,10 +28,14 @@ sub encode {
 sub compose {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data, $options) = @_;
-	my $jsn;
+	my ($jsn, $ln);
 	$jsn = encode($data) if $data;
+	{
+		use bytes;
+		$ln = length($jsn) || 0;
+	}
 	my %headers = (
-		contentLength => length($jsn) || 0,
+		contentLength => $ln,
 		$options ? %$options : (),
 	);
 	return '["eldhlem-json-1.1",'.encode(\%headers).']'.$jsn;
