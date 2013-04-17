@@ -21,7 +21,7 @@ sub parse {
 	return ({ len => -2 }, $data) unless $data =~ m/[a-z0-9_]-/i;
 
 	my %parsed;
-	$data =~ s/^-(.+?)-//;
+	$data =~ s/^-([a-z0-9_]+?)-//;
 	$parsed{command} = $1;
 	$parsed{len}     = -1;
 

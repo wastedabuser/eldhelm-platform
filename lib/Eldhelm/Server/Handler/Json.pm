@@ -191,13 +191,8 @@ sub deviceInfoCommand {
 	my $conn = $self->getConnection;
 
 	$self->worker->log("Request deviceInfo");
-	$conn->sendData(
-		Eldhelm::Util::Tool::merge(
-			{ version => $self->worker->getConfig("content.version") },
-			$self->executeHandler("deviceInfo", $conn),
-		),
-		{ type => "serverInfo" }
-	);
+	$conn->sendData(Eldhelm::Util::Tool::merge({}, $self->executeHandler("deviceInfo", $conn),),
+		{ type => "serverInfo" });
 
 	return;
 }
