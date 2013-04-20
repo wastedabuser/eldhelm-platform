@@ -57,19 +57,27 @@ sub new {
 			stash                => shared_clone({}),
 			sslClients           => {},
 			slowSocket           => {},
+			%args,
 		};
 		bless $instance, $class;
 
 		$instance->addInstance;
 
-		$instance->readConfig;
-		$instance->createLogger;
-		$instance->loadState;
-		$instance->init;
-		$instance->listen;
-
 	}
 	return $instance;
+}
+
+sub start {
+	my ($self) = @_;
+	
+	$self->readConfig;
+	$self->configure;
+	$self->createLogger;
+	$self->loadState;
+	$self->init;
+	$self->listen;
+	
+	return $self;
 }
 
 sub readConfig {
@@ -80,6 +88,17 @@ sub readConfig {
 	} else {
 		die "No configuration file!";
 	}
+	return $self;
+}
+
+sub configure {
+	my ($self) = @_;
+	
+	$isWin = 1 if $^O =~ m/mswin/i;
+
+	my $protoList = $self->{config}{server}{acceptProtocols} ||= [];
+	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
+	
 	return $self;
 }
 
@@ -103,11 +122,6 @@ sub loadState {
 
 sub init {
 	my ($self) = @_;
-
-	$isWin = 1 if $^O =~ m/mswin/i;
-
-	my $protoList = $self->{config}{server}{acceptProtocols} ||= [];
-	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
 
 	my $cnf = $self->{config}{server};
 	my ($host, $port) = ($cnf->{host}, $cnf->{port});
@@ -622,13 +636,16 @@ sub addToStream {
 	my ($self, $sock, $data) = @_;
 	$self->message("adding chunk to stream ".length($data));
 	$self->{streamMap}{ $sock->fileno } .= $data;
-	$self->readSocketData($sock);
+	
+	while ($self->readSocketData($sock)) {}
 }
 
 sub readSocketData {
 	my ($self, $sock) = @_;
 	my $fileno = $sock->fileno;
 	my $stream = \$self->{streamMap}{$fileno};
+	return unless $$stream;
+	
 	my $buff   = $self->{buffMap}{$fileno} ||= { len => 0 };
 	my ($flag, $exec);
 
@@ -643,7 +660,7 @@ sub readSocketData {
 		}
 		%$buff = (%$hParsed, proto => $proto);
 		$self->executeBufferedTask($sock, $buff) if $buff->{len} == -1 || $buff->{len} == 0;
-		$flag = 1 if $buff->{len} != -2;
+		return 1 if $buff->{len} != -2;
 
 	} elsif ($buff->{len} > 0) {
 		$exec = 0;
@@ -657,7 +674,7 @@ sub readSocketData {
 				$buff->{content} .= $chunk;
 				$buff->{len} = 0;
 				$exec        = 1;
-				$flag        = 1;
+				return 1;
 
 			} elsif ($ln == $buff->{len}) {
 				$buff->{content} .= $$stream;
@@ -678,8 +695,6 @@ sub readSocketData {
 		$self->error("Unsupported protocol for message: ".$$stream);
 		$$stream = "";
 	}
-
-	$self->readSocketData($sock) if $$stream && $flag;
 
 	return;
 }
