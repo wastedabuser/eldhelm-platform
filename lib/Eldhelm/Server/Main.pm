@@ -57,6 +57,7 @@ sub new {
 			stash                => shared_clone({}),
 			sslClients           => {},
 			slowSocket           => {},
+			debugStreamMap       => {},
 			%args,
 		};
 		bless $instance, $class;
@@ -69,14 +70,14 @@ sub new {
 
 sub start {
 	my ($self) = @_;
-	
+
 	$self->readConfig;
 	$self->configure;
 	$self->createLogger;
 	$self->loadState;
 	$self->init;
 	$self->listen;
-	
+
 	return $self;
 }
 
@@ -93,12 +94,12 @@ sub readConfig {
 
 sub configure {
 	my ($self) = @_;
-	
+
 	$isWin = 1 if $^O =~ m/mswin/i;
 
 	my $protoList = $self->{config}{server}{acceptProtocols} ||= [];
 	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
-	
+
 	return $self;
 }
 
@@ -635,9 +636,10 @@ sub removeConnection {
 sub addToStream {
 	my ($self, $sock, $data) = @_;
 	$self->message("adding chunk to stream ".length($data));
-	$self->{streamMap}{ $sock->fileno } .= $data;
-	
-	while ($self->readSocketData($sock)) {}
+	my $fileno = $sock->fileno;
+	$self->{debugStreamMap}{$fileno} = $self->{streamMap}{$fileno} .= $data;
+
+	while ($self->readSocketData($sock)) { }
 }
 
 sub readSocketData {
@@ -645,8 +647,8 @@ sub readSocketData {
 	my $fileno = $sock->fileno;
 	my $stream = \$self->{streamMap}{$fileno};
 	return unless $$stream;
-	
-	my $buff   = $self->{buffMap}{$fileno} ||= { len => 0 };
+
+	my $buff = $self->{buffMap}{$fileno} ||= { len => 0 };
 	my ($flag, $exec);
 
 	my $proto = $self->detectProto($$stream);
@@ -674,7 +676,7 @@ sub readSocketData {
 				$buff->{content} .= $chunk;
 				$buff->{len} = 0;
 				$exec        = 1;
-				return 1;
+				$flag        = 1;
 
 			} elsif ($ln == $buff->{len}) {
 				$buff->{content} .= $$stream;
@@ -690,9 +692,10 @@ sub readSocketData {
 			}
 		}
 		$self->executeBufferedTask($sock, $buff) if $exec;
+		return 1 if $flag;
 
 	} elsif (length $$stream >= 20) {
-		$self->error("Unsupported protocol for message: ".$$stream);
+		$self->error("Unsupported protocol for message: ".$$stream." => $self->{debugStreamMap}{$fileno}");
 		$$stream = "";
 	}
 

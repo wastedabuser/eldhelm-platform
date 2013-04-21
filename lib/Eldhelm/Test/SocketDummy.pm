@@ -3,13 +3,16 @@ package Eldhelm::Test::SocketDummy;
 use strict;
 
 sub new {
-	my ($class) = @_;
-	my $self = {};
+	my ($class, $id) = @_;
+	my $self = {
+		fileno => $id,
+	};
 	return bless $self, $class;
 }
 
 sub fileno {
-	return 1;
+	my ($self) = @_;
+	return $self->{fileno};
 }
 
 1;
