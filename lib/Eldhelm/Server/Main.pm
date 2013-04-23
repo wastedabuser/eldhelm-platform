@@ -260,12 +260,15 @@ sub listen {
 		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server}, $self->{sslClients});
 	$self->log("Eldhelm server ready and listening ...");
 
+	my $waitRest = $self->{config}{server}{waitOnRead} || .001;
+	my $waitActive = $waitRest / 10;
+
 	while (1) {
 
 		$self->message("will read from socket");
 
 		# @clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
-		@clients = $select->can_read($hasPending ? .0001 : .001);
+		@clients = $select->can_read($hasPending ? $waitActive : $waitRest);
 		$self->message("will iterate over sockets ".scalar @clients);
 
 		push @clients, values %$sslClients;
