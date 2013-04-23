@@ -1,4 +1,4 @@
-package Eldhelm::Test::SocketDummy;
+package Eldhelm::Test::Mock::Socket;
 
 use strict;
 

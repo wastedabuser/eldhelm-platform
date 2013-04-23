@@ -3,18 +3,18 @@ use lib "../lib";
 use lib "../../lib";
 use Test::More "no_plan";
 use Data::Dumper;
-use Eldhelm::Test::MainTester;
-use Eldhelm::Test::SocketDummy;
+use Eldhelm::Test::Fixture::MainTester;
+use Eldhelm::Test::Mock::Socket;
 
-my $server = Eldhelm::Test::MainTester->new(
+my $server = Eldhelm::Test::Fixture::MainTester->new(
 	config => {
 		server => {
 			acceptProtocols   => [ "Http", "Json", "Xml", "System" ],
 		},
 	},
 )->configure;
-my $sock = Eldhelm::Test::SocketDummy->new(1);
-my $sock2 = Eldhelm::Test::SocketDummy->new(2);
+my $sock = Eldhelm::Test::Mock::Socket->new(1);
+my $sock2 = Eldhelm::Test::Mock::Socket->new(2);
 
 $server->addToStream($sock, '-ping-');
 my $data = $server->getNextParsed;

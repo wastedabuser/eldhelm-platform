@@ -208,20 +208,20 @@ sub rpcRespond {
 	my $conn = $self->getConnection;
 	return unless $conn;
 
+	my $response = {
+		success => !defined($success) ? 1 : $success,
+		data => $data,
+		$errors ? (errors => $errors) : (),
+		$flags  ? (flags  => $flags)  : (),
+	};
 	my $rpcId = $self->{requestHeaders}{rpcId};
+
 	unless ($rpcId) {
-		$self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders}));
+		$self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders})."\n".Dumper($response));
 		return;
 	}
 
-	$conn->say(
-		{   success => !defined($success) ? 1 : $success,
-			data => $data,
-			$errors ? (errors => $errors) : (),
-			$flags  ? (flags  => $flags)  : (),
-		},
-		{ rpcId => $rpcId },
-	);
+	$conn->say($response, { rpcId => $rpcId });
 }
 
 1;

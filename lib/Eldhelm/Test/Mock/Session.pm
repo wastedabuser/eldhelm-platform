@@ -1,4 +1,4 @@
-package Eldhelm::Test::SessionDummy;
+package Eldhelm::Test::Mock::Session;
 
 use strict;
 use Data::Dumper;

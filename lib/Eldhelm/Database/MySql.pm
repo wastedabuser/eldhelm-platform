@@ -266,7 +266,9 @@ sub insertRow {
 	return unless $fields;
 
 	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
-	return $self->query($query, @$valuesData);
+	$self->query($query, @$valuesData);
+	
+	return $self->dbh->{mysql_insertid};
 }
 
 sub insertArray {

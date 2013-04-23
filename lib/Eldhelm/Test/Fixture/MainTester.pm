@@ -1,4 +1,4 @@
-package Eldhelm::Test::MainTester;
+package Eldhelm::Test::Fixture::MainTester;
 
 use strict;
 use base qw(Eldhelm::Server::Main);

@@ -1,4 +1,4 @@
-package Eldhelm::Test::WorkerDummy;
+package Eldhelm::Test::Mock::Worker;
 
 use strict;
 use warnings;
@@ -21,12 +21,17 @@ sub new {
 		bless $self, $class;
 
 		$self->addInstance;
-		
-		$self->{persists} = shared_clone({});
+
+		$self->{persists}       = shared_clone({});
 		$self->{persistsByType} = shared_clone({});
-		$self->{delayedEvents} = shared_clone({});
+		$self->{delayedEvents}  = shared_clone({});
 	}
 	return $self;
+}
+
+sub error {
+	my ($self, $msg) = @_;
+	warn "# $msg";
 }
 
 1;
