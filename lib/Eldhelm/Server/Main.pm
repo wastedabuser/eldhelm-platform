@@ -398,9 +398,9 @@ sub acceptSock {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
 			};
-			Time::HiRes::ualarm(500_000);
+			alarm 3;
 			$conn = $socket->accept();
-			Time::HiRes::ualarm(0);
+			alarm 0;
 		};
 		if ($@) {
 			$self->error("An alarm was fired while accepting $socket:\n$@");
