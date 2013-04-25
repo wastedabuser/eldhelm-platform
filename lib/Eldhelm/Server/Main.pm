@@ -19,6 +19,7 @@ use Time::HiRes qw(time usleep);
 use Storable;
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::Factory;
+use Errno;
 
 use base qw(Eldhelm::Server::AbstractChild);
 
@@ -56,7 +57,6 @@ sub new {
 			jobQueue             => shared_clone([]),
 			stash                => shared_clone({}),
 			sslClients           => {},
-			slowSocket           => {},
 			debugStreamMap       => {},
 			%args,
 		};
@@ -283,12 +283,8 @@ sub listen {
 				next unless $fh == $socket;
 
 				$acceptFlag = 1;
-				my $conn = $self->acceptSock($socket);
-				unless ($conn) {
-					$sslClients->{$fh} = $fh;
-					last;
-				}
-				delete $sslClients->{$fh};
+				my $conn = $self->acceptSock($socket, $fh);
+				last unless $conn;
 
 				$self->configConnection($conn);
 				$self->createConnection($conn);
@@ -386,14 +382,10 @@ sub listen {
 }
 
 sub acceptSock {
-	my ($self, $socket) = @_;
+	my ($self, $socket, $fh) = @_;
 	$self->message("accept $socket");
 	my $conn;
-	if ($isWin || ref($socket) !~ /SSL/) {
-		$conn = $socket->accept();
-	} else {
-		my $ss = $self->{slowSocket};
-		return if $ss->{$socket} && $ss->{$socket} + 5 > time;
+	if (ref($socket) =~ /SSL/) {
 		eval {
 			local $SIG{ALRM} = sub {
 				die "accept blocked";
@@ -402,12 +394,16 @@ sub acceptSock {
 			$conn = $socket->accept();
 			alarm 0;
 		};
-		if ($@) {
-			$self->error("An alarm was fired while accepting $socket:\n$@");
-			$ss->{$socket} = time;
-			return;
+		$self->error("An alarm was fired while accepting $socket:\n$@") if $@;
+
+		if ($conn || $@ || $!{ETIMEDOUT}) {
+			delete $self->{sslClients}{$fh};
+		} elsif (!$conn) {
+			$self->{sslClients}{$fh} = $fh;
 		}
-		delete $ss->{$socket} if $ss->{$socket};
+
+	} else {
+		$conn = $socket->accept();
 	}
 	return $conn;
 }
@@ -457,7 +453,7 @@ sub sendToSock {
 		} else {
 			$charCnt = $fh->send($$data, 0);
 		}
-		$block = 1 if $! == POSIX::EWOULDBLOCK;
+		$block = 1 if $!{EWOULDBLOCK};
 		alarm 0;
 	};
 	if ($@) {

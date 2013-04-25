@@ -5,20 +5,31 @@ use Data::Dumper;
 use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
 
-my %ops = Eldhelm::Util::CommandLine->parseArgv(@ARGV);
+my $cmd = Eldhelm::Util::CommandLine->new(
+	argv  => \@ARGV,
+	usage => [
+		[ "all",      "runs all avaialbale tests" ],
+		[ "platform", "runs platform test only" ],
+		[ "product",  "runs product test only" ],
+		[ "dump",     "dumps the test results" ],
+	]
+);
 
 if (!@ARGV) {
-	print "Usage:
-perl $0 [list of folders names or files]\n
-Options:
-	-all runs all avaialbale tests
-	-dump dumps the test results
-\n";
+	print $cmd->usage;
 	exit;
 }
 
+my %ops = $cmd->arguments;
 my $harness = TAP::Harness->new({ verbosity => $ops{dump} || 0, });
 
+my @defaultPats;
+push @defaultPats, "t"            if $ops{platform} || $ops{all};
+push @defaultPats, "../../test/t" if $ops{product}  || $ops{all};
+
 my @tests;
-@tests = Eldhelm::Util::FileSystem->readFileList("t") if $ops{all};
+foreach (@defaultPats, @{ $ops{list} }) {
+	push @tests, Eldhelm::Util::FileSystem->readFileList($_);
+}
+
 $harness->runtests(sort { $a cmp $b } @tests);
