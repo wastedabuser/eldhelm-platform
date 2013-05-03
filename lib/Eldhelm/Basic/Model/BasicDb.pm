@@ -40,9 +40,15 @@ sub fieldList {
 	return $key;
 }
 
+sub setOrder {
+	my ($self, $order) = @_;
+	$self->{currentOrder} = $order;
+	return $self;
+}
+
 sub orderClause {
 	my ($self, $order) = @_;
-	my @list = @{ $order || $self->{defaultOrder} };
+	my @list = @{ $order || $self->{currentOrder} || $self->{defaultOrder} };
 	return @list ? "ORDER BY ".join(",", @list) : "";
 }
 
@@ -50,6 +56,7 @@ sub setPage {
 	my ($self, $page, $size) = @_;
 	$self->{limitOffset} = ($page - 1) * $size;
 	$self->{limitAmount} = $size;
+	return $self;
 }
 
 sub limitClause {
