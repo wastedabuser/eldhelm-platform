@@ -42,7 +42,7 @@ sub set {
 	lock($self);
 
 	my ($var, $key) = $self->getRefByNotation($key);
-	if (ref $value) {
+	if (ref($value) && !is_shared($value)) {
 		$var->{$key} = shared_clone($value);
 	} else {
 		$var->{$key} = $value;
@@ -91,7 +91,7 @@ sub getDefinedAsHash {
 	my ($self, @list) = @_;
 	lock($self);
 
-	return map { +$_ => $self->{$_} } grep { defined $self->{$_} } @list;
+	return map { +$_->[0] => $_->[1] } grep { defined $_->[1] } map { [ $_, $self->get($_) ] } @list;
 }
 
 sub remove {
@@ -218,7 +218,7 @@ sub getHashrefValues {
 sub clone {
 	my ($self, $key) = @_;
 	lock($self);
-	
+
 	my ($var, $key) = $self->getRefByNotation($key);
 	my $ref = $var->{$key};
 
@@ -228,7 +228,7 @@ sub clone {
 sub doFn {
 	my ($self, $fn, @options) = @_;
 	lock($self);
-	
+
 	return $fn->($self, @options);
 }
 
