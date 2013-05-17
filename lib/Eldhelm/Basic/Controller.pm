@@ -214,7 +214,7 @@ sub rpcRespond {
 		$errors ? (errors => $errors) : (),
 		$flags  ? (flags  => $flags)  : (),
 	};
-	my $rpcId = $self->{requestHeaders}{rpcId};
+	my $rpcId = $self->rpcId;
 
 	unless ($rpcId) {
 		$self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders})."\n".Dumper($response));
@@ -222,6 +222,11 @@ sub rpcRespond {
 	}
 
 	$conn->say($response, { rpcId => $rpcId });
+}
+
+sub rpcId {
+	my ($self) = @_;
+	return $self->{requestHeaders}{rpcId};
 }
 
 1;

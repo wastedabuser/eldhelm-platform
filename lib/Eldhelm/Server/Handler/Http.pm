@@ -139,11 +139,7 @@ sub createResponse {
 		($headers, $contents) = $self->routeAction($m[0]);
 		$cont = join "", @$contents;
 
-		if (!$cont && $router->hasErrors) {
-			$cont = $self->createStatusResponse(500, $router->getErrors);
-		} else {
-			$self->addHeaders(@$headers);
-		}
+		$self->addHeaders(@$headers) unless $router->hasErrors;
 		$self->{contentType} ||= "text/html";
 	} else {
 		my $path = "$self->{documentRoot}/$url";
@@ -202,23 +198,30 @@ sub createStatusResponse {
 	my ($self, $code, @args) = @_;
 	$self->{status} = Eldhelm::Util::HttpStatus->getStatus($code);
 
-	my ($handles, $headers, $cont) = ($self->{statusHandlers});
+	my ($handles, $headers, $content) = ($self->{statusHandlers});
 	if ($handles) {
 		foreach (@$handles) {
 			next if $code !~ m/$_->[0]/;
-			($headers, $cont) = $self->routeAction(@$_[ 1 .. 2 ], @args);
+			my $contentParts;
+			($headers, $contentParts) = $self->routeAction(@$_[ 1 .. 2 ], @args);
+			$content = join "", @$contentParts;
 			last;
 		}
 	}
 
 	my $fn = "_default${code}Response";
-	$cont = $self->$fn(@args) if !$cont && $self->can($fn);
-	return $cont || $self->{status};
+	$content = $self->$fn(@args) if !$content && $self->can($fn);
+	return $content || $self->{status};
 }
 
 sub createUnauthorizedResponse {
 	my ($self, $controller) = @_;
 	return $self->createStatusResponse(401);
+}
+
+sub createErrorResponse {
+	my ($self, $controller) = @_;
+	return $self->createStatusResponse(500, $self->router->getErrors);
 }
 
 sub redirect {

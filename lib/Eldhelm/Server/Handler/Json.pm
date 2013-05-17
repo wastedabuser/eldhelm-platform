@@ -222,8 +222,17 @@ sub compose {
 
 sub createUnauthorizedResponse {
 	my ($self, $controller) = @_;
+	return unless $controller->rpcId;
+
 	my $debug = $controller->callDebug;
 	$controller->rpcRespond(undef, 0, ["server_error_unauthorized_request"], $debug);
+}
+
+sub createErrorResponse {
+	my ($self, $controller) = @_;
+	return unless $controller->rpcId;
+
+	$controller->rpcRespond(undef, 0, ["server_error"]);
 }
 
 sub finish {

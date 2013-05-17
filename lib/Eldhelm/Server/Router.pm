@@ -3,6 +3,7 @@ package Eldhelm::Server::Router;
 use strict;
 use Eldhelm::Util::Factory;
 use Eldhelm::Util::Tool;
+use Eldhelm::Basic::Controller;
 use Carp;
 use Carp qw(longmess);
 use Data::Dumper;
@@ -69,10 +70,11 @@ sub doAction {
 		data           => $data,
 		requestHeaders => $self->{requestHeaders},
 	);
+	return ([], [ $self->handler->createErrorResponse($controller) ]) if $self->hasErrors;
 
 	unless ($private || $controller->canCall($method)) {
 		$self->addError("Can not call action '$action'", $controller->callDump($method));
-		return ([], $self->handler->createUnauthorizedResponse($controller));
+		return ([], [ $self->handler->createUnauthorizedResponse($controller) ]);
 	}
 
 	my $moreActions = $self->getRelatedActions(
@@ -100,8 +102,10 @@ sub doAction {
 			last if $c->{ended};
 		}
 	};
-	$self->addError("Error while calling '$method'", Dumper($data)."\n".$self->smartTrace($@))
-		if $@;
+	if ($@) {
+		$self->addError("Error while calling '$method'", Dumper($data)."\n".$self->smartTrace($@));
+		return ([], [ $self->handler->createErrorResponse($controller) ]);
+	}
 
 	return (\@headers, \@contents, \@results);
 }
@@ -133,9 +137,13 @@ sub executeAction {
 	my ($self,  $name,   @args)   = @_;
 	my ($class, $method, $result) = $self->parseControllerName($name);
 	my $controller = $self->getInstance($class);
+	return ([], [ $self->handler->createErrorResponse($controller) ]) if $self->hasErrors;
+
 	eval { $result = $self->executeControllerMethod($controller, $method, @args) };
-	$self->worker->error("Error while calling '$name': ".Dumper(\@args).": ".$self->smartTrace($@))
-		if $@;
+	if ($@) {
+		$self->worker->error("Error while calling '$name': ".Dumper(\@args).": ".$self->smartTrace($@));
+		return ($controller, $self->handler->createErrorResponse($controller));
+	}
 	return ($controller, $result);
 }
 
@@ -150,7 +158,14 @@ sub getInstance {
 			worker => $self->worker,
 		);
 	};
-	$self->addError("Can not create controller '$class'", $@) if $@;
+	if ($@) {
+		$self->addError("Can not create controller '$class'", $@);
+		$inst = Eldhelm::Basic::Controller->new(
+			%args,
+			router => $self,
+			worker => $self->worker,
+		);
+	}
 	return $inst;
 }
 

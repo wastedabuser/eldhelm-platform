@@ -55,6 +55,11 @@ sub createUnauthorizedResponse {
 	return;
 }
 
+sub createErrorResponse {
+	my ($self, $controller) = @_;
+	return;
+}
+
 sub finish {
 	my ($self) = @_;
 	return;
