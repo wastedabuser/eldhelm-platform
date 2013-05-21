@@ -44,6 +44,21 @@ sub assocArray {
 	return \%result;
 }
 
+sub assocHash {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($array, $key) = @_;
+	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
+	my $lk = pop @keys;
+	return {} unless $lk;
+	my %result;
+	foreach my $it (@$array) {
+		my $ret = \%result;
+		$ret = $ret->{ $it->{$_} } ||= {} foreach @keys;
+		$ret->{ $it->{$lk} } = $it;
+	}
+	return \%result;
+}
+
 sub assocKeyValue {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
