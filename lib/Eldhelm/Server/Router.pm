@@ -70,7 +70,8 @@ sub doAction {
 		data           => $data,
 		requestHeaders => $self->{requestHeaders},
 	);
-	return ([], [ $self->handler->createErrorResponse($controller) ]) if $self->hasErrors;
+	return ([], [ $self->handler->createErrorResponse($controller) ])
+		if ref $controller eq "Eldhelm::Basic::Controller";
 
 	unless ($private || $controller->canCall($method)) {
 		$self->addError("Can not call action '$action'", $controller->callDump($method));
@@ -137,7 +138,8 @@ sub executeAction {
 	my ($self,  $name,   @args)   = @_;
 	my ($class, $method, $result) = $self->parseControllerName($name);
 	my $controller = $self->getInstance($class);
-	return ([], [ $self->handler->createErrorResponse($controller) ]) if $self->hasErrors;
+	return ([], [ $self->handler->createErrorResponse($controller) ])
+		if ref $controller eq "Eldhelm::Basic::Controller";
 
 	eval { $result = $self->executeControllerMethod($controller, $method, @args) };
 	if ($@) {
