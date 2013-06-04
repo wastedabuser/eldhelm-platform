@@ -1015,7 +1015,7 @@ sub saveStateAndShutDown {
 	}
 
 	my $data = Eldhelm::Util::Tool::cloneStructure(
-		{ map { +$_ => $self->{$_} } qw(persists persistsByType persistLookup delayedEvents jobQueue) });
+		{ map { +$_ => $self->{$_} } qw(stash persists persistsByType persistLookup delayedEvents jobQueue) });
 
 	my $cfg  = $self->{config}{server};
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
