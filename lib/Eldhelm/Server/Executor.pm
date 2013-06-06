@@ -220,7 +220,7 @@ sub pingConnections {
 		if ($c->{timeSample1}) {
 			$c->{ping} = int(($c->{timeSample2} - $c->{timeSample1}) * 1000);
 			$self->calcAvgPing($c);
-			$self->debug("Ping for $fno from $c->{peerhost} is $c->{ping} ($c->{avgPing})");
+			$self->log("Ping for $fno from $c->{peerhost} is $c->{ping} ($c->{avgPing})");
 		}
 
 		$c->{timeSample1} = time;
@@ -280,7 +280,7 @@ sub triggerDelayedEvents {
 	my ($now, $list) = (time);
 	foreach my $st (@stamps) {
 		next if $now < $st;
-		$self->debug("Delayed for $st");
+		$self->log("Delayed for $st");
 		next if !@{ $devs->{$st} };
 		$list = delete $devs->{$st};
 		foreach my $ev (@$list) {
@@ -291,7 +291,7 @@ sub triggerDelayedEvents {
 				}
 			);
 		}
-		$self->debug("Done delayed for $st");
+		$self->log("Done delayed for $st");
 	}
 }
 
