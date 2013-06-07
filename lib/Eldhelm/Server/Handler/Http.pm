@@ -98,6 +98,7 @@ sub parseContent {
 	my ($self, $content) = @_;
 	$self->parsePost($content);
 	$self->parseGet($self->{queryString});
+	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
 	$self->worker->log("$self->{method} $self->{url}", "access");
 }
 
@@ -110,6 +111,29 @@ sub parseGet {
 sub parsePost {
 	my ($self, $str) = @_;
 	$self->{post} = $self->parseParams($str);
+	return $self;
+}
+
+sub parseCookies {
+	my ($self, $str) = @_;
+	my (%params, @list);
+	foreach (split /\;\s*/, $str) {
+		my ($name, $value) = split /\=/, $_;
+		if (!$value && $_ !~ /\=/) {
+			$value = $name;
+			$name  = "";
+		}
+
+		# $value =~ tr/+/ /;
+		# $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+		if ($name) {
+			$params{$name} = $value;
+		} else {
+			push @list, $value;
+		}
+	}
+	$self->{cookies}      = \%params;
+	$self->{cookieValues} = \@list;
 	return $self;
 }
 
@@ -243,6 +267,25 @@ sub addHeaders {
 	return $self;
 }
 
+sub setCookie {
+	my ($self, $name, $value, $args) = @_;
+
+	my @chunks = ("$name=$value");
+	if ($args) {
+		push @chunks, "expires=".time2str("%a, %d %b %Y %T GMT", time + $args->{expires})
+			if $args->{expires};
+		push @chunks, "domain=$args->{domain}" if $args->{domain};
+		push @chunks, "path=$args->{path}"     if $args->{path};
+		push @chunks, "secure"                 if $args->{secure};
+	}
+
+	my $cookie = join "; ", @chunks;
+	return $self unless $cookie;
+
+	$self->addHeaders("Set-Cookie: $cookie");
+	return $self;
+}
+
 sub createHttpResponse {
 	my ($self, $cont) = @_;
 	my $info    = $self->worker->{info};
@@ -265,6 +308,12 @@ sub readDocument {
 		# $self->addHeaders("Last-Modified: ".time2str("%a, %e %b %Y %T GMT", $time));
 	}
 	return $data;
+}
+
+sub getCookie {
+	my ($self, $name) = @_;
+	return unless $self->{cookies};
+	return $self->{cookies}{$name};
 }
 
 sub finish {
