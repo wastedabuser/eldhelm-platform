@@ -761,6 +761,8 @@ sub handleTransmissionFlags {
 
 sub delegateToWorker {
 	my ($self, $id, $data) = @_;
+	return if $self->{shuttingDown};
+
 	my $t   = $self->selectWorker($id);
 	my $tid = $t->tid;
 	$self->log("Delegating to worker $tid: [proto:$data->{proto}; len:".($data->{len} || "")."]");
@@ -977,25 +979,17 @@ sub gracefullRestart {
 sub saveStateAndShutDown {
 	my ($self) = @_;
 
+	$self->{shuttingDown} = 1;
 	$self->log("Saving state ...");
 
 	$self->removeExecutor;
 
-	# TODO: find a way to save waiting jobs something with the waiting jobs
-	# the problem is that they are per connection and when connections are lost these jobs are meaning full
+	# TODO: find a way to save waiting jobs for every worker something with the waiting jobs
+	# the problem is that they are per connection and when connections are lost these jobs are meaningless
 	$self->removeWorker($_) foreach @{ $self->{workers} };
 
 	# wait for threads to stop
 	sleep 5;
-
-	# my @jobs;
-	# push @jobs, @{ $self->removeWorker($_) } foreach @{ $self->{workers} };
-	# {
-	# my $queue = $self->{jobQueue};
-	# lock($queue);
-
-	# push @jobs, @$queue;
-	# }
 
 	my @persistsList;
 	{
