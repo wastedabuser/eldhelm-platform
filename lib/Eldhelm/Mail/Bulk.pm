@@ -42,13 +42,13 @@ sub getConfig {
 }
 
 sub send {
-	my ($self)        = @_;
-	my $cfg           = $self->getConfig;
-	my %defaultParams = %{ $self->{tplParams} };
+	my ($self) = @_;
+	my $cfg = $self->getConfig;
+	my %defaultParams = (%{ $cfg->{globalTemplateParams} }, %{ $self->{tplParams} });
 	my $size          = $self->{packetSize};
-	my %langs = map { +$_ => $_ } @{ $self->{allowedLangs} };
-	my $limit = 0;
-	my @list  = @{ $self->{recipients} };
+	my %langs         = map { +$_ => $_ } @{ $self->{allowedLangs} };
+	my $limit         = 0;
+	my @list          = @{ $self->{recipients} };
 
 	$self->printProgress("Sending a total of ".@list." emails.\n");
 	while (@list) {
@@ -137,7 +137,7 @@ sub send {
 		$self->printProgress("\nDone\n");
 
 		last if defined $self->{limit} && $limit >= $self->{limit};
-		
+
 		usleep $self->{packetWait};
 	}
 
