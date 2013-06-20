@@ -65,22 +65,27 @@ sub run {
 
 		# every second
 		if ($curTime - $lastSecTime >= 1) {
-			$self->checkTimeout;
-			$self->checkShedule;
+			eval {
+				$self->checkTimeout;
+				$self->checkShedule;
+			};
+			$self->error($@) if $@;
 
 			$lastSecTime = time;
 		}
 
 		# every 10 seconds
 		if ($curTime - $lastTenSecTime >= 10) {
-			$self->checkConnectionTimeout;
+			eval { $self->checkConnectionTimeout; };
+			$self->error($@) if $@;
 
 			$lastTenSecTime = time;
 		}
 
 		# keepalive intervals
 		if ($curTime - $kaTime >= $self->{keepaliveInterval}) {
-			$self->pingConnections;
+			eval { $self->pingConnections; };
+			$self->error($@) if $@;
 
 			$kaTime = time;
 		}

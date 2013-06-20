@@ -23,6 +23,7 @@ sub readFile {
 	my ($self, $path) = @_;
 	open FR, $path or confess $!;
 	$self->{lines} = [ map { s/[\n\r]//g; $_ } <FR> ];
+	$self->{lines}[0] =~ s/^\x{ef}\x{bb}\x{bf}//;
 	Encode::_utf8_on($_) foreach @{ $self->{lines} };
 	close FR;
 	return;
