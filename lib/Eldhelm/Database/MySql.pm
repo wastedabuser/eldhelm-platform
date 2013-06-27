@@ -57,7 +57,8 @@ sub query {
 		if ($params[$i] =~ /^\d+\.?\d*$/) {
 			$opts = { TYPE => DBI::SQL_NUMERIC };
 		}
-		$sth->bind_param($i + 1, $params[$i], $opts);
+		eval { $sth->bind_param($i + 1, $params[$i], $opts); };
+		confess "$query: $@\n".Dumper(\@params) if $@;
 	}
 	eval { $sth->execute(); };
 	confess "$query: $@\n".Dumper(\@params) if $@;
@@ -263,7 +264,7 @@ sub insertRow {
 
 	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
 	$self->query($query, @$valuesData);
-	
+
 	return $self->dbh->{mysql_insertid};
 }
 

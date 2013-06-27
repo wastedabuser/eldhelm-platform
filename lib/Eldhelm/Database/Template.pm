@@ -24,12 +24,19 @@ sub new {
 
 sub getSql {
 	my ($self) = @_;
-	return $self->{sql} ||= atssql5->new;
+	return $self->{sql};
+}
+
+sub getPath {
+	my ($self, $name) = @_;
+	return "$self->{rootPath}Eldhelm/Application/Template/".join("/", split(/\./, $name)).".tsql";
 }
 
 sub descTable {
 	my ($self, $table) = @_;
-	return $self->{tableDesc}{$table} ||= $self->getSql->fetch_array("DESC $table");
+	my $sql = $self->getSql;
+	confess "No sql" unless $sql;
+	return $self->{tableDesc}{$table} ||= $sql->fetchArray("DESC $table");
 }
 
 sub descTableAsHash {
@@ -47,11 +54,7 @@ sub init {
 
 sub find_path {
 	my ($self, $path) = @_;
-	my $pt;
-	foreach (qw(htdocs core)) {
-		$pt = "$ENV{DOCUMENT_ROOT}/$_/$path";
-		last if -f $pt;
-	}
+	my $pt = $self->getPath($path);
 	confess "Can not find file: $pt" unless $pt;
 
 	$path =~ s|/([^/]+)$||;
@@ -212,7 +215,7 @@ sub tokenize {
 				push @tokens, [ ($_ eq "(" ? "open" : "close")."Bracket", $_, $lnum, $cnum ];
 				next;
 			}
-			if (/,/) {
+			if (/[,\?]/) {
 				push @tokens, [ "symbol", $_, $lnum, $cnum ];
 				next;
 			}
@@ -306,7 +309,13 @@ sub _lex_fields {
 		while ($tkn = shift @$tokens) {
 			$lv++ if $tkn->[0] eq "openBracket";
 			$lv-- if $tkn->[0] eq "closeBracket";
-			if ($lv == 0 && $tkn->[0] eq "word" && $tokens->[1] && $tokens->[1][1] eq "*") {
+			if (   $lv == 0
+				&& $tkn->[0] eq "word"
+				&& $tokens->[0]
+				&& $tokens->[0][0] ne "openBracket"
+				&& $tokens->[1]
+				&& $tokens->[1][1] eq "*")
+			{
 				$field[1] = "*";
 				$field[2] = $tkn->[1];
 				shift(@$tokens);
@@ -322,7 +331,9 @@ sub _lex_fields {
 				$flag = 1;
 				last;
 			}
-			push @field, $self->lexExpression($tkn, $tokens, $lv);
+			my $expr = $self->lexExpression($tkn, $tokens, $lv);
+			$lv++ if $expr->[0] eq "function";
+			push @field, $expr;
 		}
 		push @flds, \@field if @field > 2;
 		last if $flag;
@@ -410,6 +421,12 @@ sub lexExpression {
 	my ($self, $tkn, $tokens, $level) = @_;
 	my $next = $tokens->[0];
 	my @syntax;
+	if ($next && $tkn->[0] eq "word" && $tkn->[1] !~ /^(?:in|or|and|not|date)$/i && $next->[0] eq "openBracket") {
+		shift(@$tokens);
+		@syntax = @$tkn;
+		$syntax[0] = "function";
+		return \@syntax;
+	}
 	if ($next && $tkn->[0] eq "word" && $next->[0] eq "symbol" && $next->[1] eq ".") {
 		my ($op, $field) = (shift(@$tokens), shift(@$tokens));
 		push @syntax, "reference", $tkn, $op, $field;
@@ -423,7 +440,7 @@ sub extend {
 	return $self->placeholders($name)
 		if ref $name;
 
-	my $tpl = CUBES::Data::Template->new(file => $name);
+	my $tpl = Eldhelm::Database::Template->new(file => $name);
 	$self->{stream} = $tpl->{stream};
 
 	$self->{$_} = { %{ $tpl->{$_} }, %{ $self->{$_} } } foreach qw(filterPlaceholders placeholders);
@@ -627,6 +644,11 @@ sub _compile_word {
 	return $node->[1];
 }
 
+sub _compile_function {
+	my ($self, $node) = @_;
+	return "$node->[1](";
+}
+
 sub _compile_number {
 	my ($self, $node) = @_;
 	return $node->[1];
@@ -708,6 +730,7 @@ sub compileFilters {
 	return if !$name;
 	my $query = $self->{filterPlaceholders}{$name};
 	return $query if $query !~ /\?/;
+	return unless exists $self->{conditions}{$name};
 	my $values = $self->{conditions}{$name};
 	return $self->compileValues($query, $values);
 }
