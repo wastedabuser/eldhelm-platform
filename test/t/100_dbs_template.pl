@@ -89,3 +89,40 @@ $query = $tpl->compile({ fields => ["uga"] });
 ok($query =~ /\*/);
 note($query);
 
+diag("test 6 - more complex query");
+
+$tpl->stream("SELECT 
+	u.id,
+	u.first_name,
+	u.last_name,
+	u.name,
+	u.mail,
+	u.secret_id
+FROM 
+	user u LEFT JOIN reminder_gift rg ON rg.user_id = u.id AND rg.type IN ('remind', 'premium')
+WHERE 
+	u.mail_valid = 1 AND registered_on > DATE_SUB(CURDATE(), INTERVAL 4 MONTH) AND 
+	survey_result = 'yes' AND active = 1 AND u.mail_notify_gifts = 1 AND rg.user_id IS NULL AND
+	(SELECT COUNT(*) FROM hero WHERE user_id = u.id AND level > 20) > 0 AND
+	(SELECT created_on FROM `session` WHERE user_id = u.id ORDER BY created_on DESC LIMIT 1) < DATE_SUB(CURDATE(), INTERVAL 14 DAY)
+LIMIT 100");
+
+$query = $tpl->clearFields->compile;
+note($query);
+
+diag("test 6 - more complex query");
+
+$tpl->stream("SELECT 
+	DATE(created_on) AS x, 
+	SUM(gr.gold) AS y 
+FROM 
+	`purchase` p, `service` s, `hero_gamble_reward` gr
+WHERE 
+	p.service_id = s.id AND gr.purchase_id = p.id AND gr.gold > '0' AND
+	DATE(p.created_on) >= DATE_SUB(CURDATE(), INTERVAL {months} MONTH) AND s.code = 'gamble'
+	[user AND p.user_id = ?]
+GROUP BY x
+ORDER BY created_on");
+
+$query = $tpl->clearFields->compile;
+note($query);

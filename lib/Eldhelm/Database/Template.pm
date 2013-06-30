@@ -180,8 +180,9 @@ sub tokenize {
 				next;
 			}
 
-			if (/[\d\.\-]/ && (/\D/ || (!$bufW && !$bufI))) {
+			if (/[\d\.\-]/ && !$bufW && !$bufI) {
 				$bufN .= $_;
+				next;
 			} elsif (defined $bufN) {
 				my $tp;
 				$tp = "symbol"   if $bufN eq ".";
@@ -192,23 +193,29 @@ sub tokenize {
 
 			if (/[\+\*\/<>=]/) {
 				$bufOp .= $_;
+				next;
 			} elsif (defined $bufOp) {
 				push @tokens, [ "operator", $bufOp, $lnum, $cnum ];
 				$bufOp = undef;
+				redo;
 			}
 
 			if (/\w/ && !$bufN && !$bufI) {
 				$bufW .= $_;
+				next;
 			} elsif (defined $bufW) {
 				push @tokens, [ "word", $bufW, $lnum, $cnum ];
 				$bufW = undef;
+				redo;
 			}
 
 			if (/[\{\}\[\]\w]/ && !$bufN && !$bufW) {
 				$bufI .= $_;
+				next;
 			} elsif (defined $bufI) {
 				push @tokens, [ "instruction", $bufI, $lnum, $cnum ];
 				$bufI = undef;
+				redo;
 			}
 
 			if (/[\(\)]/) {
@@ -271,7 +278,9 @@ sub _lex_select {
 			$lv++ if $tkn->[0] eq "openBracket";
 			$lv-- if $tkn->[0] eq "closeBracket";
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /having|order|limit/i;
-			push @grp, $self->lexExpression($tkn, $tokens);
+			my $expr = $self->lexExpression($tkn, $tokens);
+			$lv++ if $expr->[0] eq "function";
+			push @grp, $expr;
 		}
 	}
 	if ($tkn->[1] =~ /having/i) {
@@ -285,7 +294,9 @@ sub _lex_select {
 			$lv++ if $tkn->[0] eq "openBracket";
 			$lv-- if $tkn->[0] eq "closeBracket";
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /limit/i;
-			push @ordr, $self->lexExpression($tkn, $tokens);
+			my $expr = $self->lexExpression($tkn, $tokens);
+			$lv++ if $expr->[0] eq "function";
+			push @ordr, $expr;
 		}
 	}
 	if ($tkn->[1] =~ /limit/i) {
@@ -348,11 +359,12 @@ sub _lex_tables {
 	push @tbls, "tables" if $nodeName;
 	while ($tkn = shift @$tokens) {
 		($tbl, $tkn) = $self->lexTable($tkn, $tokens);
-		$lv++ if $tkn->[0] eq "openBracket";
-		$lv-- if $tkn->[0] eq "closeBracket";
+		$lv++ if $tkn && $tkn->[0] eq "openBracket";
+		$lv-- if $tkn && $tkn->[0] eq "closeBracket";
 		push @tbls, $tbl if @$tbl;
-		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
-		push @tbls, $tkn if @$tkn;
+		last if $lv == 0 && $tkn && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
+		redo if @$tbl;
+		push @tbls, $tkn if $tkn && @$tkn;
 	}
 	return (\@tbls, $tkn);
 }
@@ -373,11 +385,13 @@ sub lexTable {
 			$lv-- if $tkn->[0] eq "closeBracket";
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
 			last if $lv == 0 && $tkn->[0] eq "symbol" && $tkn->[1] eq ",";
-			push @syntax, $self->lexExpression($tkn, $tokens);
+			my $expr = $self->lexExpression($tkn, $tokens);
+			$lv++ if $expr->[0] eq "function";
+			push @syntax, $expr;
 		}
 	} elsif ($tkn->[0] eq "word" && $next->[0] eq "word") {
 		push @syntax, "table", $self->lexTableAlias($tkn, $tokens);
-		$tkn = shift @$tokens;
+		$tkn = shift(@$tokens);
 	}
 	return (\@syntax, $tkn);
 }
@@ -399,7 +413,9 @@ sub _lex_conditions {
 		$lv++ if $tkn->[0] eq "openBracket";
 		$lv-- if $tkn->[0] eq "closeBracket";
 		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|having|group|limit/i;
-		push @whrs, $self->lexExpression($tkn, $tokens);
+		my $expr = $self->lexExpression($tkn, $tokens);
+		$lv++ if $expr->[0] eq "function";
+		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
 }
@@ -412,7 +428,9 @@ sub _lex_havingConditions {
 		$lv++ if $tkn->[0] eq "openBracket";
 		$lv-- if $tkn->[0] eq "closeBracket";
 		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|limit/i;
-		push @whrs, $self->lexExpression($tkn, $tokens);
+		my $expr = $self->lexExpression($tkn, $tokens);
+		$lv++ if $expr->[0] eq "function";
+		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
 }
@@ -474,6 +492,12 @@ sub fields {
 	foreach (@$fields) {
 		$self->{fields}{$_} = 1;
 	}
+	return $self;
+}
+
+sub clearFields {
+	my ($self) = @_;
+	%{ $self->{fields} } = ();
 	return $self;
 }
 

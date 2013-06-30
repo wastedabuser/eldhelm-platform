@@ -27,7 +27,8 @@ sub new {
 		packetWait    => $args{packetWait} || 1_000_000 / 4,
 		printProgress => $args{printProgress},
 		callbacks     => $args{callbacks} || {},
-		allowedLangs  => $args{allowedLangs} || [qw(en bg)],
+		multilanguage => $args{multilanguage},
+		allowedLangs  => $args{allowedLangs} || [],
 		defaultLang   => $args{defaultLang} || "en",
 	};
 	bless $self, $class;
@@ -89,12 +90,13 @@ sub send {
 			);
 
 			my $ln = $langs{$lng} || $self->{defaultLang};
+			my $tpl = $self->{multilanguage} ? "$self->{tpl}_$ln" : $self->{tpl};
 
 			my $body;
 			if ($self->{tpl}) {
 				$body = Eldhelm::Util::Template->new(
 					rootPath => $self->{tplRootPath},
-					name     => "$self->{tpl}_$ln",
+					name     => $tpl,
 					params   => { %defaultParams, %$rcp },
 				)->compile;
 			} else {
