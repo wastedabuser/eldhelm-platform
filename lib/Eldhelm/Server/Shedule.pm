@@ -55,7 +55,8 @@ sub setRule {
 
 sub isTime {
 	my ($self) = @_;
-	return if $self->{wait} || $self->curTime < $self->{time};
+	$self->{remain} = $self->{time} - $self->curTime;
+	return if $self->{wait} || $self->{remain} >= 0;
 	$self->{wait} = 1;
 	return 1;
 }

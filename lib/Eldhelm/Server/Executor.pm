@@ -38,9 +38,11 @@ sub init {
 	$self->{keepaliveInterval} = $self->getConfig("server.keepaliveInterval");
 	$self->{pingAvgSamples}    = (60 / $self->{keepaliveInterval}) * 10;
 	$self->{interval}          = 100_000;
+	
+	my $named = $self->getConfig("server.shedule.namedAction") || {};
 	$self->{sheduled} =
 		[ map { Eldhelm::Server::Shedule->new(init => $_) }
-			Eldhelm::Util::Tool->toList($self->getConfig("server.shedule.action")) ];
+			Eldhelm::Util::Tool->toList($self->getConfig("server.shedule.action")), values %$named ];
 }
 
 # =================================
