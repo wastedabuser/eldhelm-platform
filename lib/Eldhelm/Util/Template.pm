@@ -34,20 +34,44 @@ sub load {
 sub compile {
 	my ($self, $args) = @_;
 	my $source = $self->load;
-	my $args = { %{ $self->{params} }, %{ $args || {} } };
-	$source =~ s/\$([a-z0-9_]+)/$args->{$1}/gei;
-	$source =~ s/\{([a-z0-9_]+?)\|(.+?)\}/$self->interpolateVar($args->{$1}, $2)/gei;
-	$source =~ s/\{([a-z0-9_]+?)\}/$args->{$1}/gei;
-	$source =~ s/\{([a-z]+)[\t\s\r\n]+(.+?)\}/$self->interpolateFunction($1, $2, $args)/geis;
+	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
+
+	$source =~ s/\$([a-z][a-z0-9_]*)/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
+	$source =~ s/\{([a-z][a-z0-9_]*)\|(.+?)\}/;;~~eldhelm~template~placeholder~var~$1,,$2~~;;/gi;
+	$source =~ s/\{([a-z][a-z0-9_]*)\}/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
+	$source =~ s/\{([a-z][a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
+		my $nm = $1; 
+		(my $args = $2) =~ s|[\n\r\t]||g;
+		";;~~eldhelm~template~placeholder~function~$nm,,$args~~;;"
+	/geis;
+
+	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~~;;/$self->interpolate($1, $2)/gei;
+
 	return $source;
 }
 
-sub interpolateVar {
-	my ($self, $value, $format) = @_;
+sub interpolate {
+	my ($self, $tp, $args) = @_;
+	my $fn = "_interpolate_$tp";
+	return $self->$fn(split /,,/, $args);
+}
+
+sub _interpolate_var {
+	my ($self, $name, $format) = @_;
+	my $value = $self->{compileParams}{$name};
+	return $value unless $format;
+
 	my $method = "_format_$format";
 	return sprintf($value, $format) if $format =~ /%/;
 	confess "Format '$format' is unrecognized:\n".Dumper($value) if !$self->can($method);
 	return $self->$method($value, $format);
+}
+
+sub _interpolate_function {
+	my ($self, $method, $query) = @_;
+	my $name = "_function_$method";
+	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
+	return $self->$name(\%params);
 }
 
 sub _format_json {
@@ -56,11 +80,12 @@ sub _format_json {
 	return Eldhelm::Server::Parser::Json->encodeFixNumbers($value);
 }
 
-sub interpolateFunction {
-	my ($self, $method, $query, $args) = @_;
-	my $name = "_function_$method";
-	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
-	return $self->$name(\%params, $args);
+sub _function_include {
+	my ($self, $options) = @_;
+	return Eldhelm::Util::Template->new(
+		name   => $options->{tpl},
+		params => $self->reachNode($options->{ns}, $self->{compileParams}),
+	)->compile;
 }
 
 sub reachNode {
@@ -77,14 +102,6 @@ sub reachNode {
 		}
 	}
 	return $ref;
-}
-
-sub _function_include {
-	my ($self, $options, $args) = @_;
-	return Eldhelm::Util::Template->new(
-		name   => $options->{tpl},
-		params => $self->reachNode($options->{ns}, $args),
-	)->compile;
 }
 
 1;
