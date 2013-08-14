@@ -122,9 +122,9 @@ sub compile {
 
 	foreach my $d (@{ $self->{data} }) {
 		my @more;
-		push @more, qq~<a href="${\($self->createControlLinks($editUrl, $d))}">edit</a>~ if $self->{editUrl};
+		push @more, qq~[<a href="${\($self->createControlLinks($editUrl, $d))}">edit</a>]~ if $self->{editUrl};
 		push @more,
-			qq~<a href="${\($self->createControlLinks($removeUrl, $d))}" onclick="return confirm('Sure?');">del</a>~
+			qq~[<a href="${\($self->createControlLinks($removeUrl, $d))}" onclick="return confirm('Sure?');">del</a>]~
 			if $self->{removeUrl};
 		my @fields;
 		foreach (@{ $self->{columns} }) {
@@ -203,7 +203,7 @@ sub createField {
 	my $target = $col->{target} || "_self";
 	$url   ||= $col->{url};
 	$label ||= $col->{label};
-	return qq~<a href="$url" target="$target">$label</a>~;
+	return qq~[<a href="$url" target="$target">$label</a>]~;
 }
 
 sub applyTpl {
