@@ -1,7 +1,6 @@
 package Eldhelm::Server::AbstractChild;
 
 use strict;
-use warnings;
 use threads;
 use threads::shared;
 use Data::Dumper;

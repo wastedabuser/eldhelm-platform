@@ -1,7 +1,6 @@
 package Eldhelm::Server::Worker;
 
 use strict;
-use warnings;
 use threads;
 use threads::shared;
 use Thread::Suspend;
