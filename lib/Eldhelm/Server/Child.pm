@@ -27,6 +27,17 @@ sub new {
 	return $self;
 }
 
+sub status {
+	my ($self, $name, $value) = @_;
+	my $status = $self->{workerStatus};
+	lock($status);
+
+	return $status->{$name} unless defined $value;
+
+	$status->{$name} = $value;
+	return;
+}
+
 sub getConfig {
 	my ($self, $property) = @_;
 	my $ref = $self->{config};

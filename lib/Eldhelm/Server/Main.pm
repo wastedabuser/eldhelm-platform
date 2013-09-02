@@ -37,6 +37,7 @@ sub new {
 			config               => {},
 			workers              => [],
 			workerQueue          => {},
+			workerStatus         => {},
 			connId               => 1,
 			connidMap            => {},
 			filenoMap            => {},
@@ -223,14 +224,17 @@ sub createLogger {
 sub createExecutor {
 	my ($self) = @_;
 	my $executorQueue = shared_clone([]);
+	my $workerStatus = shared_clone({ action => "startup" });
 	my $t = $self->{executor} = threads->create(
 		\&Eldhelm::Server::Executor::create,
-		workerQueue => $executorQueue,
+		workerStatus => $workerStatus,
+		workerQueue  => $executorQueue,
 		map { +$_ => $self->{$_} }
 			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents connectionEvents jobQueue stash)
 	);
 	$self->log("Created executor: ".$t->tid);
-	$self->{workerQueue}{ $t->tid } = $executorQueue;
+	$self->{workerQueue}{ $t->tid }  = $executorQueue;
+	$self->{workerStatus}{ $t->tid } = $workerStatus;
 	$t->detach();
 	return;
 }
@@ -238,14 +242,17 @@ sub createExecutor {
 sub createWorker {
 	my ($self, $jobs) = @_;
 	my $workerQueue = shared_clone($jobs || []);
+	my $workerStatus = shared_clone({ action => "startup" });
 	my $t = threads->create(
 		\&Eldhelm::Server::Worker::create,
-		workerQueue => $workerQueue,
+		workerStatus => $workerStatus,
+		workerQueue  => $workerQueue,
 		map { +$_ => $self->{$_} }
 			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents jobQueue stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }          = $workerQueue;
+	$self->{workerStatus}{ $t->tid }         = $workerStatus;
 	$self->{workerStats}{ $t->tid }{jobs}    = 0;
 	$self->{connectionWorkerLoad}{ $t->tid } = 0;
 	$t->detach();
@@ -938,6 +945,7 @@ sub removeWorker {
 	$t->resume if $t->is_suspended;
 
 	delete $self->{workerQueue}{$tid};
+	delete $self->{workerStatus}{$tid};
 	delete $self->{workerStats}{$tid};
 	return \@jobs;
 }
@@ -956,6 +964,7 @@ sub removeExecutor {
 	}
 
 	delete $self->{workerQueue}{$tid};
+	delete $self->{workerStatus}{$tid};
 	return;
 }
 
@@ -980,17 +989,31 @@ sub saveStateAndShutDown {
 	my ($self) = @_;
 
 	$self->{shuttingDown} = 1;
-	$self->log("Saving state ...");
+	print "Saving state ...\n";
 
 	$self->removeExecutor;
 
 	# TODO: find a way to save waiting jobs for every worker something with the waiting jobs
 	# the problem is that they are per connection and when connections are lost these jobs are meaningless
+	my %statuses = %{ $self->{workerStatus} };
 	$self->removeWorker($_) foreach @{ $self->{workers} };
 
-	# wait for threads to stop
-	sleep 5;
+	# wait for all workers to stop
+	my $wait;
+	do {
+		print "Waiting for workers...\n" if $wait;
+		usleep(250_000);
+		$wait = 0;
+		foreach my $st (values %statuses) {
+			lock $st;
+			$wait = 1 if $st->{action} ne "exit";
+		}
+	} while ($wait);
 
+	# just to be sure!
+	usleep(100_000);
+
+	# get the persist data
 	my @persistsList;
 	{
 		my $persists = $self->{persists};
@@ -1013,14 +1036,10 @@ sub saveStateAndShutDown {
 
 	my $cfg  = $self->{config}{server};
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
-	$self->log("Writing $path to disk");
+	print "Writing $path to disk\n";
 	Storable::store($data, $path);
 
-	$self->log("Bye bye");
-
-	# waiting for loggers to catch up
-	sleep 1;
-
+	print "Bye bye\n";
 	exit;
 }
 

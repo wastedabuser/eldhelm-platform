@@ -52,6 +52,7 @@ sub run {
 			if ($self->{suspendWorkers}) {
 				$self->suspend;
 			} else {
+				$self->status("action", "wait");
 				usleep(1000);
 			}
 			next;
@@ -84,6 +85,7 @@ sub fetchTask {
 
 	if ($task eq "exitWorker") {
 		$self->log("Exitting ...");
+		$self->status("action", "exit");
 		threads->exit();
 	}
 
@@ -102,6 +104,7 @@ sub fetchTask {
 
 sub runTask {
 	my ($self, $conn, $data) = @_;
+	$self->status("action", "run");
 	my $handler = $self->createHandler($data->{proto}, %$data, worker => $self);
 	if ($handler) {
 		if ($handler->{composer}) {
