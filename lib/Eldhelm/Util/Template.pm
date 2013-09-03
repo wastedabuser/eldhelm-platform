@@ -37,8 +37,8 @@ sub compile {
 	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
 
 	$source =~ s/\$([a-z][a-z0-9_]*)/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
-	$source =~ s/\{([a-z][a-z0-9_]*)\|(.+?)\}/;;~~eldhelm~template~placeholder~var~$1,,$2~~;;/gi;
-	$source =~ s/\{([a-z][a-z0-9_]*)\}/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/;;~~eldhelm~template~placeholder~var~$1,,$2~~;;/gi;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
 	$source =~ s/\{([a-z][a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
 		my $nm = $1; 
 		(my $args = $2) =~ s|[\n\r\t]||g;
@@ -58,7 +58,23 @@ sub interpolate {
 
 sub _interpolate_var {
 	my ($self, $name, $format) = @_;
-	my $value = $self->{compileParams}{$name};
+	my $value;
+	if ($name =~ /\./) {
+		my $ref = $self->{compileParams};
+		foreach (split /\./, $name) {
+			confess "The var '$name' can not be traversed. There is a value '$ref' at '$_' instead of HASH\n"
+				unless ref $ref;
+			unless ($ref->{$_}) {
+				$ref = "";
+				last;
+			}
+			$ref = $ref->{$_};
+		}
+		confess "The traversed value for the template var '$name' is a ".ref($ref)."\n" if ref $ref;
+		$value = $ref;
+	} else {
+		$value = $self->{compileParams}{$name};
+	}
 	return $value unless $format;
 
 	my $method = "_format_$format";
@@ -76,7 +92,7 @@ sub _interpolate_function {
 
 sub _format_json {
 	my ($self, $value) = @_;
-	confess "Please provide an object" unless $value;
+	confess "Please provide an object for json formatting" unless $value;
 	return Eldhelm::Server::Parser::Json->encodeFixNumbers($value);
 }
 
@@ -93,13 +109,8 @@ sub reachNode {
 	my @path = split /\./, $path;
 	my $ref = $args;
 	foreach (@path) {
-		if (ref $ref eq "HASH") {
-			$ref = $ref->{$_};
-		} elsif (ref $ref eq "ARRAY") {
-			$ref = $ref->[$_];
-		} else {
-			confess "Path '$path' is not accessible in:\n".Dumper($args);
-		}
+		confess "Path '$path' is not accessible via ".ref($ref)." in:\n".Dumper($args) if ref $ref ne "HASH";
+		$ref = $ref->{$_};
 	}
 	return $ref;
 }
