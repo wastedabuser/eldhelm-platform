@@ -501,6 +501,12 @@ sub clearFields {
 	return $self;
 }
 
+sub clearFilter {
+	my ($self) = @_;
+	%{ $self->{conditions} } = ();
+	return $self;
+}
+
 sub limit {
 	my ($self, $limit) = @_;
 	$self->{limit} = $limit;
@@ -509,13 +515,14 @@ sub limit {
 
 sub compile {
 	my ($self, $args) = @_;
-	$self->fields($args->{fields}) if $args->{fields};
-	$self->format($args->{format}) if $args->{format};
-	$self->filter($args->{filter}) if $args->{filter};
-	$self->limit($args->{limit})   if $args->{limit};
+	$self->placeholders($args->{placeholders}) if $args->{placeholders};
+	$self->fields($args->{fields})             if $args->{fields};
+	$self->format($args->{format})             if $args->{format};
+	$self->filter($args->{filter})             if $args->{filter};
+	$self->limit($args->{limit})               if $args->{limit};
 	$self->parse;
 	$self->{compiled} = $self->compileSyntax($args);
-	$self->{compiled} =~ s/\[(.+)\]/$self->compileFilters($1)/ge;
+	$self->{compiled} =~ s/\[(.+?)\]/$self->compileFilters($1)/ge;
 	return $self->{compiled};
 }
 
@@ -711,7 +718,10 @@ sub convertFilterToTokens {
 	foreach my $name (grep { !$fp->{$_} } keys %{ $self->{conditions} }) {
 		my $val   = $self->{conditions}{$name};
 		my $alias = $self->searchFieldTableAlias($name);
-		confess "Can not determine table alias of field $name" if !$alias;
+		confess "You supplied the following conditions: "
+			.Dumper($self->{conditions})
+			."The table alias of the field `$name` is unknown. Make sure `$name` is available as a field in the tables or is defined as [$name ...]\n"
+			if !$alias;
 		my $fld = [ "reference", [ "word", $alias ], [ "symbol", "." ], [ "word", $name ] ];
 		if (ref $val eq "ARRAY") {
 			my @values = map { [ "string", $_ ], [ "symbol", "," ] } @$val;
@@ -753,8 +763,8 @@ sub compileFilters {
 	my ($self, $name) = @_;
 	return if !$name;
 	my $query = $self->{filterPlaceholders}{$name};
-	return $query if $query !~ /\?/;
 	return unless exists $self->{conditions}{$name};
+	return $query if $query !~ /\?/;
 	my $values = $self->{conditions}{$name};
 	return $self->compileValues($query, $values);
 }

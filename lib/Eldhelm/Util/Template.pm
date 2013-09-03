@@ -25,7 +25,7 @@ sub getPath {
 sub load {
 	my ($self, $name) = @_;
 	my $path = $self->getPath($name || $self->{name});
-	open FR, $path or confess "Can not load '$path': $@";
+	open FR, $path or confess "Can not load '$path' with params: ".Dumper($self->{params})."$!";
 	my $src = $self->{source} = join "", <FR>;
 	close FR;
 	return $src;

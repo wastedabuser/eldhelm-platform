@@ -19,11 +19,9 @@ sub new {
 
 sub compile {
 	my ($self) = @_;
-	return join("\n",
-		$self->applyTemplate($self->{headerTpl},  $self->{tplArgs}),
-		$self->applyTemplate($self->{contentTpl}, $self->{tplArgs}),
-		$self->applyTemplate($self->{footerTpl},  $self->{tplArgs}),
-	);
+	return join "\n",
+		map { $self->applyTemplate($self->{$_}, $self->{tplArgs}) }
+		grep { $self->{$_} } qw(headerTpl contentTpl footerTpl);
 }
 
 1;

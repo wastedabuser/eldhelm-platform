@@ -126,3 +126,39 @@ ORDER BY created_on");
 
 $query = $tpl->clearFields->compile;
 note($query);
+
+diag("test 7 - doble filter test");
+
+$tpl->stream("SELECT 
+	DATE(hs.created_on) AS x, 
+	COUNT(*) AS y 
+FROM `hero_skill` hs, hero h
+WHERE h.id = hs.hero_id AND
+	DATE(hs.created_on) >= DATE_SUB(CURDATE(), INTERVAL {months} MONTH)
+	[user AND h.user_id = ?]
+	[upgraded AND hs.created_on <> hs.started_on]
+	AND hs.skill_id = ?
+GROUP BY x
+ORDER BY hs.created_on");
+
+$query = $tpl->clearFields->clearFilter->compile({ filter => { user => 1 }, placeholders => { months => 12 } });
+note($query);
+ok($query =~ /h\.user_id/);
+ok($query =~ /hs\.started_on/);
+
+diag("test 8 - only custom filter in where clause");
+
+$tpl->stream("SELECT
+	s.id, 
+	s.name
+FROM skill s
+WHERE [common s.race_id IS NULL AND s.class_id IS NULL AND s.character_id IS NULL]");
+
+$query = $tpl->clearFields->clearFilter->compile;
+note($query);
+ok($query !~ /s\.race_id/);
+
+$query = $tpl->clearFields->clearFilter->compile({ filter => { common => 1 } });
+note($query);
+ok($query =~ /s\.race_id/);
+
