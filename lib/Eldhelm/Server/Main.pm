@@ -11,6 +11,7 @@ use IO::Handle;
 use IO::Select;
 use IO::Socket::SSL qw(debug3);
 use IO::Socket::INET;
+use Eldhelm::Util::MachineInfo;
 use Eldhelm::Server::Worker;
 use Eldhelm::Server::Logger;
 use Eldhelm::Server::Executor;
@@ -23,7 +24,7 @@ use Errno;
 
 use base qw(Eldhelm::Server::AbstractChild);
 
-my ($currentFh, $isWin);
+my $currentFh;
 
 $| = 1;
 
@@ -96,8 +97,6 @@ sub readConfig {
 sub configure {
 	my ($self) = @_;
 
-	$isWin = 1 if $^O =~ m/mswin/i;
-
 	my $protoList = $self->{config}{server}{acceptProtocols} ||= [];
 	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
 
@@ -140,6 +139,8 @@ sub init {
 		my ($h, $p) = ($_->{host}, $_->{port});
 		next if !$h || !$p;
 
+		$h = Eldhelm::Util::MachineInfo->ip($h) if $h =~ /auto/;
+		
 		my $sockObj;
 		if ($_->{ssl}) {
 			$sockObj = IO::Socket::SSL->new(
@@ -534,7 +535,7 @@ sub configConnection {
 
 	$sock->autoflush(1);
 
-	if (!$isWin) {
+	if (!Eldhelm::Util::MachineInfo->isWin) {
 		use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 		my $flags = $sock->fcntl(F_GETFL, 0) or warn "Can't get flags for the socket: $!";
 		$sock->fcntl(F_SETFL, $flags | O_NONBLOCK) or warn "Can't set flags for the socket: $!";
