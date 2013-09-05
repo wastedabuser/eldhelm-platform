@@ -989,14 +989,16 @@ sub gracefullRestart {
 sub saveStateAndShutDown {
 	my ($self) = @_;
 
+	return if $self->{shuttingDown};
+	
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
-
-	$self->removeExecutor;
 
 	# TODO: find a way to save waiting jobs for every worker something with the waiting jobs
 	# the problem is that they are per connection and when connections are lost these jobs are meaningless
 	my %statuses = %{ $self->{workerStatus} };
+	
+	$self->removeExecutor;
 	$self->removeWorker($_) foreach @{ $self->{workers} };
 
 	# wait for all workers to stop
