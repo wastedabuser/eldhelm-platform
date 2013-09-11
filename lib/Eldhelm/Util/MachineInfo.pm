@@ -1,6 +1,6 @@
 package Eldhelm::Util::MachineInfo;
 
-use carp;
+use Carp;
 
 my ($currentFh, $isWin);
 
