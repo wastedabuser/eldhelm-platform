@@ -4,6 +4,7 @@ use strict;
 use Eldhelm::Basic::View;
 use Eldhelm::Database::Pool;
 use Eldhelm::Util::Tool;
+use Eldhelm::Server::Parser::Json;
 use Data::Dumper;
 use Carp;
 
@@ -157,6 +158,12 @@ sub getHandler {
 sub responseWrite {
 	my ($self, $data) = @_;
 	$self->{content} .= $data;
+	return $self;
+}
+
+sub responseWriteJson {
+	my ($self, $data) = @_;
+	$self->{content} .= Eldhelm::Server::Parser::Json->encodeFixNumbers($data);
 	return $self;
 }
 

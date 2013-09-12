@@ -40,13 +40,7 @@ sub createFields {
 				}
 			);
 		} elsif ($fk && $fk->{PKTABLE_NAME}) {
-			$field = $self->createCombo(
-				{   id    => $_->{COLUMN_NAME},
-					name  => $_->{COLUMN_NAME},
-					label => $lbl,
-				},
-				$self->createRelationList($_->{COLUMN_NAME}, $fk->{PKTABLE_NAME}, $_->{IS_NULLABLE} eq "YES")
-			);
+			$field = $self->createRelationSelctor($lbl, $_, $fk);
 		} elsif ($_->{TYPE_NAME} =~ /tinyint/i && $_->{COLUMN_SIZE} == 1) {
 			$field = $self->createCheckbox(
 				{   id    => $_->{COLUMN_NAME},
@@ -84,17 +78,40 @@ sub createFields {
 	$self->add($self->createSubmit({ value => "Save" }));
 }
 
+sub createRelationSelctor {
+	my ($self, $lbl, $col, $fk) = @_;
+	my $data = $self->createRelationList($col->{COLUMN_NAME}, $fk->{PKTABLE_NAME}, $col->{IS_NULLABLE} eq "YES");
+	my %args = (
+		id    => $col->{COLUMN_NAME},
+		name  => $col->{COLUMN_NAME},
+		label => $lbl
+	);
+	return $self->createCombo({%args}, $data) if ref $data eq "ARRAY";
+
+	return $self->createInput(
+		{   %args,
+			value        => $self->createValue(\%args),
+			autocomplete => "$data->{table},$data->{key},$data->{value}"
+		},
+		{ customAttributes => ["autocomplete"] }
+	);
+}
+
 sub createRelationList {
 	my ($self, $field, $table, $nullable) = @_;
+	my $sql = $self->{dbPool}->getDb;
 	my ($k, $v) = qw(id name);
 	if ($self->{formLists} && $self->{formLists}{$field}) {
 		my $ref = $self->{formLists}{$field};
 		$k = $ref->{key}   if $ref->{key};
 		$v = $ref->{value} if $ref->{value};
 	}
+	my $cnt = $sql->fetchScalar("SELECT COUNT(*) FROM `$table`");
+	return { key => $k, value => $v, table => $table } if $cnt > 500;
+
 	return [
 		$nullable ? { value => "- none -" } : (),
-		$table ? @{ $self->{dbPool}->getDb->fetchArray("SELECT $k as `key`, $v as `value` FROM `$table`") } : (),
+		$table ? @{ $sql->fetchArray("SELECT $k as `key`, $v as `value` FROM `$table`") } : (),
 	];
 }
 
