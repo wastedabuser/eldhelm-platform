@@ -7,7 +7,7 @@ use Eldhelm::Database::Template;
 
 my $tpl = Eldhelm::Database::Template->new;
 
-diag("test 1 - basic");
+diag("===============> test 1 - basic");
 
 $tpl->stream("SELECT
 		t1.a,
@@ -28,9 +28,12 @@ my $query = $tpl->compile({
 ok($query);
 note($query);
 ok($query =~ /t1.a/);
+ok($query =~ /t1.c/);
 ok($query !~ /t1.b/);
+ok($query !~ /t1.d/);
+ok($query =~ /c = 1/);
 
-diag("test 2 - test function parsing");
+diag("===============> test 2 - test function parsing");
 
 $tpl->stream("SELECT
 		t1.a,
@@ -46,7 +49,7 @@ $query = $tpl->compile({
 ok($query =~ /curdate\(/);
 note($query);
 
-diag("test 3 - filters with palceholders");
+diag("===============> test 3 - filters with palceholders");
 
 $tpl->stream("SELECT
 		t1.a,
@@ -60,7 +63,7 @@ $query = $tpl->compile;
 note($query);
 ok($query !~ /b =/);
 
-diag("test 4 - for prepared statements palceholders");
+diag("===============> test 4 - for prepared statements palceholders");
 
 $tpl->stream("SELECT
 		t1.a
@@ -73,7 +76,7 @@ $query = $tpl->compile;
 note($query);
 ok($query =~ /\?/);
 
-diag("test 5 - for aggregator with star");
+diag("===============> test 5 - for aggregator with star");
 
 $tpl->stream("SELECT
 		count(*) as uga
@@ -89,7 +92,7 @@ $query = $tpl->compile({ fields => ["uga"] });
 ok($query =~ /\*/);
 note($query);
 
-diag("test 6 - more complex query");
+diag("===============> test 6 - more complex query");
 
 $tpl->stream("SELECT 
 	u.id,
@@ -109,8 +112,12 @@ LIMIT 100");
 
 $query = $tpl->clearFields->compile;
 note($query);
+ok($query =~ /\(\s*\*\s*\)/);
+ok($query =~ /'yes'/);
+ok($query =~ /'remind'/);
+ok($query =~ /'premium'/);
 
-diag("test 6 - more complex query");
+diag("===============> test 6 - more complex query");
 
 $tpl->stream("SELECT 
 	DATE(created_on) AS x, 
@@ -126,8 +133,9 @@ ORDER BY created_on");
 
 $query = $tpl->clearFields->compile;
 note($query);
+ok($query !~ /h\.user_id/);
 
-diag("test 7 - doble filter test");
+diag("===============> test 7 - doble filter test");
 
 $tpl->stream("SELECT 
 	DATE(hs.created_on) AS x, 
@@ -144,9 +152,9 @@ ORDER BY hs.created_on");
 $query = $tpl->clearFields->clearFilter->compile({ filter => { user => 1 }, placeholders => { months => 12 } });
 note($query);
 ok($query =~ /h\.user_id/);
-ok($query =~ /hs\.started_on/);
+ok($query !~ /hs\.started_on/);
 
-diag("test 8 - only custom filter in where clause");
+diag("===============> test 8 - only custom filter in where clause");
 
 $tpl->stream("SELECT
 	s.id, 

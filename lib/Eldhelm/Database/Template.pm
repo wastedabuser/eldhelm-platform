@@ -200,7 +200,7 @@ sub tokenize {
 				redo;
 			}
 
-			if (/\w/ && !$bufN && !$bufI) {
+			if (/[\w`]/ && !$bufN && !$bufI) {
 				$bufW .= $_;
 				next;
 			} elsif (defined $bufW) {
