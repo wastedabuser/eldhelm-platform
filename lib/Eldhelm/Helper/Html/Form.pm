@@ -120,8 +120,11 @@ sub createCombo {
 	$items ||= [];
 	$args->{type}  = "select";
 	$args->{value} = $self->createValue($args);
+	my ($key, $value) = ($args->{itemKey} || "key", $args->{itemValue} || "value");
 	my $cont = join "\n", map {
-		qq~\t\t<option value="$_->{key}" ~.($args->{value} eq $_->{key} ? "selected" : "").qq~>$_->{value}</option>~
+		     qq~\t\t<option value="$_->{$key}" ~
+			.($args->{value} eq $_->{$key} ? "selected" : "")
+			.qq~>$_->{$value}</option>~
 	} @$items;
 	delete $args->{value};
 	return $self->createInput(

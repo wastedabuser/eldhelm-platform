@@ -9,6 +9,7 @@ use Carp;
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
+		%args,
 		worker => Eldhelm::Server::Child->instance,
 		dbPool => Eldhelm::Database::Pool->new,
 	};

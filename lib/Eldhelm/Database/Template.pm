@@ -135,7 +135,7 @@ sub analyze {
 
 sub applyPlaceholders {
 	my ($self) = @_;
-	$self->{stream} =~ s/\{(.+)\}/$self->{placeholders}{$1}/ge;
+	$self->{stream} =~ s/\{(.+?)\}/$self->{placeholders}{$1}/ge;
 	return;
 }
 

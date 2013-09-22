@@ -21,7 +21,8 @@ sub template {
 	return Eldhelm::Database::Template->new(
 		sql          => $self->{dbPool}->getDb,
 		stream       => $args,
-		placeholders => $self->{defaultPlacehoders}
+		placeholders => $self->{defaultPlacehoders},
+		filter       => $self->{defaultFilter}
 	);
 }
 
@@ -29,6 +30,13 @@ sub applyTemplate {
 	my ($self, $template) = @_;
 	return $template if ref $template =~ /^Eldhelm::Database::Template/;
 	return $self->template($template);
+}
+
+sub getColumn {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchColumn($tpl->compile($args), @more);
 }
 
 sub getArray {
