@@ -13,6 +13,8 @@ use threads::shared;
 
 use base qw(Eldhelm::Server::BaseObject);
 
+my $instanceIndex = 0;
+
 sub new {
 	my ($class, %args) = @_;
 	my %data = (
@@ -44,7 +46,8 @@ sub getModel {
 }
 
 sub createId {
-	return Digest::MD5->new->add(time.rand)->hexdigest;
+	$instanceIndex++;
+	return Digest::MD5->new->add(time."i".$instanceIndex)->hexdigest;
 }
 
 sub register {
