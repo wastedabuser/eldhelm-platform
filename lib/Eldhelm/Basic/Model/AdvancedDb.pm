@@ -32,6 +32,20 @@ sub applyTemplate {
 	return $self->template($template);
 }
 
+sub getScalar {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchScalar($tpl->compile($args), @more);
+}
+
+sub getRow {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchRow($tpl->compile($args), @more);
+}
+
 sub getColumn {
 	my ($self, $template, $args, @more) = @_;
 	my $tpl = $self->applyTemplate($template);
@@ -46,11 +60,32 @@ sub getArray {
 	return $sql->fetchArray($tpl->compile($args), @more);
 }
 
+sub getAssocArray {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchAssocArray($tpl->compile($args), @more);
+}
+
 sub getArrayOfArrays {
 	my ($self, $template, $args, @more) = @_;
 	my $tpl = $self->applyTemplate($template);
 	my $sql = $self->{dbPool}->getDb;
 	return $sql->fetchArrayOfArrays($tpl->compile($args), @more);
+}
+
+sub getHash {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchHash($tpl->compile($args), @more);
+}
+
+sub getKeyValue {
+	my ($self, $template, $args, @more) = @_;
+	my $tpl = $self->applyTemplate($template);
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->fetchKeyValue($tpl->compile($args), @more);
 }
 
 1;

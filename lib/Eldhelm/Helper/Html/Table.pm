@@ -136,7 +136,9 @@ sub compile {
 				push @fields, $self->createField($_, $d);
 			}
 		}
-		push @body, "<tr>".join("", "<td>$i</td>", map("<td>$_</td>", @more, @fields))."</tr>";
+		my $class;
+		$class = qq~ class="alt"~ unless $i % 2;
+		push @body, qq~<tr${class}>~.join("", "<td>$i</td>", map("<td>$_</td>", @more, @fields))."</tr>\n";
 		$i++;
 	}
 
@@ -183,12 +185,11 @@ sub compile {
 	return qq~
 	$controls
 	$filter
-	<table>
+	<table class="helper-table">
 	<tr>
 		$header
 	</tr>
-	@body
-</table>~;
+	@body</table>~;
 }
 
 sub createControlLinks {

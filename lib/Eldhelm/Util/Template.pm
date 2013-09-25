@@ -80,7 +80,7 @@ sub _interpolate_var {
 	my $method = "_format_$format";
 	return sprintf($value, $format) if $format =~ /%/;
 	confess "Format '$format' is unrecognized:\n".Dumper($value) if !$self->can($method);
-	return $self->$method($value, $format);
+	return $self->$method($value, $format, $name);
 }
 
 sub _interpolate_function {
@@ -91,8 +91,8 @@ sub _interpolate_function {
 }
 
 sub _format_json {
-	my ($self, $value) = @_;
-	confess "Please provide an object for json formatting" unless $value;
+	my ($self, $value, $format, $name) = @_;
+	confess "Please provide an object for json formatting of var $name instead of '$value'" unless ref $value;
 	return Eldhelm::Server::Parser::Json->encodeFixNumbers($value);
 }
 
