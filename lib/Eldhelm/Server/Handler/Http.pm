@@ -3,6 +3,7 @@ package Eldhelm::Server::Handler::Http;
 use strict;
 use Eldhelm::Util::Mime;
 use Eldhelm::Util::HttpStatus;
+use Eldhelm::Server::Parser::Json;
 use Eldhelm::Util::Tool;
 use Data::Dumper;
 use Date::Format;
@@ -96,7 +97,12 @@ sub init {
 
 sub parseContent {
 	my ($self, $content) = @_;
-	$self->parsePost($content);
+	my $ct = $self->{headers}{'Content-Type'};
+	if ($ct eq "application/x-www-form-urlencoded") {
+		$self->parsePostUrlencoded($content);
+	} elsif ($ct eq "application/json") {
+		$self->parsePostJson($content);
+	}
 	$self->parseGet($self->{queryString});
 	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
 	$self->worker->log("$self->{method} $self->{url}", "access");
@@ -108,9 +114,16 @@ sub parseGet {
 	return $self;
 }
 
-sub parsePost {
+sub parsePostUrlencoded {
 	my ($self, $str) = @_;
 	$self->{post} = $self->parseParams($str);
+	return $self;
+}
+
+sub parsePostJson {
+	my ($self, $str) = @_;
+	eval { $self->{json} = Eldhelm::Server::Parser::Json->parse($str); };
+	$self->worker->log("Unable to parse json $@ from request: ".Dumper($self->{headers}).": $str", "error") if $@;
 	return $self;
 }
 
