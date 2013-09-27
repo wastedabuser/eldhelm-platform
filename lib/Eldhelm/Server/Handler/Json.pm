@@ -96,11 +96,14 @@ sub acceptMessage {
 	my $conn    = $self->getConnection;
 	my $session = $conn->getSession;
 	my ($headers, $data) = ($self->{headers}, $self->{json});
-	return $self->route([ $headers, $data ]) unless $session;
 
-	my $msgId             = int $headers->{id};
+	my $msgId = int $headers->{id};
+	unless ($session) {
+		$conn->sendHeader({ type => "ack", id => $msgId });
+		return $self->route([ $headers, $data ]);
+	}
+
 	my $recvNextMessageId = int $session->get("recvNextMessageId");
-
 	$session->set("recvNextMessageId", $recvNextMessageId = $msgId) unless $recvNextMessageId;
 
 	my @list;

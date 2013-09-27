@@ -473,8 +473,10 @@ sub sendToSock {
 		$self->error("Can not write to $id($fileno)");
 	} elsif ($block) {
 		$self->error("Block; Buffer full for $id($fileno)");
+		use bytes;
 		substr($$data, 0, $charCnt) = "";
 	} elsif ($charCnt < length $$data) {
+		use bytes;
 		substr($$data, 0, $charCnt) = "";
 	} else {
 		$$data = "";
