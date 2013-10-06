@@ -6,7 +6,7 @@ use Carp;
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = {%args};
+	my $self = { relatedPaths => [], %args };
 	bless $self, $class;
 
 	return $self;
@@ -21,10 +21,19 @@ sub cache {
 	return $self;
 }
 
+sub isModified {
+	my ($self, $path) = @_;
+	return (stat $self->{cachePath})[9] <= (stat $path)[9];
+}
+
 sub valid {
-	my ($self) = @_;
+	my ($self, $path) = @_;
 	return unless -f $self->{cachePath};
-	return (stat $self->{cachePath})[9] >= (stat $self->{sourcePath})[9];
+	my $res;
+	foreach ($self->{sourcePath}, @{ $self->{relatedPaths} }) {
+		$res ||= $self->isModified($_);
+	}
+	return !$res;
 }
 
 sub content {
