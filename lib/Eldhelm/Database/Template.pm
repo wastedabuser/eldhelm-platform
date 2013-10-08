@@ -204,7 +204,9 @@ sub tokenize {
 				$bufW .= $_;
 				next;
 			} elsif (defined $bufW) {
-				push @tokens, [ "word", $bufW, $lnum, $cnum ];
+				my $tp = "word";
+				$tp = "function" if $_ eq "(";
+				push @tokens, [ $tp, $bufW, $lnum, $cnum ];
 				$bufW = undef;
 				redo;
 			}
@@ -279,7 +281,8 @@ sub _lex_select {
 			$lv-- if $tkn->[0] eq "closeBracket";
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /having|order|limit/i;
 			my $expr = $self->lexExpression($tkn, $tokens);
-			$lv++ if $expr->[0] eq "function";
+
+			# $lv++ if $expr->[0] eq "function";
 			push @grp, $expr;
 		}
 	}
@@ -295,7 +298,8 @@ sub _lex_select {
 			$lv-- if $tkn->[0] eq "closeBracket";
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /limit/i;
 			my $expr = $self->lexExpression($tkn, $tokens);
-			$lv++ if $expr->[0] eq "function";
+
+			# $lv++ if $expr->[0] eq "function";
 			push @ordr, $expr;
 		}
 	}
@@ -343,7 +347,8 @@ sub _lex_fields {
 				last;
 			}
 			my $expr = $self->lexExpression($tkn, $tokens, $lv);
-			$lv++ if $expr->[0] eq "function";
+
+			# $lv++ if $expr->[0] eq "function";
 			push @field, $expr;
 		}
 		push @flds, \@field if @field > 2;
@@ -386,7 +391,8 @@ sub lexTable {
 			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
 			last if $lv == 0 && $tkn->[0] eq "symbol" && $tkn->[1] eq ",";
 			my $expr = $self->lexExpression($tkn, $tokens);
-			$lv++ if $expr->[0] eq "function";
+
+			# $lv++ if $expr->[0] eq "function";
 			push @syntax, $expr;
 		}
 	} elsif ($tkn->[0] eq "word" && $next->[0] eq "word") {
@@ -414,7 +420,8 @@ sub _lex_conditions {
 		$lv-- if $tkn->[0] eq "closeBracket";
 		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|having|group|limit/i;
 		my $expr = $self->lexExpression($tkn, $tokens);
-		$lv++ if $expr->[0] eq "function";
+
+		# $lv++ if $expr->[0] eq "function";
 		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
@@ -429,7 +436,8 @@ sub _lex_havingConditions {
 		$lv-- if $tkn->[0] eq "closeBracket";
 		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|limit/i;
 		my $expr = $self->lexExpression($tkn, $tokens);
-		$lv++ if $expr->[0] eq "function";
+
+		# $lv++ if $expr->[0] eq "function";
 		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
@@ -439,12 +447,13 @@ sub lexExpression {
 	my ($self, $tkn, $tokens, $level) = @_;
 	my $next = $tokens->[0];
 	my @syntax;
-	if ($next && $tkn->[0] eq "word" && $tkn->[1] !~ /^(?:in|or|and|not|date)$/i && $next->[0] eq "openBracket") {
-		shift(@$tokens);
-		@syntax = @$tkn;
-		$syntax[0] = "function";
-		return \@syntax;
-	}
+
+	# if ($next && $tkn->[0] eq "word" && $tkn->[1] !~ /^(?:in|or|and|not|date)$/i && $next->[0] eq "openBracket") {
+	# shift(@$tokens);
+	# @syntax = @$tkn;
+	# $syntax[0] = "function";
+	# return \@syntax;
+	# }
 	if ($next && $tkn->[0] eq "word" && $next->[0] eq "symbol" && $next->[1] eq ".") {
 		my ($op, $field) = (shift(@$tokens), shift(@$tokens));
 		push @syntax, "reference", $tkn, $op, $field;
@@ -522,7 +531,7 @@ sub compile {
 	$self->limit($args->{limit})               if $args->{limit};
 	$self->parse;
 	$self->{compiled} = $self->compileSyntax($args);
-	$self->{compiled} =~ s/\[(.+?)\]/$self->compileFilters($1)/ge;
+	$self->{compiled} =~ s/\[(.+?)\]/$self->compileFilters($1)." "/ge;
 	return $self->{compiled};
 }
 
@@ -582,7 +591,7 @@ sub _compile_field {
 	$nm = $list[-1][0]     if $list[-1][0] eq "word";
 	$nm = $list[-1][-1][1] if $list[-1][0] eq "reference";
 	return if $nm && $self->excludeField($nm);
-	return $self->formatField($nm, $alias, join(" ", map { $self->compileNode($_) } @list));
+	return $self->formatField($nm, $alias, join("", map { $self->compileNode($_) } @list));
 }
 
 sub _compile_tables {
@@ -593,13 +602,13 @@ sub _compile_tables {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nFROM\n\t".join(" ", map { $self->compileNode($_) } @list);
+	return "\nFROM\n\t".join("", map { $self->compileNode($_) } @list);
 }
 
 sub _compile_table {
 	my ($self, $node, $args) = @_;
 	my @list = @$node[ 1 .. $#$node ];
-	return join " ", map { $self->compileNode($_) } @list;
+	return join "", map { $self->compileNode($_) } @list;
 }
 
 sub _compile_conditions {
@@ -611,7 +620,8 @@ sub _compile_conditions {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nWHERE\n\t".join(" ", @data);
+	return "" unless @data;
+	return "\nWHERE\n\t".join("", @data);
 }
 
 sub _compile_group {
@@ -621,7 +631,7 @@ sub _compile_group {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nGROUP ".join(" ", @data);
+	return "\nGROUP ".join("", @data);
 }
 
 sub _compile_havingConditions {
@@ -632,7 +642,7 @@ sub _compile_havingConditions {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nHAVING\n\t".join(" ", @data);
+	return "\nHAVING\n\t".join("", @data);
 }
 
 sub _compile_order {
@@ -642,7 +652,7 @@ sub _compile_order {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nORDER ".join(" ", @data);
+	return "\nORDER ".join("", @data);
 }
 
 sub _compile_limit {
@@ -656,53 +666,53 @@ sub _compile_limit {
 			push @data, $self->compileNode($_);
 		}
 	}
-	return "\nLIMIT ".join(" ", @data);
+	return "\nLIMIT ".join("", @data);
 }
 
 sub _compile_reference {
 	my ($self, $node, $args) = @_;
 	my @list = @$node[ 1 .. $#$node ];
-	return join("", map { $_->[1] } @list);
+	return join("", map { $_->[1] } @list)." ";
 }
 
 sub _compile_string {
 	my ($self, $node) = @_;
-	return "'$node->[1]'";
+	return "'$node->[1]' ";
 }
 
 sub _compile_word {
 	my ($self, $node) = @_;
-	return $node->[1];
+	return "$node->[1] ";
 }
 
 sub _compile_function {
 	my ($self, $node) = @_;
-	return "$node->[1](";
+	return $node->[1];
 }
 
 sub _compile_number {
 	my ($self, $node) = @_;
-	return $node->[1];
+	return "$node->[1] ";
 }
 
 sub _compile_operator {
 	my ($self, $node) = @_;
-	return $node->[1];
+	return "$node->[1] ";
 }
 
 sub _compile_symbol {
 	my ($self, $node) = @_;
-	return $node->[1];
+	return "$node->[1] ";
 }
 
 sub _compile_openBracket {
 	my ($self, $node) = @_;
-	return "(";
+	return "( ";
 }
 
 sub _compile_closeBracket {
 	my ($self, $node) = @_;
-	return ")";
+	return ") ";
 }
 
 sub _compile_instruction {
@@ -791,7 +801,7 @@ sub compileValues {
 sub formatField {
 	my ($self, $name, $alias, $expression) = @_;
 	my $format = $self->{format}{$name};
-	return $expression.($alias ? " AS $alias" : "") unless $format;
+	return $expression.($alias ? "AS $alias" : "") unless $format;
 	return "DATE_FORMAT($expression, '$self->{defaultFormat}{date}') AS $name" if $format eq "date";
 	return $expression;
 }

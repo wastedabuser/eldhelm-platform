@@ -31,7 +31,7 @@ ok($query =~ /t1.a/);
 ok($query =~ /t1.c/);
 ok($query !~ /t1.b/);
 ok($query !~ /t1.d/);
-ok($query =~ /c = 1/);
+ok($query =~ /c\s?=\s?1/);
 
 diag("===============> test 2 - test function parsing");
 
@@ -61,7 +61,7 @@ $tpl->stream("SELECT
 $query = $tpl->compile;
 
 note($query);
-ok($query !~ /b =/);
+ok($query !~ /b\s?=/);
 
 diag("===============> test 4 - for prepared statements palceholders");
 
