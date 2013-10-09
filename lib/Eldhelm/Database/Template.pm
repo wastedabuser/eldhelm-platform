@@ -191,7 +191,7 @@ sub tokenize {
 				$bufN = undef;
 			}
 
-			if (/[\+\*\/<>=]/) {
+			if (/[\+\*\/<>=!]/) {
 				$bufOp .= $_;
 				next;
 			} elsif (defined $bufOp) {

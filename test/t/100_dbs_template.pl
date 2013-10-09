@@ -170,3 +170,19 @@ $query = $tpl->clearFields->clearFilter->compile({ filter => { common => 1 } });
 note($query);
 ok($query =~ /s\.race_id/);
 
+diag("===============> test 9 - parsing != operator");
+
+$tpl->stream("SELECT 
+	DATE(u.created_on) AS x, 
+	COUNT(*) AS y 
+FROM 
+	`user` u 
+WHERE 
+	DATE(u.created_on) >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL {period} MONTH) AND 
+	(u.created_on != u.registered_on OR u.registered_on IS NULL) AND u.active = 1 
+GROUP BY x 
+ORDER BY x");
+
+$query = $tpl->clearFields->clearFilter->compile;
+note($query);
+ok($query =~ /!=/);

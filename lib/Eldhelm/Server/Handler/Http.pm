@@ -123,7 +123,7 @@ sub parsePostUrlencoded {
 sub parsePostJson {
 	my ($self, $str) = @_;
 	eval { $self->{json} = Eldhelm::Server::Parser::Json->parse($str); };
-	$self->worker->log("Unable to parse json $@ from request: ".Dumper($self->{headers}).": $str", "error") if $@;
+	$self->worker->log("Unable to parse json: $@ Headers: ".Dumper($self->{headers})."Content: $str", "error") if $@;
 	return $self;
 }
 
