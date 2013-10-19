@@ -11,8 +11,13 @@ sub new {
 		rootPath => $args{rootPath},
 		name     => $args{name},
 		params   => $args{params} || {},
+		var      => {},
+		function => {},
+		block    => {},
 	};
 	bless $self, $class;
+
+	$self->parse if $self->{name};
 
 	return $self;
 }
@@ -31,29 +36,72 @@ sub load {
 	return $src;
 }
 
-sub compile {
-	my ($self, $args) = @_;
-	my $source = $self->load;
-	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
+sub parse {
+	my ($self) = @_;
 
-	$source =~ s/\$([a-z][a-z0-9_]*)/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/;;~~eldhelm~template~placeholder~var~$1,,$2~~;;/gi;
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/;;~~eldhelm~template~placeholder~var~$1~~;;/gi;
+	$self->{source} = $self->parseStream($self->load);
+
+	my $fns = $self->{function};
+	$self->extend($fns->{extends}) if $fns->{extends};
+
+	return $self;
+}
+
+sub parseStream {
+	my ($self, $source) = @_;
+	return unless $source;
+
+	my $blocks = $self->{block};
+	$source =~
+		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseStream($2); ";;~~eldhelm~template~placeholder~block~$1~~;;"/gei;
+
+	my $vars = $self->{var};
+	$source =~ s/\$([a-z][a-z0-9_]*)/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
+
+	my $fns = $self->{function};
 	$source =~ s/\{([a-z][a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
 		my $nm = $1; 
 		(my $args = $2) =~ s|[\n\r\t]||g;
-		";;~~eldhelm~template~placeholder~function~$nm,,$args~~;;"
+		$fns->{$nm} = $args;
+		";;~~eldhelm~template~placeholder~function~$nm~~;;"
 	/geis;
-
-	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~~;;/$self->interpolate($1, $2)/gei;
 
 	return $source;
 }
 
+sub extend {
+	my ($self, $name) = @_;
+
+	my $tpl = Eldhelm::Util::Template->new(
+		rootPath => $self->{rootPath},
+		name     => $name
+	);
+
+	$self->{$_} = { %{ $tpl->{$_} }, %{ $self->{$_} } } foreach qw(block var function);
+
+	$self->{source} = $tpl->{source};
+
+	return $self;
+}
+
+sub compile {
+	my ($self, $args) = @_;
+	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
+	return $self->compileStream($self->{source});
+}
+
+sub compileStream {
+	my ($self, $source) = @_;
+	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~~;;/$self->interpolate($1, $2)/gei;
+	return $source;
+}
+
 sub interpolate {
-	my ($self, $tp, $args) = @_;
+	my ($self, $tp, $nm) = @_;
 	my $fn = "_interpolate_$tp";
-	return $self->$fn(split /,,/, $args);
+	return $self->$fn($nm, $self->{$tp}{$nm});
 }
 
 sub _interpolate_var {
@@ -87,7 +135,12 @@ sub _interpolate_function {
 	my ($self, $method, $query) = @_;
 	my $name = "_function_$method";
 	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
-	return $self->$name(\%params);
+	return $self->$name(%params ? \%params : $query);
+}
+
+sub _interpolate_block {
+	my ($self, $name, $content) = @_;
+	return $self->compileStream($content);
 }
 
 sub _format_json {
@@ -98,10 +151,22 @@ sub _format_json {
 
 sub _function_include {
 	my ($self, $options) = @_;
+	my $tpl;
+	if (ref $options) {
+		$tpl = $options->{tpl};
+	} else {
+		$tpl     = $options;
+		$options = {};
+	}
 	return Eldhelm::Util::Template->new(
-		name   => $options->{tpl},
+		name   => $tpl,
 		params => $self->reachNode($options->{ns}, $self->{compileParams}),
 	)->compile;
+}
+
+sub _function_extends {
+	my ($self, $name) = @_;
+	return "";
 }
 
 sub reachNode {
