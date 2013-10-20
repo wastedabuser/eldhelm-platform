@@ -793,7 +793,11 @@ sub compileValues {
 		$query =~ s/\?/join(",", map {"'$_'"} @list)/e if @list;
 
 	} else {
-		$query =~ s/\?/$values/;
+		if ($values =~ /^\d+\.?\d*$/) {
+			$query =~ s/\?/$values/;
+		} else {
+			$query =~ s/\?/'$values'/;
+		}
 	}
 	return $query;
 }

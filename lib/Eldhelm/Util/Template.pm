@@ -56,7 +56,6 @@ sub parseStream {
 		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseStream($2); ";;~~eldhelm~template~placeholder~block~$1~~;;"/gei;
 
 	my $vars = $self->{var};
-	$source =~ s/\$([a-z][a-z0-9_]*)/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
 
