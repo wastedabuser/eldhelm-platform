@@ -24,8 +24,7 @@ sub new {
 
 sub getConfig {
 	my ($self) = @_;
-	my $cfg = $self->{config} || Eldhelm::Server::Child->instance->{config};
-	return $cfg->{mail};
+	return $self->{config}{mail} || Eldhelm::Server::Child->instance->getConfig("mail");
 }
 
 sub send {

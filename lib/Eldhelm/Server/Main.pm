@@ -35,7 +35,7 @@ sub new {
 		$instance = {
 			info                 => { version => "1.2.2" },
 			ioSocketList         => [],
-			config               => {},
+			config               => shared_clone({}),
 			workers              => [],
 			workerQueue          => {},
 			workerStatus         => {},
@@ -85,19 +85,23 @@ sub start {
 
 sub readConfig {
 	my ($self) = @_;
-	if (-f "config.pl") {
-		$self->{config} = do "config.pl";
-		die "Can not read configuration: $@" if $@;
-	} else {
-		die "No configuration file!";
-	}
+	die "No configuration file!" unless -f "config.pl";
+
+	my $cfg = do "config.pl";
+	die "Can not read configuration: $@" if $@;
+
+	lock($self->{config});
+	$self->{config} = (%{ $self->{config} }, %$cfg);
+
 	return $self;
 }
 
 sub configure {
 	my ($self) = @_;
 
-	my $protoList = $self->{config}{server}{acceptProtocols} ||= [];
+	$self->{debugMode} = $self->getConfig("debugMode");
+
+	my $protoList = $self->{protoList} = $self->getConfig("server.acceptProtocols") || [];
 	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
 
 	return $self;
@@ -106,7 +110,7 @@ sub configure {
 sub loadState {
 	my ($self) = @_;
 
-	my $cfg  = $self->{config}{server};
+	my $cfg  = $self->getConfig("server");
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
 
 	return if !-f $path;
@@ -124,7 +128,7 @@ sub loadState {
 sub init {
 	my ($self) = @_;
 
-	my $cnf = $self->{config}{server};
+	my $cnf = $self->getConfig("server");
 	my ($host, $port) = ($cnf->{host}, $cnf->{port});
 	my @listen;
 	@listen = map {
@@ -140,7 +144,7 @@ sub init {
 		next if !$h || !$p;
 
 		$h = Eldhelm::Util::MachineInfo->ip($h) if $h =~ /auto/;
-		
+
 		my $sockObj;
 		if ($_->{ssl}) {
 			$sockObj = IO::Socket::SSL->new(
@@ -209,13 +213,13 @@ sub init {
 	$SIG{HUP} = sub {
 		my $sig = shift @_;
 		$self->error("Server restarting gracefully by hup command");
-		$self->gracefullRestart;
+		$self->readConfig;
 	};
 }
 
 sub createLogger {
 	my ($self) = @_;
-	$self->{logQueue} = shared_clone({ map { +$_ => [] } keys %{ $self->{config}{server}{logger}{logs} } });
+	$self->{logQueue} = shared_clone({ map { +$_ => [] } keys %{ $self->getConfig("server.logger.logs") } });
 	$self->{logger} =
 		threads->create(\&Eldhelm::Server::Logger::create, map { +$_ => $self->{$_} } qw(config info logQueue));
 	$self->{logger}->detach();
@@ -265,10 +269,10 @@ sub listen {
 	my ($self) = @_;
 
 	my ($socketList, $select, $config, $sslClients, $acceptFlag, $hasPending, @clients) =
-		($self->{ioSocketList}, $self->{ioSelect}, $self->{config}{server}, $self->{sslClients});
+		($self->{ioSocketList}, $self->{ioSelect}, $self->getConfig("server"), $self->{sslClients});
 	$self->log("Eldhelm server ready and listening ...");
 
-	my $waitRest = $self->{config}{server}{waitOnRead} || .001;
+	my $waitRest = $self->getConfig("waitOnRead") || .001;
 	my $waitActive = $waitRest / 10;
 
 	while (1) {
@@ -713,7 +717,7 @@ sub readSocketData {
 
 sub detectProto {
 	my ($self, $data) = @_;
-	my $protoList = $self->{config}{server}{acceptProtocols};
+	my $protoList = $self->{protoList};
 	foreach (@$protoList) {
 		my $pkg = "Eldhelm::Server::Handler::$_";
 		return $_ if $pkg->check($data);
@@ -992,14 +996,14 @@ sub saveStateAndShutDown {
 	my ($self) = @_;
 
 	return if $self->{shuttingDown};
-	
+
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
 
 	# TODO: find a way to save waiting jobs for every worker something with the waiting jobs
 	# the problem is that they are per connection and when connections are lost these jobs are meaningless
 	my %statuses = %{ $self->{workerStatus} };
-	
+
 	$self->removeExecutor;
 	$self->removeWorker($_) foreach @{ $self->{workers} };
 
@@ -1039,7 +1043,7 @@ sub saveStateAndShutDown {
 	my $data = Eldhelm::Util::Tool::cloneStructure(
 		{ map { +$_ => $self->{$_} } qw(stash persists persistsByType persistLookup delayedEvents jobQueue) });
 
-	my $cfg  = $self->{config}{server};
+	my $cfg  = $self->getConfig("server");
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
 	print "Writing $path to disk\n";
 	Storable::store($data, $path);
@@ -1059,9 +1063,9 @@ sub DESTROY {
 
 sub message {
 	my ($self, $msg) = @_;
-	return unless $self->{config}{debugMode};
+	return unless $self->{debugMode};
 
-	my $path = "$self->{config}{server}{logger}{path}/messages.log";
+	my $path = $self->{messagesLogPath} ||= $self->getConfig("server.logger.path")."/messages.log";
 	unlink $path if $self->{debugMessageCount} > 0 && !($self->{debugMessageCount} % 100_000);
 	$self->{debugMessageCount}++;
 

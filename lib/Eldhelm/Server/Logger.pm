@@ -35,6 +35,8 @@ sub new {
 
 sub init {
 	my ($self) = @_;
+	lock($self->{config});
+	
 	$self->{$_} = $self->{config}{server}{logger}{$_} foreach qw(interval logs);
 	$self->{interval} = 1000 * ($self->{interval} || 250);
 }

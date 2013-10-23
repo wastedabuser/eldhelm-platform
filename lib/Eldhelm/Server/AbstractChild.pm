@@ -26,6 +26,25 @@ sub addInstance {
 # Persist
 # =================================
 
+sub config {
+	my ($self) = @_;
+	return $self->{configObject} if $self->{configObject};
+
+	lock($self->{config});
+	return $self->{configObject} =
+		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{config});	
+}
+
+sub getConfig {
+	my ($self, $property) = @_;
+	return $self->config->clone($property);
+}
+
+sub getConfigList {
+	my ($self, @list) = @_;
+	return $self->config->getList(@list);
+}
+
 sub stash {
 	my ($self) = @_;
 	return $self->{stashObject} if $self->{stashObject};

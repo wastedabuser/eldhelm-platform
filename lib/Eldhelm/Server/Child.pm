@@ -38,19 +38,6 @@ sub status {
 	return;
 }
 
-sub getConfig {
-	my ($self, $property) = @_;
-	my $ref = $self->{config};
-	my @chunks = split /\./, $property;
-	$ref = $ref->{$_} foreach @chunks;
-	return $ref;
-}
-
-sub getConfigList {
-	my ($self, @list) = @_;
-	return map { $self->getConfig($_) } @list;
-}
-
 sub getConnection {
 	my ($self, $fno) = @_;
 
