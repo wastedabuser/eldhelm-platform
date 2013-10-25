@@ -109,9 +109,26 @@ sub readDocument {
 	}
 }
 
+sub getPathTmp {
+	my ($self, $url) = @_;
+	$self->getPathFromUrl($self->worker->getConfig("server.tmp"), $url);
+}
+
+sub getPathFromUrl {
+	my ($self, $folder, $url) = @_;
+	unless ($url) {
+		$url = $folder;
+		$folder = $self->{documentRoot};
+	}
+	$url =~ s|^/+||;
+	$url =~ s/[^\w\.\!\?\/\-]//g;
+	$url =~ s/\.{2,}//g;
+	return "$folder/$url";
+}
+
 sub readDocumentUrl {
 	my ($self, $url) = @_;
-	return $self->readDocument("$self->{documentRoot}/$url");
+	return $self->readDocument($self->getPathFromUrl($url));
 }
 
 1;

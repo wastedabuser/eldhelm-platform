@@ -119,7 +119,7 @@ sub compile {
 	my $i         = ($self->{page} - 1) * $self->{pageSize} + 1;
 	my $editUrl   = Eldhelm::Util::Url->new(uri => $self->{editUrl});
 	my $removeUrl = Eldhelm::Util::Url->new(uri => $self->{removeUrl});
-
+	
 	foreach my $d (@{ $self->{data} }) {
 		my @more;
 		push @more, qq~[<a href="${\($self->createControlLinks($editUrl, $d))}">edit</a>]~ if $self->{editUrl};
@@ -132,6 +132,8 @@ sub compile {
 				push @fields, $d->{"$_->{dataIndex}-$_->{field}"};
 			} elsif ($_->{dataIndex}) {
 				push @fields, $d->{ $_->{dataIndex} };
+			} elsif ($_->{tpl}) {
+				push @fields, $self->applyTeplate($_, $d);
 			} else {
 				push @fields, $self->createField($_, $d);
 			}
@@ -212,6 +214,12 @@ sub applyTpl {
 	return if !$tpl;
 	$tpl =~ s/\{(.+?)\}/$args->{$1}/ge;
 	return $tpl;
+}
+
+sub applyTeplate {
+	my ($self, $col, $data) = @_;
+	my $tpl = $self->{teplate}{$col} ||= Eldhelm::Util::Template->new->parse($col->{tpl});
+	return $tpl->compile($data);
 }
 
 1;

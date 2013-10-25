@@ -9,35 +9,30 @@ use Time::HiRes;
 use Date::Format;
 use Carp;
 
-sub create {
-	my (@args) = @_;
-	Eldhelm::Server::Logger->new(@args);
-}
+use base qw(Eldhelm::Server::Child);
 
-my $instance;
+sub create {
+	my (%args) = @_;
+	Eldhelm::Server::Logger->new(%args);
+}
 
 sub new {
 	my ($class, %args) = @_;
-	if (!defined $instance) {
-		$instance = {
-			info     => $args{info},
-			config   => $args{config},
-			logQueue => $args{logQueue},
-			id       => threads->tid
-		};
-		bless $instance, $class;
+	my $self = Eldhelm::Server::Child->instance;
+	if (ref $self ne "Eldhelm::Server::Logger") {
+		$self = Eldhelm::Server::Child->new(%args);
+		bless $self, $class;
 
-		$instance->init;
-		$instance->run;
+		$self->addInstance;
+		$self->init;
+		$self->run;
 	}
-	return $instance;
+	return $self;
 }
 
 sub init {
 	my ($self) = @_;
-	lock($self->{config});
-	
-	$self->{$_} = $self->{config}{server}{logger}{$_} foreach qw(interval logs);
+	$self->{$_} = $self->getConfig("server.logger.$_") foreach qw(interval logs);
 	$self->{interval} = 1000 * ($self->{interval} || 250);
 }
 
@@ -46,8 +41,8 @@ sub init {
 # =================================
 
 sub run {
-	my ($self) = @_;
-	my @queues = keys %{ $self->{logQueue} };
+	my ($self)   = @_;
+	my @queues   = keys %{ $self->{logQueue} };
 	my $interval = $self->{interval};
 	while (1) {
 		foreach (@queues) {

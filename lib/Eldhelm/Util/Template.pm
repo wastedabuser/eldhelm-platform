@@ -37,9 +37,9 @@ sub load {
 }
 
 sub parse {
-	my ($self) = @_;
+	my ($self, $stream) = @_;
 
-	$self->{source} = $self->parseStream($self->load);
+	$self->{source} = $self->parseSource($stream || $self->load);
 
 	my $fns = $self->{function};
 	$self->extend($fns->{extends}) if $fns->{extends};
@@ -47,13 +47,13 @@ sub parse {
 	return $self;
 }
 
-sub parseStream {
+sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
 
 	my $blocks = $self->{block};
 	$source =~
-		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseStream($2); ";;~~eldhelm~template~placeholder~block~$1~~;;"/gei;
+		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~$1~~;;"/gei;
 
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
@@ -146,6 +146,18 @@ sub _format_json {
 	my ($self, $value, $format, $name) = @_;
 	confess "Please provide an object for json formatting of var $name instead of '$value'" unless ref $value;
 	return Eldhelm::Server::Parser::Json->encodeFixNumbers($value);
+}
+
+sub _format_html {
+	my ($self, $value, $format, $name) = @_;
+	if (!ref $value) {
+		$value =~ s/&/&amp;/sg;
+		$value =~ s/</&lt;/sg;
+		$value =~ s/>/&gt;/sg;
+		$value =~ s/"/&quot;/sg;
+		return $value;
+	}
+	confess "Can not format $value at $name to html. Encoding to html from a reference is not yet implemented";
 }
 
 sub _function_include {

@@ -219,6 +219,8 @@ sub indent {
 
 sub deparse {
 	my ($self, $callback) = @_;
+	$self->{characterCount} = 0;
+	$self->{wordCount} = 0;
 	my @chunks = $self->deparseChunk($self->{syntax}, 0, $callback, "");
 	$self->{stream} = $chunks[0];
 	Encode::_utf8_off($self->{stream});
@@ -236,7 +238,9 @@ sub _deparse_string {
 	my ($self, $data, $level, $callback, $key) = @_;
 	confess "Can not deparse a new line character in string: $data->[1]" if $data->[1] =~ /[\n\r]/;
 	my $str = $data->[1];
-	$str = $callback->($self, $str, $key) if $callback;
+	$self->{characterCount} += length $str;
+	$self->{wordCount} += () = $str =~ m/\w+/g;
+	$str = $callback->($self, $str, $key, $data->[4]) if $callback;
 	return (qq~"$str"~, $data->[4] || ());
 }
 
@@ -259,9 +263,9 @@ sub _deparse_array {
 		my @chunks = $self->deparseChunk($_, $level + 1, $callback, $key ? "$key-$i" : $i);
 		$ret .= $self->indent($level + 1).$chunks[0];
 		my $flag = $_->[0] ne "comment" && $i < @list - 1;
-		$ret .= "," if $flag;
+		$ret .= ","                                     if $flag;
 		$ret .= $self->deparseInlineComment($chunks[1]) if $chunks[1];
-		$ret .= $self->{le} if $flag;
+		$ret .= $self->{le}                             if $flag;
 		$i++;
 	}
 	$ret .= $self->{le}.$self->indent($level)."]";
@@ -277,9 +281,9 @@ sub _deparse_object {
 		my @chunks = $self->deparseChunk($_, $level + 1, $callback, $key);
 		$ret .= $self->indent($level + 1).$chunks[0];
 		my $flag = $_->[0] ne "comment" && $i < @list - 1;
-		$ret .= "," if $flag;
+		$ret .= ","                                     if $flag;
 		$ret .= $self->deparseInlineComment($chunks[1]) if $chunks[1];
-		$ret .= $self->{le} if $flag;
+		$ret .= $self->{le}                             if $flag;
 		$i++;
 	}
 	$ret .= $self->{le}.$self->indent($level)."}";
@@ -288,7 +292,7 @@ sub _deparse_object {
 
 sub _deparse_pair {
 	my ($self, $data, $level, $callback, $key) = @_;
-	my @chunks = $self->deparseChunk($data->[2], $level, $callback, "$key-$data->[1]");
+	my @chunks = $self->deparseChunk($data->[2], $level, $callback, $key ? "$key-$data->[1]" : $data->[1]);
 	my $ch0 = shift @chunks;
 	confess "Can not deparse a new line character in pair key: $data->[1]" if $data->[1] =~ /[\n\r]/;
 	return (qq~"$data->[1]": $ch0~, @chunks);
@@ -403,6 +407,9 @@ sub _merge_array {
 		if ($bas && $ovr && $bas->[0] =~ /array|object/ && $bas->[0] eq $ovr->[0]) {
 			$self->mergeSubset($model->[$i], $bas, $ovr);
 
+		} elsif ($ovr && $ovr->[0] eq "string") {
+			$set1->[$i] = $ovr if $ovr->[1];
+
 		} elsif ($ovr) {
 			$set1->[$i] = $ovr;
 		}
@@ -418,21 +425,22 @@ sub _merge_object {
 	foreach (@list) {
 		$i++;
 		next if $_->[0] ne "pair";
-		my $key = $_->[1];
-		my $mNode = $data->{ $key };
-		if ($mNode && !$base->{ $key }) {
-			$base->{ $key} = $mNode;
+		my $key   = $_->[1];
+		my $mNode = $data->{$key};
+		if ($mNode && !$base->{$key}) {
+			$base->{$key} = $mNode;
 			splice @$set1, $i, 0, [ "pair", $key, $mNode ];
 
 		} elsif ($mNode && $_->[2][0] =~ /array|object/) {
-			$self->mergeSubset($_->[2], $base->{ $key }, $mNode);
+			$self->mergeSubset($_->[2], $base->{$key}, $mNode);
 
-		} elsif ($mNode && $base->{ $key }) {
-			
-			$base->{ $key } = $mNode;
+		} elsif ($mNode && $base->{$key}) {
+
+			$base->{$key} = $mNode;
 			my $replaceIndex;
 			if ($key ne $set1->[$i][1]) {
-				$self->outputWarning("Indexing position missmatch: $key <=> $set1->[$i][1] at position $i. Will search for item...");
+				$self->outputWarning(
+					"Indexing position missmatch: $key <=> $set1->[$i][1] at position $i. Will search for item...");
 				$replaceIndex = 0;
 				foreach my $si (@$set1) {
 					last if ref $si eq "ARRAY" && $si->[1] eq $key;
@@ -486,8 +494,25 @@ sub parseString {
 	return [ "string", $ref ];
 }
 
+sub getStrokes {
+	my ($self) = @_;
+	my @strokes;
+	$self->deparse(
+		sub {
+			my ($self, $value, $key) = @_;
+			Encode::_utf8_off($value);
+			push @strokes,
+				{
+				key   => $key,
+				value => $value,
+				};
+		}
+	);
+	return \@strokes;
+}
+
 sub outputWarning {
-	my ($self,$str) = @_;
+	my ($self, $str) = @_;
 	warn $str;
 }
 

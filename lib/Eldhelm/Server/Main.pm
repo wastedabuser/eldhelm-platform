@@ -33,7 +33,7 @@ sub new {
 	my $instance = $class->instance;
 	if (!defined $instance) {
 		$instance = {
-			info                 => { version => "1.2.2" },
+			info                 => { version => "1.2.3" },
 			ioSocketList         => [],
 			config               => shared_clone({}),
 			workers              => [],
@@ -91,7 +91,7 @@ sub readConfig {
 	die "Can not read configuration: $@" if $@;
 
 	lock($self->{config});
-	$self->{config} = (%{ $self->{config} }, %$cfg);
+	%{ $self->{config} } = (%{ $self->{config} }, %{ shared_clone($cfg) });
 
 	return $self;
 }
