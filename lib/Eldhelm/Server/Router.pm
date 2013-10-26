@@ -12,7 +12,7 @@ sub new {
 	my ($class, %args) = @_;
 	my $self = {
 		connection => $args{connection},
-		config     => $args{config},
+		config     => $args{config} || {},
 		errors     => [],
 	};
 	bless $self, $class;
@@ -33,6 +33,16 @@ sub config {
 	my ($self, $conf) = @_;
 	Eldhelm::Util::Tool->merge($self, $conf);
 	return $self;
+}
+
+sub actions {
+	my ($self) = @_;
+	return $self->{config}{actions} || $self->worker->getConfig("server.router.actions");
+}
+
+sub defaultMethod {
+	my ($self) = @_;
+	return $self->{config}{defaultMethod} || $self->worker->getConfig("server.router.defaultMethod");
 }
 
 sub route {
@@ -63,7 +73,7 @@ sub doAction {
 
 	my $conn = $self->{connection};
 	my ($class, $method) = $self->parseAction($action);
-	$method ||= $self->{config}{defaultMethod};
+	$method ||= $self->defaultMethod;
 	my $controller = $self->getInstance(
 		$class,
 		connection     => $conn,
@@ -119,7 +129,7 @@ sub parseAction {
 sub getRelatedActions {
 	my ($self, $action, %args) = @_;
 	my %actions;
-	foreach my $a (@{ $self->{config}{actions} }) {
+	foreach my $a (@{ $self->actions }) {
 		next if $action !~ /$a->[0]/;
 		my ($type, $methods) = split /:/, $a->[1];
 		my ($class, $method) = $self->parseAction($a->[2]);

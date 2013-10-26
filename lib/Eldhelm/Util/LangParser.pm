@@ -499,13 +499,16 @@ sub getStrokes {
 	my @strokes;
 	$self->deparse(
 		sub {
-			my ($self, $value, $key) = @_;
+			my ($self, $str, $key) = @_;
+			my $value = $str;
 			Encode::_utf8_off($value);
+			$value =~ s/\\"/"/g;
 			push @strokes,
 				{
 				key   => $key,
 				value => $value,
 				};
+			return $str;
 		}
 	);
 	return \@strokes;

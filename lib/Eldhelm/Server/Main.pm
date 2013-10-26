@@ -200,20 +200,21 @@ sub init {
 
 	$SIG{INT} = sub {
 		my $sig = shift @_;
-		$self->error("Server shutting down by int command");
+		print "Server shutting down by INT signal\n";
 		$self->saveStateAndShutDown;
 	};
 
 	$SIG{TERM} = sub {
 		my $sig = shift @_;
-		$self->error("Server shutting down by term command");
+		print "Server shutting down by TERM signal\n";
 		$self->saveStateAndShutDown;
 	};
 
 	$SIG{HUP} = sub {
 		my $sig = shift @_;
-		$self->error("Server restarting gracefully by hup command");
+		print "Server re-reading configuration after HUP signal ...\n";
 		$self->readConfig;
+		print "Done\n";
 	};
 }
 
