@@ -160,6 +160,11 @@ sub _format_html {
 	confess "Can not format $value at $name to html. Encoding to html from a reference is not yet implemented";
 }
 
+sub _format_boolean {
+	my ($self, $value, $format, $name) = @_;
+	return $value ? "true" : "false";
+}
+
 sub _function_include {
 	my ($self, $options) = @_;
 	my $tpl;

@@ -5,9 +5,11 @@ use Data::Dumper;
 use Carp;
 use Encode qw();
 
+sub ks { "~" }
+
 sub new {
 	my ($class, %args) = @_;
-	my $self = { le => "\n", %args };
+	my $self = { le => "\n", ks => Eldhelm::Util::LangParser::ks, %args };
 	bless $self, $class;
 
 	$self->readFile($args{path})     if $args{path};
@@ -260,7 +262,7 @@ sub _deparse_array {
 	my $ret  = "[$self->{le}";
 	my $i    = 0;
 	foreach (@list) {
-		my @chunks = $self->deparseChunk($_, $level + 1, $callback, $key ? "$key-$i" : $i);
+		my @chunks = $self->deparseChunk($_, $level + 1, $callback, $key ? "$key$self->{ks}$i" : $i);
 		$ret .= $self->indent($level + 1).$chunks[0];
 		my $flag = $_->[0] ne "comment" && $i < @list - 1;
 		$ret .= ","                                     if $flag;
@@ -292,7 +294,7 @@ sub _deparse_object {
 
 sub _deparse_pair {
 	my ($self, $data, $level, $callback, $key) = @_;
-	my @chunks = $self->deparseChunk($data->[2], $level, $callback, $key ? "$key-$data->[1]" : $data->[1]);
+	my @chunks = $self->deparseChunk($data->[2], $level, $callback, $key ? "$key$self->{ks}$data->[1]" : $data->[1]);
 	my $ch0 = shift @chunks;
 	confess "Can not deparse a new line character in pair key: $data->[1]" if $data->[1] =~ /[\n\r]/;
 	return (qq~"$data->[1]": $ch0~, @chunks);
@@ -393,7 +395,16 @@ sub mergeDiff {
 
 sub mergeSubset {
 	my ($self, $model, $set1, $set2) = @_;
-	confess "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1])" if $set1->[0] ne $set2->[0];
+	
+	confess "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1]): 
+============= first =============
+".Dumper($set1->[1])." 
+============= second =============
+".Dumper($set2->[1])."
+=============  end  =============
+"
+		if $set1->[0] ne $set2->[0];
+		
 	my $fn = "_merge_$model->[0]";
 	return $self->$fn($model, $set1, $set2);
 }
