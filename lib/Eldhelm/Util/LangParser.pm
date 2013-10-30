@@ -5,11 +5,55 @@ use Data::Dumper;
 use Carp;
 use Encode qw();
 
-sub ks { "~" }
+sub ks             { "~" }
+sub apr            { "a" }
+sub opr            { "o" }
+sub traverseNewRef { substr($_[0], 0, 1) eq apr() ? [] : {} }
+
+sub traverseKey {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($parsed, $key, $value) = @_;
+
+	my $ks     = ks;
+	my $apr    = apr;
+	my @chunks = split /$ks/, $key;
+	my $ref    = $parsed ||= traverseNewRef($chunks[0]);
+	do {
+		my $k = shift @chunks;
+		my $tp = substr $k, 0, 1;
+		$k = substr $k, 1;
+
+		if ($tp eq $apr) {
+			foreach (0 .. $k) {
+				$ref->[$_] = "" unless defined $ref->[$_];
+			}
+			if (@chunks) {
+				$ref = $ref->[$k] ||= traverseNewRef($chunks[0]);
+			} else {
+				$ref->[$k] = $value;
+			}
+		} else {
+			if (@chunks) {
+				$ref = $ref->{$k} ||= traverseNewRef($chunks[0]);
+			} else {
+				$ref->{$k} = $value;
+				delete $ref->{$k} unless $value;
+			}
+		}
+	} while (@chunks);
+
+	return $parsed;
+}
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = { le => "\n", ks => Eldhelm::Util::LangParser::ks, %args };
+	my $self = {
+		le  => "\n",
+		ks  => Eldhelm::Util::LangParser::ks,
+		apr => Eldhelm::Util::LangParser::apr,
+		opr => Eldhelm::Util::LangParser::opr,
+		%args
+	};
 	bless $self, $class;
 
 	$self->readFile($args{path})     if $args{path};
@@ -222,7 +266,7 @@ sub indent {
 sub deparse {
 	my ($self, $callback) = @_;
 	$self->{characterCount} = 0;
-	$self->{wordCount} = 0;
+	$self->{wordCount}      = 0;
 	my @chunks = $self->deparseChunk($self->{syntax}, 0, $callback, "");
 	$self->{stream} = $chunks[0];
 	Encode::_utf8_off($self->{stream});
@@ -262,7 +306,7 @@ sub _deparse_array {
 	my $ret  = "[$self->{le}";
 	my $i    = 0;
 	foreach (@list) {
-		my @chunks = $self->deparseChunk($_, $level + 1, $callback, $key ? "$key$self->{ks}$i" : $i);
+		my @chunks = $self->deparseChunk($_, $level + 1, $callback, ($key ? "$key~" : "")."$self->{apr}$i");
 		$ret .= $self->indent($level + 1).$chunks[0];
 		my $flag = $_->[0] ne "comment" && $i < @list - 1;
 		$ret .= ","                                     if $flag;
@@ -294,7 +338,7 @@ sub _deparse_object {
 
 sub _deparse_pair {
 	my ($self, $data, $level, $callback, $key) = @_;
-	my @chunks = $self->deparseChunk($data->[2], $level, $callback, $key ? "$key$self->{ks}$data->[1]" : $data->[1]);
+	my @chunks = $self->deparseChunk($data->[2], $level, $callback, ($key ? "$key~" : "")."$self->{opr}$data->[1]");
 	my $ch0 = shift @chunks;
 	confess "Can not deparse a new line character in pair key: $data->[1]" if $data->[1] =~ /[\n\r]/;
 	return (qq~"$data->[1]": $ch0~, @chunks);
@@ -395,7 +439,7 @@ sub mergeDiff {
 
 sub mergeSubset {
 	my ($self, $model, $set1, $set2) = @_;
-	
+
 	confess "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1]): 
 ============= first =============
 ".Dumper($set1->[1])." 
@@ -404,7 +448,7 @@ sub mergeSubset {
 =============  end  =============
 "
 		if $set1->[0] ne $set2->[0];
-		
+
 	my $fn = "_merge_$model->[0]";
 	return $self->$fn($model, $set1, $set2);
 }
