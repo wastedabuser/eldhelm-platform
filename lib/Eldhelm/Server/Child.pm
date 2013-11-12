@@ -83,10 +83,29 @@ sub router {
 	return $self->{router};
 }
 
+sub sendFile {
+	my ($self, $data, $path, $ln, $fno) = @_;
+	$self->sendData($data) if $data;
+
+	return $self unless $path;
+
+	$fno ||= $self->{fno};
+	$self->log("Responding $path to $fno");
+
+	my $queue;
+	{
+		lock($self->{responseQueue});
+		$queue = $self->{responseQueue}{$fno};
+	}
+
+	lock($queue);
+	return $self->addDataToQueue($queue, shared_clone({ file => $path, ln => $ln }), $fno);
+}
+
 sub sendData {
 	my ($self, $data, $fno, $chunked) = @_;
 
-	return $self if !$data;
+	return $self unless $data;
 
 	$fno ||= $self->{fno};
 

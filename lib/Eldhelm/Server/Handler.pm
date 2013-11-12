@@ -5,6 +5,11 @@ use Data::Dumper;
 use Eldhelm::Server::Session;
 use Carp;
 
+sub proxyPossible {
+	shift @_ if $_[0] eq __PACKAGE__;
+	return;
+}
+
 sub new {
 	my ($class, %args) = @_;
 	my $self = {%args};
@@ -45,7 +50,7 @@ sub parseContent {
 	return;
 }
 
-sub createResponse {
+sub respond {
 	my ($self) = @_;
 	return;
 }

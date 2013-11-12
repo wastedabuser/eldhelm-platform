@@ -113,7 +113,7 @@ sub runTask {
 		}
 		eval {
 			$handler->handle;
-			$self->sendData($handler->createResponse, undef, 1);
+			$handler->respond;
 			$handler->finish;
 		};
 		$self->error("Handler error: $@") if $@;

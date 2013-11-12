@@ -24,7 +24,7 @@ sub parse {
 
 	return ({ len => -2 }, $data) unless $data =~ /\r\n\r\n/;
 
-	my %parsed;
+	my %parsed = (data => $data);
 	my @chunks = split /\r\n/, $data;
 
 	(shift @chunks) =~ m~^([a-z]+)\s+/(.*?)\s+http/(.*)~i;
@@ -47,6 +47,12 @@ sub parse {
 	$parsed{len} -= length $parsed{content} if $ln > 0;
 
 	return (\%parsed, "");
+}
+
+sub proxyPossible {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($parsed) = @_;
+	return $parsed->{url} =~ /\.[a-z][a-z0-9]{1,3}$/i;
 }
 
 # the class definition
@@ -162,10 +168,11 @@ sub parseParams {
 	return \%params;
 }
 
-sub createResponse {
+sub respond {
 	my ($self) = @_;
 	my $url = $self->rewriteUrl($self->{url});
 	my ($headers, $contents, $cont);
+
 	if (my @m = $url =~ /^controller:(.+)$/) {
 		my $router = $self->router;
 
@@ -178,14 +185,22 @@ sub createResponse {
 
 		$self->addHeaders(@$headers) unless $router->hasErrors;
 		$self->{contentType} ||= "text/html";
-	} else {
-		my $path = "$self->{documentRoot}/$url";
-		$path .= ($path =~ m|/$| ? "" : "/")."$self->{directoryIndex}" if -d $path;
-		$cont                = $self->readDocument($path);
-		$cont                = $self->createStatusResponse(404, $path) if !$cont;
-		$self->{contentType} = Eldhelm::Util::Mime->getMime($path);
+		$self->worker->sendData($self->createHttpResponse($cont, length $cont));
+		return;
 	}
-	return $self->createHttpResponse($cont);
+
+	my $path = "$self->{documentRoot}/$url";
+	$path .= ($path =~ m|/$| ? "" : "/")."$self->{directoryIndex}" if -d $path;
+	unless (-f $path) {
+		$cont = $self->createStatusResponse(404, $path);
+		$self->{contentType} ||= "text/html";
+		$self->worker->sendData($self->createHttpResponse($cont, length $cont));
+		return;
+	}
+
+	$self->{contentType} = Eldhelm::Util::Mime->getMime($path);
+	my $ln = -s $path;
+	return $self->worker->sendFile($self->createHttpResponse("", $ln), $path, $ln);
 }
 
 sub routeAction {
@@ -300,27 +315,16 @@ sub setCookie {
 }
 
 sub createHttpResponse {
-	my ($self, $cont) = @_;
+	my ($self, $cont, $ln) = @_;
 	my $info    = $self->worker->{info};
 	my @headers = (
 		"HTTP/1.0 $self->{status}",
 		"Server: Eldhelm Server $info->{version} ($^O)",
-		"Content-Length: ".length($cont),
+		"Content-Length: $ln",
 		$self->{contentType} ? "Content-Type: $self->{contentType}" : (),
 		@{ $self->{responseHeaders} }, "\r\n",
 	);
 	return join("\r\n", @headers).($self->{method} ne "HEAD" ? $cont : "");
-}
-
-sub readDocument {
-	my ($self, $path) = @_;
-	my $data = $self->SUPER::readDocument($path);
-	if ($data) {
-		my $time = (stat($path))[9];
-
-		# $self->addHeaders("Last-Modified: ".time2str("%a, %e %b %Y %T GMT", $time));
-	}
-	return $data;
 }
 
 sub getCookie {

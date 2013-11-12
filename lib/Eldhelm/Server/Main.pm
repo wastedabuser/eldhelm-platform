@@ -33,17 +33,19 @@ sub new {
 	my $instance = $class->instance;
 	if (!defined $instance) {
 		$instance = {
-			info                 => { version => "1.2.3" },
+			%args,
+			info                 => { version => "1.3.0" },
 			ioSocketList         => [],
 			config               => shared_clone({}),
 			workers              => [],
 			workerQueue          => {},
 			workerStatus         => {},
 			connId               => 1,
-			connidMap            => {},
-			filenoMap            => {},
-			streamMap            => {},
-			buffMap              => {},
+			conidToFnoMap        => {},
+			fnoToConidMap        => {},
+			inputStreamMap       => {},
+			outputStreamMap      => {},
+			parseBufferMap       => {},
 			connectionHandles    => {},
 			connections          => shared_clone({}),
 			connectionEvents     => shared_clone({}),
@@ -60,7 +62,9 @@ sub new {
 			stash                => shared_clone({}),
 			sslClients           => {},
 			debugStreamMap       => {},
-			%args,
+			fileContentCache     => {},
+			proxySocketMap       => {},
+			proxySocketS2SConn   => {},
 		};
 		bless $instance, $class;
 
@@ -85,9 +89,11 @@ sub start {
 
 sub readConfig {
 	my ($self) = @_;
-	die "No configuration file!" unless -f "config.pl";
+	my $cfgPath = $self->{configPath} || "config.pl";
+	die "No configuration file!" unless -f $cfgPath;
 
-	my $cfg = do "config.pl";
+	print "Reading configuration from: $cfgPath\n";
+	my $cfg = do $cfgPath;
 	die "Can not read configuration: $@" if $@;
 
 	lock($self->{config});
@@ -178,6 +184,8 @@ sub init {
 	}
 
 	$self->{ioSelect} = IO::Select->new(@{ $self->{ioSocketList} }) || die "IO::Select $!\n";
+
+	$self->{proxyConfig} = $self->getConfig("proxy");
 
 	# start the executor
 	$self->createExecutor;
@@ -280,7 +288,6 @@ sub listen {
 
 		$self->message("will read from socket");
 
-		# @clients = $select->can_read($hasPending || $self->closingConnectionsCount || $self->hasJobs ? 0 : .004);
 		@clients = $select->can_read($hasPending ? $waitActive : $waitRest);
 		$self->message("will iterate over sockets ".scalar @clients);
 
@@ -301,6 +308,7 @@ sub listen {
 
 				$self->configConnection($conn);
 				$self->createConnection($conn);
+				$self->createProxyConnection($conn) if $self->{proxyConfig};
 
 				last;
 			}
@@ -327,7 +335,7 @@ sub listen {
 		foreach my $fh (@clients) {
 			$self->message("write to $h");
 			my $fileno = $fh->fileno;
-			my $fno    = $self->{filenoMap}{$fileno};
+			my $fno    = $self->{fnoToConidMap}{$fileno};
 			my $queue  = $self->{responseQueue}{$fno};
 			my $invalid;
 
@@ -338,13 +346,18 @@ sub listen {
 				if (@$queue) {
 					if ($fh->connected) {
 						$self->message("do send $h");
-						shift @$queue unless length ${ $self->sendToSock($fh, \$queue->[0]) };
+						while (my $ch = shift @$queue) {
+							if (ref $ch && $ch->{file}) {
+								$self->{outputStreamMap}{$fh} .= ${ $self->getFileContent($ch) };
+								next;
+							}
+							$self->{outputStreamMap}{$fh} .= $ch;
+						}
 					} else {
 						$self->error("A connection error occured while sending to $fno($fileno)");
 						$invalid = 1;
 					}
 				}
-				$hasPending = 1 if @$queue;
 			}
 			$self->message("writen to $h");
 
@@ -352,6 +365,11 @@ sub listen {
 				$self->message("remove $h");
 				$self->removeConnection($fh, "unknown");
 				$self->message("removed $h");
+			} else {
+				my $rr = \$self->{outputStreamMap}{$fh};
+				if ($$rr) {
+					$hasPending = 1 if $self->sendToSock($fh, $rr);
+				}
 			}
 
 			$h++;
@@ -365,22 +383,12 @@ sub listen {
 		$self->message("will close socket ".scalar @clients);
 		$h = 0;
 		foreach (@clients) {
-			my $queue = $self->{responseQueue}{$_};
-			next unless $queue;
-			my $len;
-
-			$self->message("lock close $h");
-			{
-				lock($queue);
-				$len = @$queue;
-			}
 			$self->message("check close $h");
-			if ($len < 1) {
+			if (!$self->{outputStreamMap}{$_}) {
 				$self->message("close remove $h");
 				$self->removeConnection($_, "server");
 				$self->message("close removed $h");
 			}
-
 			$h++;
 		}
 		$self->message("closed sockets");
@@ -454,7 +462,7 @@ sub sendToSock {
 
 	$currentFh = $fh;
 	my $fileno = $fh->fileno;
-	my $id     = $self->{filenoMap}{$fileno};
+	my $id     = $self->{fnoToConidMap}{$fileno};
 	my ($charCnt, $block);
 	eval {
 		local $SIG{ALRM} = sub {
@@ -491,7 +499,7 @@ sub sendToSock {
 }
 
 sub createConnection {
-	my ($self, $sock) = @_;
+	my ($self, $sock, $out) = @_;
 	$self->message("create connection $sock");
 
 	$self->{ioSelect}->add($sock);
@@ -502,10 +510,11 @@ sub createConnection {
 	$self->removeConnection($oldSock) if $oldSock;
 
 	my $id = $self->{connId}++;
-	$self->{filenoMap}{$fileno} = $id;
-	$self->{streamMap}{$fileno} = "";
-	$cHandles->{$fileno}        = $sock;
-	$self->{connidMap}{$id}     = $fileno;
+	$self->{fnoToConidMap}{$fileno}  = $id;
+	$self->{inputStreamMap}{$fileno} = "";
+	$cHandles->{$fileno}             = $sock;
+	$self->{conidToFnoMap}{$id}      = $fileno;
+	$self->{outputStreamMap}{$sock}  = "";
 
 	{
 		lock($self->{connections});
@@ -533,7 +542,24 @@ sub createConnection {
 		$self->{responseQueue}{$id} = shared_clone([]);
 	}
 
-	$self->log("Connection $id($fileno) from ".$sock->peerhost." open", "access");
+	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." ".$sock->peerhost." open", "access");
+}
+
+sub createProxyConnection {
+	my ($self, $sock) = @_;
+
+	my $pSock = $self->{proxySocketMap}{$sock} = IO::Socket::INET->new(
+		PeerAddr => $self->{proxyConfig}{host},
+		PeerPort => $self->{proxyConfig}{port} || $sock->sockport,
+		Blocking => 0,
+	);
+	return unless $pSock;
+
+	$self->{proxySocketS2SConn}{$pSock} = 1;
+	$self->{proxySocketMap}{$pSock}     = $sock;
+
+	$self->createConnection($pSock, 1);
+	$self->configConnection($pSock);
 }
 
 sub configConnection {
@@ -556,7 +582,7 @@ sub monitorConnection {
 	$self->message("monitor $sock");
 
 	my $fileno = $sock->fileno;
-	my $id     = $self->{filenoMap}{$fileno};
+	my $id     = $self->{fnoToConidMap}{$fileno};
 	my $conn;
 	{
 		lock($self->{connections});
@@ -578,10 +604,10 @@ sub removeConnection {
 	my ($id, $fileno, $sock);
 	if (ref $fh) {
 		$fileno = $fh->fileno;
-		$id     = $self->{filenoMap}{$fileno};
+		$id     = $self->{fnoToConidMap}{$fileno};
 		$sock   = $fh;
 	} else {
-		$fileno = $self->{connidMap}{$fh};
+		$fileno = $self->{conidToFnoMap}{$fh};
 		$id     = $fh;
 		$sock   = $self->{connectionHandles}{$fileno} if $fileno;
 	}
@@ -604,17 +630,31 @@ sub removeConnection {
 	}
 
 	{
-		lock($self->{closeQueue});
-		$event = delete $self->{closeQueue}{$id};
+		my $closeQueue = $self->{closeQueue};
+		lock($closeQueue);
+		$event = delete $closeQueue->{$id};
+
+		# if there this is a proxy to another socket close it when possible
+		my $pSock = $self->{proxySocketMap}{$sock};
+		if ($pSock) {
+			delete $self->{proxySocketMap}{$pSock};
+			my $pId = $self->{fnoToConidMap}{ $pSock->fileno };
+			$closeQueue->{$pId} = shared_clone(
+				{   initiator => "server",
+					reason    => "proxy",
+				}
+			) if $pId;
+		}
 	}
-	delete $self->{connidMap}{$id};
+	delete $self->{conidToFnoMap}{$id};
+
 	my $t = delete $self->{connectionWorkerMap}{$id};
 	$self->{connectionWorkerLoad}{ $t->tid }-- if $t;
 
 	return if !$fileno;
-	delete $self->{filenoMap}{$fileno};
-	delete $self->{streamMap}{$fileno};
-	delete $self->{buffMap}{$fileno};
+	delete $self->{fnoToConidMap}{$fileno};
+	delete $self->{inputStreamMap}{$fileno};
+	delete $self->{parseBufferMap}{$fileno};
 	delete $self->{connectionHandles}{$fileno};
 
 	if (!$sock) {
@@ -622,6 +662,9 @@ sub removeConnection {
 		return;
 	}
 
+	delete $self->{proxySocketMap}{$sock};
+	delete $self->{proxySocketS2SConn}{$sock};
+	delete $self->{outputStreamMap}{$sock};
 	$self->{ioSelect}->remove($sock);
 	$self->log("Connection $id($fileno) from ".$sock->peerhost." closed by $initiator", "access");
 
@@ -649,32 +692,50 @@ sub removeConnection {
 
 sub addToStream {
 	my ($self, $sock, $data) = @_;
+
+	if ($self->{proxyConfig} && $self->{proxySocketS2SConn}{$sock}) {
+		$self->addToProxyStream($sock, $data);
+		return;
+	}
+
 	$self->message("adding chunk to stream ".length($data));
 	my $fileno = $sock->fileno;
-	$self->{debugStreamMap}{$fileno} = $self->{streamMap}{$fileno} .= $data;
+	$self->{debugStreamMap}{$fileno} = $self->{inputStreamMap}{$fileno} .= $data;
 
 	while ($self->readSocketData($sock)) { }
+}
+
+sub addToProxyStream {
+	my ($self, $sock, $data) = @_;
+	my $pSock = $self->{proxySocketMap}{$sock};
+	return unless $pSock;
+
+	$self->send($pSock, $data);
 }
 
 sub readSocketData {
 	my ($self, $sock) = @_;
 	my $fileno = $sock->fileno;
-	my $stream = \$self->{streamMap}{$fileno};
+	my $stream = \$self->{inputStreamMap}{$fileno};
 	return unless $$stream;
 
-	my $buff = $self->{buffMap}{$fileno} ||= { len => 0 };
+	my $buff = $self->{parseBufferMap}{$fileno} ||= { len => 0 };
 	my ($flag, $exec);
 
-	my $proto = $self->detectProto($$stream);
+	my ($proto, $parser) = ($buff->{proto}, $buff->{parser});
+	unless ($proto) {
+		$proto  = $buff->{proto}  = $self->detectProto($$stream);
+		$parser = $buff->{parser} = "Eldhelm::Server::Handler::$proto";
+	}
+
 	if ($proto && !$buff->{content}) {
 		my $hParsed;
-		my $parser = "Eldhelm::Server::Handler::$proto";
 		eval { ($hParsed, $$stream) = $parser->parse($$stream, $self); };
 		if ($@) {
 			$self->error("Error parsing chunk '$$stream': $@");
 			return;
 		}
-		%$buff = (%$hParsed, proto => $proto);
+		%$buff = (%$hParsed, proto => $proto, parser => $parser);
 		$self->executeBufferedTask($sock, $buff) if $buff->{len} == -1 || $buff->{len} == 0;
 		return 1 if $buff->{len} != -2;
 
@@ -728,8 +789,15 @@ sub detectProto {
 
 sub executeBufferedTask {
 	my ($self, $sock, $buff) = @_;
+
 	$self->message("execute bufered task");
-	delete $self->{buffMap}{ $sock->fileno };
+	delete $self->{parseBufferMap}{ $sock->fileno };
+
+	if ($self->{proxyConfig} && !$buff->{parser}->proxyPossible($buff)) {
+		$self->addToProxyStream($sock, $buff->{data});
+		return;
+	}
+
 	$self->executeTask($sock, $buff);
 	return;
 }
@@ -738,7 +806,7 @@ sub executeTask {
 	my ($self, $sock, $data) = @_;
 
 	my $fno = $sock->fileno;
-	my $id  = $self->{filenoMap}{$fno};
+	my $id  = $self->{fnoToConidMap}{$fno};
 
 	if ($data->{proto} eq "System") {
 		$self->handleTransmissionFlags($sock, $id, $data);
@@ -835,45 +903,9 @@ sub selectWorker {
 	return $chosen;
 }
 
-sub activeWorkersCount {
-	my ($self) = @_;
-	my $supCnt = 0;
-	foreach my $t (@{ $self->{workers} }) {
-		my $queue = $self->{workerQueue}{ $t->tid };
-		lock($queue);
-
-		$supCnt++ unless $t->is_suspended() && !@$queue;
-	}
-	return $supCnt;
-}
-
-sub closingConnectionsCount {
-	my ($self) = @_;
-	my ($closeCnt, @list) = 0;
-	{
-		lock($self->{closeQueue});
-		@list = keys %{ $self->{closeQueue} };
-	}
-	foreach (@list) {
-		my $queue = $self->{responseQueue}{$_};
-		if (!$queue) {
-			$closeCnt++;
-			next;
-		}
-		lock($queue);
-		$closeCnt++ if !@$queue;
-	}
-	return $closeCnt;
-}
-
 sub send {
 	my ($self, $sock, $msg) = @_;
-	my $fno = $self->{filenoMap}{ $sock->fileno };
-	if ($fno) {
-		my $queue = $self->{responseQueue}{$fno};
-		lock($queue);
-		push @$queue, $msg;
-	}
+	$self->{outputStreamMap}{$sock} .= $msg;
 	return $self;
 }
 
@@ -1066,7 +1098,8 @@ sub message {
 	my ($self, $msg) = @_;
 	return unless $self->{debugMode};
 
-	my $path = $self->{messagesLogPath} ||= $self->getConfig("server.logger.path")."/messages.log";
+	my $path = $self->{messagesLogPath} ||=
+		$self->getConfig("server.logger.path")."/".($self->getConfig("server.logger.messageLog") || "messages.log");
 	unlink $path if $self->{debugMessageCount} > 0 && !($self->{debugMessageCount} % 100_000);
 	$self->{debugMessageCount}++;
 
@@ -1075,6 +1108,39 @@ sub message {
 	close FW;
 
 	return;
+}
+
+sub getFileContent {
+	my ($self, $args) = @_;
+	use bytes;
+
+	my ($path, $ln) = ($args->{file}, $args->{ln});
+	my $cache = $self->{fileContentCache};
+	my $content;
+	$content = \$cache->{$path} if $cache->{$path};
+
+	if (!$content || $ln != length $$content) {
+		my $buf;
+		eval {
+			$self->log("Open '$path'", "access");
+			open FILE, $path or confess $!;
+			binmode FILE;
+			my $data;
+			while (read(FILE, $data, 4) != 0) {
+				$buf .= $data;
+			}
+			close FILE or confess $!;
+			$self->log("File '$path' is ".length($buf), "access");
+		};
+		$self->error("Error reading file: $@") if $@;
+		$cache->{$path} = $buf;
+		return \$cache->{$path};
+
+	} else {
+		$self->log("From cache '$path'", "access");
+	}
+
+	return $content;
 }
 
 1;

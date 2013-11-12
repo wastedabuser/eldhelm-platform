@@ -6,7 +6,6 @@ use Data::Dumper;
 sub parseArgv {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($arg, %opt);
-	$opt{list} = [];
 	while ($arg = shift @_) {
 		if ($arg =~ /^-+(\S+)/) {
 			my $op = $1;
@@ -17,7 +16,10 @@ sub parseArgv {
 			$opt{$op} = shift(@_) || 1;
 			next;
 		}
-		push @{ $opt{list} }, $arg;
+		if ($arg) {
+			$opt{list} ||= [];
+			push @{ $opt{list} }, $arg;
+		}
 	}
 	return %opt;
 }

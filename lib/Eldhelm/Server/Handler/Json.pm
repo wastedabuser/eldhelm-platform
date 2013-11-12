@@ -22,7 +22,8 @@ sub parse {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data, $main) = @_;
 	my $composer = COMPOSER_NAME;
-	my ($more, %parsed) = ("");
+	my $more     = "";
+	my %parsed   = (data => $data);
 
 	$data =~ s/^(\[.+?\])//;
 	eval { ($parsed{protocolId}, $parsed{headers}) = @{ $composer->parse($1) }; };

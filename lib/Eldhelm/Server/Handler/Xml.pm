@@ -20,7 +20,8 @@ sub parse {
 
 	return (
 		{   len     => -1,
-			content => $data
+			content => $data,
+			data => $data
 		},
 		""
 	);
@@ -52,14 +53,14 @@ sub parseContent {
 	}
 }
 
-sub createResponse {
+sub respond {
 	my ($self) = @_;
 	my $cont;
 	if ($self->{file}) {
 		my $path = "$self->{documentRoot}/$self->{file}";
 		$cont = $self->readDocument($path);
 	}
-	return "$cont\0";
+	$self->worker->sendData("$cont\0");
 }
 
 sub finish {

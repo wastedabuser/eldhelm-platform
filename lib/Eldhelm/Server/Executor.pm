@@ -34,8 +34,8 @@ sub new {
 
 sub init {
 	my ($self) = @_;
-	$self->{connectionTimeout} = $self->getConfig("server.connectionTimeout");
-	$self->{keepaliveInterval} = $self->getConfig("server.keepaliveInterval");
+	$self->{connectionTimeout} = $self->getConfig("server.connectionTimeout") || 600;
+	$self->{keepaliveInterval} = $self->getConfig("server.keepaliveInterval") || 20;
 	$self->{pingAvgSamples}    = (60 / $self->{keepaliveInterval}) * 10;
 	$self->{interval}          = 100_000;
 
