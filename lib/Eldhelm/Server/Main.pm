@@ -334,9 +334,9 @@ sub listen {
 		my $h = 0;
 		foreach my $fh (@clients) {
 			$self->message("write to $h");
-			my $fileno = $fh->fileno;
-			my $fno    = $self->{fnoToConidMap}{$fileno};
-			my $queue  = $self->{responseQueue}{$fno};
+			my $fno   = $fh->fileno;
+			my $id    = $self->{fnoToConidMap}{$fno};
+			my $queue = $self->{responseQueue}{$id};
 			my $invalid;
 
 			$self->message("lock $h");
@@ -354,7 +354,7 @@ sub listen {
 							$self->{outputStreamMap}{$fh} .= $ch;
 						}
 					} else {
-						$self->error("A connection error occured while sending to $fno($fileno)");
+						$self->error("A connection error occured while sending to $id($fno)");
 						$invalid = 1;
 					}
 				}
@@ -382,11 +382,24 @@ sub listen {
 		}
 		$self->message("will close socket ".scalar @clients);
 		$h = 0;
-		foreach (@clients) {
+		foreach my $id (@clients) {
+			my $fno = $self->{conidToFnoMap}{$id};
+			unless ($fno) {
+				lock($self->{closeQueue});
+				delete $self->{closeQueue}{$id};
+				next;
+			}
+			my $fh    = $self->{connectionHandles}{$fno};
+			my $queue = $self->{responseQueue}{$id};
+			my $ln;
+			{
+				lock($queue);
+				$ln = @$queue;
+			}
 			$self->message("check close $h");
-			if (!$self->{outputStreamMap}{$_}) {
+			if ($fh && !$ln && !$self->{outputStreamMap}{$fh}) {
 				$self->message("close remove $h");
-				$self->removeConnection($_, "server");
+				$self->removeConnection($fh, "server");
 				$self->message("close removed $h");
 			}
 			$h++;
@@ -598,21 +611,13 @@ sub monitorConnection {
 }
 
 sub removeConnection {
-	my ($self, $fh, $initiator) = @_;
-	$self->message("remove connection $fh, $initiator");
+	my ($self, $sock, $initiator) = @_;
+	$self->message("remove connection $sock, $initiator");
 
-	my ($id, $fileno, $sock);
-	if (ref $fh) {
-		$fileno = $fh->fileno;
-		$id     = $self->{fnoToConidMap}{$fileno};
-		$sock   = $fh;
-	} else {
-		$fileno = $self->{conidToFnoMap}{$fh};
-		$id     = $fh;
-		$sock   = $self->{connectionHandles}{$fileno} if $fileno;
-	}
+	my $fileno = $sock->fileno;
+	my $id     = $self->{fnoToConidMap}{$fileno};
+	return unless $id;
 
-	return if !$id;
 	my ($event, $conn);
 	{
 		lock($self->{connections});
@@ -651,7 +656,6 @@ sub removeConnection {
 	my $t = delete $self->{connectionWorkerMap}{$id};
 	$self->{connectionWorkerLoad}{ $t->tid }-- if $t;
 
-	return if !$fileno;
 	delete $self->{fnoToConidMap}{$fileno};
 	delete $self->{inputStreamMap}{$fileno};
 	delete $self->{parseBufferMap}{$fileno};
@@ -924,14 +928,6 @@ sub registerConnectionEvent {
 	}
 }
 
-sub hasJobs {
-	my ($self) = @_;
-	my $queue = $self->{jobQueue};
-	lock($queue);
-
-	return @$queue > 0;
-}
-
 sub doOtherJobs {
 	my ($self) = @_;
 	my $job;
@@ -1114,8 +1110,9 @@ sub getFileContent {
 	my ($self, $args) = @_;
 	use bytes;
 
-	my ($path, $ln) = ($args->{file}, $args->{ln});
 	my $cache = $self->{fileContentCache};
+	my ($path, $ln) = ($args->{file}, $args->{ln});
+
 	my $content;
 	$content = \$cache->{$path} if $cache->{$path};
 
