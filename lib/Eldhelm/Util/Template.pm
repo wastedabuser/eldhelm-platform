@@ -53,18 +53,21 @@ sub parseSource {
 
 	my $blocks = $self->{block};
 	$source =~
-		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~$1~~;;"/gei;
+		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~block~$1~~;;"/gei;
 
 	my $vars = $self->{var};
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
 
 	my $fns = $self->{function};
-	$source =~ s/\{([a-z][a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
-		my $nm = $1; 
-		(my $args = $2) =~ s|[\n\r\t]||g;
+	my $i   = "";
+	$source =~ s/\{([a-z][a-z0-9_]*)(:?[a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
+		my $fn = $1; 
+		my $nm = $2 || "$fn$i";
+		$i++;
+		(my $args = $3) =~ s|[\n\r\t]||g;
 		$fns->{$nm} = $args;
-		";;~~eldhelm~template~placeholder~function~$nm~~;;"
+		";;~~eldhelm~template~placeholder~function~$fn~$nm~~;;"
 	/geis;
 
 	return $source;
@@ -93,18 +96,18 @@ sub compile {
 
 sub compileStream {
 	my ($self, $source) = @_;
-	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~~;;/$self->interpolate($1, $2)/gei;
+	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~(.+?)~~;;/$self->interpolate($1, $2, $3)/gei;
 	return $source;
 }
 
 sub interpolate {
-	my ($self, $tp, $nm) = @_;
+	my ($self, $tp, $fnm, $nm) = @_;
 	my $fn = "_interpolate_$tp";
-	return $self->$fn($nm, $self->{$tp}{$nm});
+	return $self->$fn($fnm, $nm, $self->{$tp}{$nm});
 }
 
 sub _interpolate_var {
-	my ($self, $name, $format) = @_;
+	my ($self, $fnm, $name, $format) = @_;
 	my $value;
 	if ($name =~ /\./) {
 		my $ref = $self->{compileParams};
@@ -131,14 +134,14 @@ sub _interpolate_var {
 }
 
 sub _interpolate_function {
-	my ($self, $method, $query) = @_;
-	my $name = "_function_$method";
+	my ($self, $fnm, $name, $query) = @_;
+	my $name = "_function_$fnm";
 	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
 	return $self->$name(%params ? \%params : $query);
 }
 
 sub _interpolate_block {
-	my ($self, $name, $content) = @_;
+	my ($self, $fnm, $name, $content) = @_;
 	return $self->compileStream($content);
 }
 
