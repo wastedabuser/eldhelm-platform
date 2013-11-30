@@ -732,7 +732,7 @@ sub readSocketData {
 		$parser = $buff->{parser} = "Eldhelm::Server::Handler::$proto";
 	}
 
-	if ($proto && !$buff->{content}) {
+	if ($proto && !$buff->{content} && (!$buff->{len} || $buff->{len} < 0)) {
 		my $hParsed;
 		eval { ($hParsed, $$stream) = $parser->parse($$stream, $self); };
 		if ($@) {
