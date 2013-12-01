@@ -51,8 +51,11 @@ sub parse {
 
 sub proxyPossible {
 	shift @_ if $_[0] eq __PACKAGE__;
-	my ($parsed) = @_;
-	return $parsed->{url} =~ /\.[a-z][a-z0-9]{1,3}$/i;
+	my ($parsed, $urls) = @_;
+	foreach (@$urls) {
+		return $_->[1] if $parsed->{url} =~ m($_->[0])i;
+	}
+	return 0;
 }
 
 # the class definition

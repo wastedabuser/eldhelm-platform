@@ -797,7 +797,7 @@ sub executeBufferedTask {
 	$self->message("execute bufered task");
 	delete $self->{parseBufferMap}{ $sock->fileno };
 
-	if ($self->{proxyConfig} && !$buff->{parser}->proxyPossible($buff)) {
+	if ($self->{proxyConfig} && !$buff->{parser}->proxyPossible($buff, $self->{proxyConfig}{proxyUrls})) {
 		$self->addToProxyStream($sock, $buff->{data});
 		return;
 	}
