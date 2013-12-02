@@ -37,12 +37,12 @@ sub config {
 
 sub actions {
 	my ($self) = @_;
-	return $self->{config}{actions} || $self->worker->getConfig("server.router.actions");
+	return $self->{config}{actions} || $self->worker->getConfig("server.router.actions") || [];
 }
 
 sub defaultMethod {
 	my ($self) = @_;
-	return $self->{config}{defaultMethod} || $self->worker->getConfig("server.router.defaultMethod");
+	return $self->{config}{defaultMethod} || $self->worker->getConfig("server.router.defaultMethod") || "index";
 }
 
 sub route {
