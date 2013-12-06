@@ -119,6 +119,11 @@ sub getPathTmp {
 	$self->getPathFromUrl($self->worker->getConfig("server.tmp"), $url);
 }
 
+sub getPathHome {
+	my ($self, $url) = @_;
+	$self->getPathFromUrl($self->worker->getConfig("server.home"), $url);
+}
+
 sub getPathFromUrl {
 	my ($self, $folder, $url) = @_;
 	unless ($url) {

@@ -65,6 +65,7 @@ sub new {
 			fileContentCache     => {},
 			proxySocketMap       => {},
 			proxySocketS2SConn   => {},
+			debugMessageCount    => 0,
 		};
 		bless $instance, $class;
 
