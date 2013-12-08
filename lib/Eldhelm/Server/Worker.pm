@@ -3,7 +3,6 @@ package Eldhelm::Server::Worker;
 use strict;
 use threads;
 use threads::shared;
-use Thread::Suspend;
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Handler::Factory;
 use Data::Dumper;
@@ -34,7 +33,7 @@ sub new {
 
 sub init {
 	my ($self) = @_;
-	$self->{suspendWorkers} = $self->getConfig("server.suspendWorkers");
+	
 }
 
 # =================================
@@ -49,23 +48,12 @@ sub run {
 		if ($conn && $conn eq "connectionError") {
 			next;
 		} elsif (!$data) {
-			if ($self->{suspendWorkers}) {
-				$self->suspend;
-			} else {
-				$self->status("action", "wait");
-				usleep(1000);
-			}
+			$self->status("action", "wait");
+			usleep(1000);
 			next;
 		}
 		$self->runTask($conn, $data);
 	}
-}
-
-sub suspend {
-	my ($self) = @_;
-	$self->log("Will take a nap");
-	threads->self()->suspend();
-	$self->log("Ready to role");
 }
 
 sub fetchTask {

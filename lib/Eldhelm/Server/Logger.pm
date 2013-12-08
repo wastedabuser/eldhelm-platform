@@ -3,7 +3,6 @@ package Eldhelm::Server::Logger;
 use strict;
 use threads;
 use threads::shared;
-use Thread::Suspend;
 use Data::Dumper;
 use Time::HiRes;
 use Date::Format;

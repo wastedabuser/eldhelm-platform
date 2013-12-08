@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use threads;
 use threads::shared;
-use Thread::Suspend;
 use Socket;
 use POSIX;
 use IO::Handle;
@@ -192,7 +191,6 @@ sub init {
 	$self->createExecutor;
 
 	# start workers
-	$self->{suspendWorkers} = $cnf->{suspendWorkers};
 	foreach (1 .. $cnf->{workerCount} || 1) {
 		$self->createWorker;
 	}
@@ -292,6 +290,8 @@ sub listen {
 		@clients = $select->can_read($hasPending ? $waitActive : $waitRest);
 		$self->message("will iterate over sockets ".scalar @clients);
 
+		next if $self->{shuttingDown};
+
 		push @clients, values %$sslClients;
 		my %acceptedClients;
 
@@ -347,6 +347,7 @@ sub listen {
 				if (@$queue) {
 					if ($fh->connected) {
 						$self->message("do send $h");
+						use bytes;
 						while (my $ch = shift @$queue) {
 							if (ref $ch && $ch->{file}) {
 								$self->{outputStreamMap}{$fh} .= ${ $self->getFileContent($ch) };
@@ -849,7 +850,6 @@ sub handleTransmissionFlags {
 
 sub delegateToWorker {
 	my ($self, $id, $data) = @_;
-	return if $self->{shuttingDown};
 
 	my $t   = $self->selectWorker($id);
 	my $tid = $t->tid;
@@ -863,8 +863,6 @@ sub delegateToWorker {
 	}
 	$self->{workerStats}{$tid}{jobs}++;
 
-	$t->resume if $self->{suspendWorkers};
-
 	$self->message("delegated worker");
 	return;
 }
@@ -877,17 +875,27 @@ sub selectWorker {
 	$chosen = $self->{connectionWorkerMap}{$id} if $id;
 
 	foreach my $t (@{ $self->{workers} }) {
-		my $isSusp = $t->is_suspended;
-		my $tid    = $t->tid;
-		my %stats  = (
-			tid      => $tid,
-			sleeping => $isSusp ? 1 : 2,
-			status   => $isSusp ? "_" : "W",
-			queue    => scalar @{ $self->{workerQueue}{$tid} },
-			conn     => $self->{connectionWorkerLoad}{$tid},
-			trd      => $t
+		my $tid = $t->tid;
+		my $status;
+		{
+			my $tStatus = $self->{workerStatus}{$tid};
+			lock $tStatus;
+			$status = $tStatus->{action};
+		}
+		my $queueLn;
+		{
+			my $tQueue = $self->{workerQueue}{$tid};
+			lock $tQueue;
+			$queueLn = scalar @$tQueue;
+		}
+		my %stats = (
+			tid    => $tid,
+			status => $status,
+			queue  => $queueLn,
+			conn   => $self->{connectionWorkerLoad}{$tid},
+			trd    => $t
 		);
-		$stats{weight} = ($stats{queue} + $stats{conn}) * $stats{sleeping};
+		$stats{weight} = $stats{queue} + $stats{conn};
 		push @list, \%stats;
 
 	}
@@ -898,7 +906,7 @@ sub selectWorker {
 			."]"
 	);
 	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
-		if !$chosen;
+		unless $chosen;
 
 	if ($id && !$self->{connectionWorkerMap}{$id}) {
 		$self->{connectionWorkerMap}{$id} = $chosen;
@@ -910,6 +918,7 @@ sub selectWorker {
 
 sub send {
 	my ($self, $sock, $msg) = @_;
+	use bytes;
 	$self->{outputStreamMap}{$sock} .= $msg;
 	return $self;
 }
@@ -978,8 +987,6 @@ sub removeWorker {
 		@jobs   = @$queue;
 		@$queue = ("exitWorker");
 	}
-
-	$t->resume if $t->is_suspended;
 
 	delete $self->{workerQueue}{$tid};
 	delete $self->{workerStatus}{$tid};
