@@ -347,7 +347,6 @@ sub listen {
 				if (@$queue) {
 					if ($fh->connected) {
 						$self->message("do send $h");
-						use bytes;
 						while (my $ch = shift @$queue) {
 							if (ref $ch && $ch->{file}) {
 								$self->{outputStreamMap}{$fh} .= ${ $self->getFileContent($ch) };
