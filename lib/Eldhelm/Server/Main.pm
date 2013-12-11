@@ -33,7 +33,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info                 => { version => "1.3.0" },
+			info                 => { version => "1.3.1" },
 			ioSocketList         => [],
 			config               => shared_clone({}),
 			workers              => [],
@@ -324,7 +324,7 @@ sub listen {
 				$self->removeConnection($fh, "remote");
 			} else {
 				$self->monitorConnection($fh, \$data);
-				$self->addToStream($fh, $data);
+				$self->addToStream($fh, \$data);
 			}
 		}
 		$self->message("will write to sockets");
@@ -349,10 +349,10 @@ sub listen {
 						$self->message("do send $h");
 						while (my $ch = shift @$queue) {
 							if (ref $ch && $ch->{file}) {
-								$self->{outputStreamMap}{$fh} .= ${ $self->getFileContent($ch) };
+								$self->send($fh, $self->getFileContent($ch));
 								next;
 							}
-							$self->{outputStreamMap}{$fh} .= $ch;
+							$self->send($fh, $ch);
 						}
 					} else {
 						$self->error("A connection error occured while sending to $id($fno)");
@@ -471,7 +471,13 @@ sub sendToSock {
 	if (ref $data ne "SCALAR") {
 		$self->error("Data should be a scalar ref");
 		$data = "";
-		return \$data;
+		return $data;
+	}
+	my $ssl = ref($fh) =~ /SSL/;
+	if (!$fh->peeraddr) {
+		$self->error("No peer address");
+		$self->removeConnection($fh, "no peeraddr");
+		return $data;
 	}
 
 	$currentFh = $fh;
@@ -483,7 +489,7 @@ sub sendToSock {
 			die "send blocked: ".length($$data);
 		};
 		alarm 3;
-		if (ref($fh) =~ /SSL/) {
+		if ($ssl) {
 			$charCnt = syswrite($fh, $$data, 0);
 		} else {
 			$charCnt = $fh->send($$data, 0);
@@ -562,9 +568,12 @@ sub createConnection {
 sub createProxyConnection {
 	my ($self, $sock) = @_;
 
+	my $port  = $sock->sockport;
+	my $pconf = $self->{proxyConfig};
+	my $pmap  = $pconf->{portmap};
 	my $pSock = $self->{proxySocketMap}{$sock} = IO::Socket::INET->new(
-		PeerAddr => $self->{proxyConfig}{host},
-		PeerPort => $self->{proxyConfig}{port} || $sock->sockport,
+		PeerAddr => $pconf->{host},
+		PeerPort => $pconf->{port} || ($pmap ? $pmap->{$port} || $port : $port),
 		Blocking => 0,
 	);
 	return unless $pSock;
@@ -703,19 +712,19 @@ sub addToStream {
 		return;
 	}
 
-	$self->message("adding chunk to stream ".length($data));
+	$self->message("adding chunk to stream ".length($$data));
 	my $fileno = $sock->fileno;
-	$self->{debugStreamMap}{$fileno} = $self->{inputStreamMap}{$fileno} .= $data;
+	$self->{debugStreamMap}{$fileno} = $self->{inputStreamMap}{$fileno} .= $$data;
 
 	while ($self->readSocketData($sock)) { }
 }
 
 sub addToProxyStream {
-	my ($self, $sock, $data) = @_;
+	my ($self, $sock, @data) = @_;
 	my $pSock = $self->{proxySocketMap}{$sock};
 	return unless $pSock;
 
-	$self->send($pSock, $data);
+	$self->send($pSock, $_) foreach grep { $$_ } @data;
 }
 
 sub readSocketData {
@@ -730,7 +739,7 @@ sub readSocketData {
 	my ($proto, $parser) = ($buff->{proto}, $buff->{parser});
 	unless ($proto) {
 		$proto  = $buff->{proto}  = $self->detectProto($$stream);
-		$parser = $buff->{parser} = "Eldhelm::Server::Handler::$proto";
+		$parser = $buff->{parser} = "Eldhelm::Server::Handler::$proto" if $proto;
 	}
 
 	if ($proto && !$buff->{content} && (!$buff->{len} || $buff->{len} < 0)) {
@@ -746,30 +755,35 @@ sub readSocketData {
 
 	} elsif ($buff->{len} > 0) {
 		$exec = 0;
+		my $ln;
 		{
 			use bytes;
-			my $ln = length $$stream;
-			if ($ln > $buff->{len}) {
-				my $dln = $buff->{len};
-				my $chunk = substr $$stream, 0, $dln;
+			$ln = length $$stream;
+		}
+		if ($ln > $buff->{len}) {
+			my $dln = $buff->{len};
+			my $chunk;
+			{
+				use bytes;
+				$chunk = substr $$stream, 0, $dln;
 				substr($$stream, 0, $dln) = "";
-				$buff->{content} .= $chunk;
-				$buff->{len} = 0;
-				$exec        = 1;
-				$flag        = 1;
-
-			} elsif ($ln == $buff->{len}) {
-				$buff->{content} .= $$stream;
-				$$stream     = "";
-				$buff->{len} = 0;
-				$exec        = 1;
-
-			} else {
-				$buff->{content} .= $$stream;
-				$$stream = "";
-				$buff->{len} -= $ln;
-
 			}
+			$buff->{content} .= $chunk;
+			$buff->{len} = 0;
+			$exec        = 1;
+			$flag        = 1;
+
+		} elsif ($ln == $buff->{len}) {
+			$buff->{content} .= $$stream;
+			$$stream     = "";
+			$buff->{len} = 0;
+			$exec        = 1;
+
+		} else {
+			$buff->{content} .= $$stream;
+			$$stream = "";
+			$buff->{len} -= $ln;
+
 		}
 		$self->executeBufferedTask($sock, $buff) if $exec;
 		return 1 if $flag;
@@ -798,8 +812,8 @@ sub executeBufferedTask {
 	$self->message("execute bufered task");
 	delete $self->{parseBufferMap}{ $sock->fileno };
 
-	if ($self->{proxyConfig} && !$buff->{parser}->proxyPossible($buff, $self->{proxyConfig}{proxyUrls})) {
-		$self->addToProxyStream($sock, $buff->{data});
+	if ($self->{proxyConfig} && $buff->{parser}->proxyPossible($buff, $self->{proxyConfig}{proxyUrls})) {
+		$self->addToProxyStream($sock, \$buff->{headerContent}, \$buff->{content});
 		return;
 	}
 
@@ -917,8 +931,7 @@ sub selectWorker {
 
 sub send {
 	my ($self, $sock, $msg) = @_;
-	use bytes;
-	$self->{outputStreamMap}{$sock} .= $msg;
+	$self->{outputStreamMap}{$sock} .= ref $msg ? $$msg : $msg;
 	return $self;
 }
 
@@ -1115,7 +1128,6 @@ sub message {
 
 sub getFileContent {
 	my ($self, $args) = @_;
-	use bytes;
 
 	my $cache = $self->{fileContentCache};
 	my ($path, $ln) = ($args->{file}, $args->{ln});

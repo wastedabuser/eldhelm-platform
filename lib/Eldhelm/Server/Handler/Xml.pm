@@ -19,9 +19,9 @@ sub parse {
 	my ($data) = @_;
 
 	return (
-		{   len     => -1,
-			content => $data,
-			data => $data
+		{   len           => -1,
+			content       => $data,
+			headerContent => ""
 		},
 		""
 	);

@@ -24,10 +24,10 @@ sub parse {
 
 	return ({ len => -2 }, $data) unless $data =~ /\r\n\r\n/;
 
-	my %parsed = (data => $data);
 	my @chunks = split /\r\n/, $data;
-
-	(shift @chunks) =~ m~^([a-z]+)\s+/(.*?)\s+http/(.*)~i;
+	my $fl = shift @chunks;
+	my %parsed = (headerContent => "$fl\r\n");
+	$fl =~ m~^([a-z]+)\s+/(.*?)\s+http/(.*)~i;
 	$parsed{method} = uc($1);
 	(my $url = $2) =~ s|\.+/||g;
 	my @parts = split /\?/, $url;
@@ -38,10 +38,12 @@ sub parse {
 	foreach (@chunks) {
 		if (m/^(.*?)\s*:\s*(.*)$/) {
 			$parsed{headers}{$1} = $2;
+			$parsed{headerContent} .= "$_\r\n";
 		} else {
 			$parsed{content} .= $_;
 		}
 	}
+	$parsed{headerContent} .= "\r\n";
 
 	my $ln = $parsed{len} = $parsed{headers}{"Content-Length"} || -1;
 	$parsed{len} -= length $parsed{content} if $ln > 0;
@@ -55,7 +57,7 @@ sub proxyPossible {
 	foreach (@$urls) {
 		return $_->[1] if $parsed->{url} =~ m($_->[0])i;
 	}
-	return 0;
+	return 1;
 }
 
 # the class definition

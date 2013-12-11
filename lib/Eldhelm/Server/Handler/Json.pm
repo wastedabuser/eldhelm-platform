@@ -23,10 +23,10 @@ sub parse {
 	my ($data, $main) = @_;
 	my $composer = COMPOSER_NAME;
 	my $more     = "";
-	my %parsed   = (data => $data);
 
 	$data =~ s/^(\[.+?\])//;
-	eval { ($parsed{protocolId}, $parsed{headers}) = @{ $composer->parse($1) }; };
+	my %parsed = (headerContent => $1);
+	eval { ($parsed{protocolId}, $parsed{headers}) = @{ $composer->parse($parsed{headerContent}) }; };
 	if ($@) {
 		$main->error("Error parsing header: $@\n$data");
 		return ({ len => -2 }, $data);

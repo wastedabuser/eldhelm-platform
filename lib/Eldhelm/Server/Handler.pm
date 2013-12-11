@@ -7,7 +7,7 @@ use Carp;
 
 sub proxyPossible {
 	shift @_ if $_[0] eq __PACKAGE__;
-	return;
+	return 1;
 }
 
 sub new {

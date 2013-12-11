@@ -20,7 +20,10 @@ sub parse {
 
 	return ({ len => -2 }, $data) unless $data =~ m/[a-z0-9_]-/i;
 
-	my %parsed = (data => $data);
+	my %parsed = (
+		content       => $data,
+		headerContent => ""
+	);
 	$data =~ s/^-(.+?)-//;
 
 	# $data =~ s/^-([a-z0-9_]+?)-//;
