@@ -117,7 +117,8 @@ sub loadState {
 	my ($self) = @_;
 
 	my $cfg  = $self->getConfig("server");
-	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
+	my $path;
+	$path = "$cfg->{tmp}/$cfg->{name}-state.res" if $cfg->{tmp} && $cfg->{name};
 
 	return if !-f $path;
 
@@ -1045,6 +1046,9 @@ sub saveStateAndShutDown {
 	my ($self) = @_;
 
 	return if $self->{shuttingDown};
+	
+	my $cfg  = $self->getConfig("server");
+	return if !$cfg->{name} || !-d $cfg->{tmp};
 
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
@@ -1092,7 +1096,7 @@ sub saveStateAndShutDown {
 	my $data = Eldhelm::Util::Tool::cloneStructure(
 		{ map { +$_ => $self->{$_} } qw(stash persists persistsByType persistLookup delayedEvents jobQueue) });
 
-	my $cfg  = $self->getConfig("server");
+	
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
 	print "Writing $path to disk\n";
 	Storable::store($data, $path);
