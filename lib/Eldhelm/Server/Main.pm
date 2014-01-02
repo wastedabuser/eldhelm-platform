@@ -120,7 +120,7 @@ sub loadState {
 	my $path;
 	$path = "$cfg->{tmp}/$cfg->{name}-state.res" if $cfg->{tmp} && $cfg->{name};
 
-	return if !-f $path;
+	return if !$path || !-f $path;
 
 	$self->log("Loading $path from disk");
 	my $data = Storable::retrieve($path);
@@ -1048,7 +1048,10 @@ sub saveStateAndShutDown {
 	return if $self->{shuttingDown};
 	
 	my $cfg  = $self->getConfig("server");
-	return if !$cfg->{name} || !-d $cfg->{tmp};
+	if (!$cfg->{name} || !-d $cfg->{tmp}) {
+		print "Saving state is not available, bye bye\n";
+		exit;
+	}
 
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
