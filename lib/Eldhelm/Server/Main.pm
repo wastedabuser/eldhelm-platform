@@ -1048,7 +1048,7 @@ sub saveStateAndShutDown {
 	return if $self->{shuttingDown};
 	
 	my $cfg  = $self->getConfig("server");
-	if (!$cfg->{name} || !-d $cfg->{tmp}) {
+	if (!$cfg->{name} || !$cfg->{tmp} || !-d $cfg->{tmp}) {
 		print "Saving state is not available, bye bye\n";
 		exit;
 	}
