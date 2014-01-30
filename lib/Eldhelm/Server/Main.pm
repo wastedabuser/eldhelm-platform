@@ -16,7 +16,6 @@ use Eldhelm::Server::Logger;
 use Eldhelm::Server::Executor;
 use Data::Dumper;
 use Time::HiRes qw(time usleep);
-use Storable;
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::Factory;
 use Errno;
@@ -116,16 +115,17 @@ sub configure {
 sub loadState {
 	my ($self) = @_;
 
-	my $cfg  = $self->getConfig("server");
+	my $cfg = $self->getConfig("server");
 	my $path;
 	$path = "$cfg->{tmp}/$cfg->{name}-state.res" if $cfg->{tmp} && $cfg->{name};
 
 	return if !$path || !-f $path;
 
 	$self->log("Loading $path from disk");
-	my $data = Storable::retrieve($path);
-
-	eval { $self->{$_} = shared_clone($data->{$_}) foreach keys %$data; };
+	eval {
+		my $data = do $path;
+		$self->{$_} = shared_clone($data->{$_}) foreach keys %$data;
+	};
 	$self->error("State corrupt") if $@;
 	unlink $path;
 
@@ -739,7 +739,7 @@ sub readSocketData {
 
 	my ($proto, $parser) = ($buff->{proto}, $buff->{parser});
 	unless ($proto) {
-		$proto  = $buff->{proto}  = $self->detectProto($$stream);
+		$proto = $buff->{proto} = $self->detectProto($$stream);
 		$parser = $buff->{parser} = "Eldhelm::Server::Handler::$proto" if $proto;
 	}
 
@@ -1046,8 +1046,8 @@ sub saveStateAndShutDown {
 	my ($self) = @_;
 
 	return if $self->{shuttingDown};
-	
-	my $cfg  = $self->getConfig("server");
+
+	my $cfg = $self->getConfig("server");
 	if (!$cfg->{name} || !$cfg->{tmp} || !-d $cfg->{tmp}) {
 		print "Saving state is not available, bye bye\n";
 		exit;
@@ -1099,13 +1099,22 @@ sub saveStateAndShutDown {
 	my $data = Eldhelm::Util::Tool::cloneStructure(
 		{ map { +$_ => $self->{$_} } qw(stash persists persistsByType persistLookup delayedEvents jobQueue) });
 
-	
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
 	print "Writing $path to disk\n";
-	Storable::store($data, $path);
+	$self->saveResFile($data, $path);
 
 	print "Bye bye\n";
 	exit;
+}
+
+sub saveResFile {
+	my ($self, $data, $file) = @_;
+	open my $fh, '>', $file
+		or die "Can't write '$file': $!";
+	local $Data::Dumper::Terse = 1;    # no '$VAR1 = '
+	local $Data::Dumper::Useqq = 1;    # double quoted strings
+	print $fh Dumper $data;
+	close $fh or die "Can't close '$file': $!";
 }
 
 # =================================
