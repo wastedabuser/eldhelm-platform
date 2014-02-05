@@ -124,10 +124,12 @@ sub loadState {
 	$self->log("Loading $path from disk");
 	eval {
 		my $data = do $path;
-		$self->{$_} = shared_clone($data->{$_}) foreach keys %$data;
+		if ($data) {
+			$self->{$_} = shared_clone($data->{$_}) foreach keys %$data;
+		}
 	};
 	$self->error("State corrupt") if $@;
-	unlink $path;
+	rename $path, $path."-".int(time).".res";
 
 	return;
 }
