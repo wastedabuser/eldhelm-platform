@@ -1,6 +1,8 @@
 package Eldhelm::Test::Fixture::ControllerTester;
 
 use strict;
+use threads;
+use threads::shared;
 use Carp;
 use Eldhelm::Util::Factory;
 use Eldhelm::Test::Mock::Worker;
@@ -13,7 +15,8 @@ sub new {
 	my $self = {};
 	bless $self, $class;
 
-	$self->{worker} = Eldhelm::Test::Mock::Worker->new(config => $args{config});
+	$self->{config} = shared_clone($args{config} || {});
+	$self->{worker} = Eldhelm::Test::Mock::Worker->new(config => $self->{config});
 	$self->{session} = Eldhelm::Test::Mock::Session->new($args{sessionArgs} ? %{ $args{sessionArgs} } : ());
 
 	confess "No controller class supplied" unless $args{controller};
