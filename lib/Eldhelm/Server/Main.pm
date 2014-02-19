@@ -78,8 +78,9 @@ sub start {
 
 	$self->readConfig;
 	$self->configure;
-	$self->createLogger;
 	$self->loadState;
+	
+	$self->createLogger;
 	$self->init;
 	$self->listen;
 
@@ -121,14 +122,33 @@ sub loadState {
 
 	return if !$path || !-f $path;
 
-	$self->log("Loading $path from disk");
+	# stash persists persistsByType persistLookup delayedEvents jobQueue
+	print "Reading state from: $path\n";
 	eval {
 		my $data = do $path;
 		if ($data) {
-			$self->{$_} = shared_clone($data->{$_}) foreach keys %$data;
+			foreach my $k (keys %$data) {
+				my $d = $data->{$k};
+				print "Loading $k: ";
+				if (ref $d eq "HASH") {
+					print scalar(keys %$d)." items";
+					foreach (keys %$d) {
+						$self->{$k}{$_} = shared_clone($d->{$_});
+						usleep(10_000);
+					}
+				} else {
+					print "list";
+					$self->{$k} = shared_clone($d);
+				}
+				print "\n";
+			}
 		}
 	};
-	$self->error("State corrupt") if $@;
+	if ($@) {
+		print "State corrupt: $@\n";
+	} else {
+		print "State loaded\n";
+	}
 	rename $path, $path."-".int(time).".res";
 
 	return;
