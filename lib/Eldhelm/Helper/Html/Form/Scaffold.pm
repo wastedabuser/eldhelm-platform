@@ -88,12 +88,10 @@ sub createRelationSelctor {
 	);
 	return $self->createCombo({%args}, $data) if ref $data eq "ARRAY";
 
-	return $self->createInput(
+	return $self->createText(
 		{   %args,
-			value        => $self->createValue(\%args),
 			autocomplete => "$data->{table},$data->{key},$data->{value}"
-		},
-		{ customAttributes => ["autocomplete"] }
+		}
 	);
 }
 

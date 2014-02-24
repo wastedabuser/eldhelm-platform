@@ -54,12 +54,9 @@ sub add {
 }
 
 sub createFieldProperties {
-	my ($self, $args, $custom) = @_;
-	$custom ||= [];
-
-	# $args->{value} ||= $self->{formValues}{ $args->{name} } if $args->{name};
+	my ($self, $args) = @_;
 	return join " ", map { qq~$_="~.$self->enc($args->{$_}).'"' }
-		grep { defined $args->{$_} } qw(type id name value class), @$custom;
+		grep { $_ !~ /^_/ && defined $args->{$_} } keys %$args;
 }
 
 sub createLabel {
@@ -69,14 +66,13 @@ sub createLabel {
 }
 
 sub createInput {
-	my ($self, $args, $options) = @_;
-	$options ||= {};
-	$options->{tag} ||= "input";
+	my ($self, $args) = @_;
+	$args->{_tag} ||= "input";
 	return
 		 $self->createLabel($args)
-		."<$options->{tag} "
-		.$self->createFieldProperties($args, $options->{customAttributes})
-		." >$options->{content}</$options->{tag}>";
+		."<$args->{_tag} "
+		.$self->createFieldProperties($args)
+		." >$args->{_content}</$args->{_tag}>";
 }
 
 sub createValue {
@@ -106,19 +102,17 @@ sub createCheckbox {
 	my ($self, $args) = @_;
 	$args ||= {};
 	$args->{type} = "checkbox";
-	$args->{checkedValue} ||= 1;
+	$args->{_checkedValue} ||= 1;
 	$args->{value}   = $self->createValue($args);
-	$args->{checked} = ($args->{value} eq $args->{checkedValue}) || undef;
-	$args->{value}   = $args->{checkedValue};
-	return $self->createHidden({ staticValue => 0, name => $args->{name} })
-		.$self->createInput($args, { customAttributes => ["checked"] });
+	$args->{checked} = ($args->{value} eq $args->{_checkedValue}) || undef;
+	$args->{value}   = $args->{_checkedValue};
+	return $self->createHidden({ staticValue => 0, name => $args->{name} }).$self->createInput($args);
 }
 
 sub createCombo {
 	my ($self, $args, $items) = @_;
 	$args  ||= {};
 	$items ||= [];
-	$args->{type}  = "select";
 	$args->{value} = $self->createValue($args);
 	my ($key, $value) = ($args->{itemKey} || "key", $args->{itemValue} || "value");
 	my $cont = join "\n", map {
@@ -127,12 +121,9 @@ sub createCombo {
 			.qq~>$_->{$value}</option>~
 	} @$items;
 	delete $args->{value};
-	return $self->createInput(
-		$args,
-		{   content => "\n$cont",
-			tag     => "select",
-		}
-	);
+	$args->{_content} = "\n$cont";
+	$args->{_tag}     = "select";
+	return $self->createInput($args);
 }
 
 sub createArea {
@@ -140,12 +131,9 @@ sub createArea {
 	$args ||= {};
 	my $cont = $self->createValue($args);
 	delete $args->{value};
-	return $self->createInput(
-		$args,
-		{   tag     => "textarea",
-			content => $self->enc($cont)
-		}
-	);
+	$args->{_content} = $self->enc($cont);
+	$args->{_tag}     = "textarea";
+	return $self->createInput($args);
 }
 
 sub createSubmit {

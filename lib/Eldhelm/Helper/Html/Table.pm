@@ -9,19 +9,20 @@ use Data::Dumper;
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
-		columns       => $args{columns}       || [],
-		filters       => $args{filters},
-		data          => $args{data}          || [],
-		model         => $args{model},
-		filter        => $args{filter}        || {},
+		columns => $args{columns} || [],
+		filters => $args{filters},
+		data    => $args{data}    || [],
+		model   => $args{model},
+		filter  => $args{filter},
+		complexFilter => undef,
 		currentParams => $args{currentParams} || {},
 		currentUrl    => $args{currentUrl},
 		addUrl        => $args{addUrl},
 		editUrl       => $args{editUrl},
 		removeUrl     => $args{removeUrl},
-		pkFields      => $args{pkFields}      || ["id"],
-		page          => $args{page}          || 1,
-		pageSize      => $args{pageSize}      || 100,
+		pkFields      => $args{pkFields} || ["id"],
+		page          => $args{page} || 1,
+		pageSize      => $args{pageSize} || 100,
 	};
 	bless $self, $class;
 
@@ -37,14 +38,13 @@ sub init {
 	$self->{page} = $params->{helper_html_table_page} if $params->{helper_html_table_page};
 	$self->setDataCount(scalar @{ $self->{data} });
 
-	my %moreFilters;
+	my @moreFilters = ($self->{filter} || ());
 	foreach (keys %$params) {
-		next unless /^helper_html_table_filter_(.+)$/;
+		next unless /^helper_html_table_filter_(e|r)_(.+)$/;
 		next unless $params->{$_};
-		$moreFilters{$1} = $params->{$_};
+		push @moreFilters, [ $1 eq "r" ? "like" : "eq", $2, $params->{$_} ];
 	}
-	%{ $self->{filter} } = (%{ $self->{filter} }, %moreFilters)
-		if keys %moreFilters;
+	$self->{complexFilter} = [ "and", @moreFilters ] if @moreFilters;
 }
 
 sub setDataCount {
@@ -62,8 +62,8 @@ sub fetchModelData {
 	my $model = $self->{model};
 	$model->setPage($self->{page}, $self->{pageSize}) if $self->{currentUrl};
 	$self->{pkFields} = $model->{pkFields};
-	$self->{data} = $self->{filter} ? $model->filter($self->{filter}) : $model->getAll;
-	$self->setDataCount($self->{filter} ? $model->countByFilter($self->{filter}) : $model->countAll);
+	$self->{data} = $self->{complexFilter} ? $model->filter($self->{complexFilter}) : $model->getAll;
+	$self->setDataCount($self->{complexFilter} ? $model->countByFilter($self->{complexFilter}) : $model->countAll);
 }
 
 sub fetchRelatedColumns {
@@ -119,7 +119,7 @@ sub compile {
 	my $i         = ($self->{page} - 1) * $self->{pageSize} + 1;
 	my $editUrl   = Eldhelm::Util::Url->new(uri => $self->{editUrl});
 	my $removeUrl = Eldhelm::Util::Url->new(uri => $self->{removeUrl});
-	
+
 	foreach my $d (@{ $self->{data} }) {
 		my @more;
 		push @more, qq~[<a href="${\($self->createControlLinks($editUrl, $d))}">edit</a>]~ if $self->{editUrl};
@@ -173,7 +173,8 @@ sub compile {
 		my $list = $self->{filters};
 		foreach (@$list) {
 			$_->{label} ||= $_->{name};
-			$_->{name} = "helper_html_table_filter_$_->{name}";
+			$_->{value} ||= $self->{filter}{ $_->{name} } if $self->{filter};
+			$_->{name} = "helper_html_table_filter_".($_->{_search} ? "r" : "e")."_$_->{name}";
 		}
 		my $form = Eldhelm::Helper::Html::Form->new(
 			action     => $self->{currentUrl},

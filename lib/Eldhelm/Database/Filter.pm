@@ -6,11 +6,34 @@ sub new {
 	my ($class, %args) = @_;
 	my $self = {
 		filter => $args{filter},
-		fn     => { or => "OR" }
+		op     => {
+			or  => "OR",
+			and => "AND",
+		},
+		fn => {
+			'='  => "=",
+			eq   => "=",
+			'>'  => ">",
+			gt   => ">",
+			'<'  => "<",
+			lte  => "<",
+			'>=' => ">=",
+			gte  => ">=",
+			'<=' => "<=",
+			lt   => "<=",
+			'!=' => "!=",
+			ne   => "!="
+		}
 	};
 	bless $self, $class;
 
 	return $self;
+}
+
+sub compileVar {
+	my ($self, $nm) = @_;
+	$nm =~ s/[^a-z0-9_]//ig;
+	return $nm;
 }
 
 sub compile {
@@ -35,6 +58,7 @@ sub compileHashRef {
 	my ($self, $filter) = @_;
 	my (@where, @data);
 	while (my ($k, $v) = each %$filter) {
+		$k = $self->compileVar($k);
 		if (ref $v eq "ARRAY") {
 			push @where, "`$k` IN (".join(",", map { "?" } @$v).")";
 			push @data, @$v;
@@ -45,7 +69,7 @@ sub compileHashRef {
 			push @data,  $v;
 		}
 	}
-	return [ join(" AND ", @where), \@data ];
+	return [ join(" AND ", @where) || "1", \@data ];
 }
 
 sub compileArrayRef {
@@ -53,16 +77,29 @@ sub compileArrayRef {
 	my @list = @$filter;
 	my $nm   = shift @list;
 	my ($compiled, @chunks, @data);
-	foreach (@list) {
-		my $fl = $self->compileRef($_);
-		push @chunks, $fl->[0];
-		push @data,   @{ $fl->[1] };
+	my $op = $self->{op}{$nm};
+	if ($op) {
+		foreach (@list) {
+			my $fl = $self->compileRef($_);
+			push @chunks, $fl->[0];
+			push @data,   @{ $fl->[1] };
+		}
+		return [ join(" $op ", @chunks), \@data ],;
 	}
 	my $fn = $self->{fn}{$nm};
 	if ($fn) {
-		$compiled = join(" $fn ", @chunks);
+		my $var = $self->compileVar(shift @list);
+		return [ "`$var` $fn ?", \@list ];
 	}
-	return [ $compiled, \@data ];
+	my $method = "_fn_$nm";
+	return $self->$method(@list) if $self->can($method);
+	return [ "1", [] ];
+}
+
+sub _fn_like {
+	my ($self, $var, $value) = @_;
+	$var = $self->compileVar($var);
+	return [ "`$var` LIKE ?", ["%$value%"] ];
 }
 
 1;
