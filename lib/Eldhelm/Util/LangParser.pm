@@ -282,8 +282,9 @@ sub deparseChunk {
 
 sub _deparse_string {
 	my ($self, $data, $level, $callback, $key) = @_;
-	confess "Can not deparse a new line character in string: $data->[1]" if $data->[1] =~ /[\n\r]/;
 	my $str = $data->[1];
+	$str =~ s/\r//g;
+	$str =~ s/\n/\\n/g;
 	$self->{characterCount} += length $str;
 	$self->{wordCount} += () = $str =~ m/\w+/g;
 	$str = $callback->($self, $str, $key, $data->[4]) if $callback;
