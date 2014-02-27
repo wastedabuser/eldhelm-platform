@@ -48,6 +48,7 @@ sub new {
 			connections          => shared_clone({}),
 			connectionEvents     => shared_clone({}),
 			delayedEvents        => shared_clone({}),
+			sheduledEvents       => shared_clone({}),
 			responseQueue        => shared_clone({}),
 			closeQueue           => shared_clone({}),
 			persists             => shared_clone({}),
@@ -82,6 +83,12 @@ sub start {
 	
 	$self->createLogger;
 	$self->init;
+	
+	my $startHanlers = $self->getConfig("server.handlers.start");
+	if ($startHanlers && @$startHanlers) {
+		$self->doAction(@$_) foreach @$startHanlers;
+	}
+	
 	$self->listen;
 
 	return $self;
@@ -266,7 +273,7 @@ sub createExecutor {
 		workerStatus => $workerStatus,
 		workerQueue  => $executorQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents connectionEvents jobQueue stash)
+			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents jobQueue stash)
 	);
 	$self->log("Created executor: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $executorQueue;
@@ -284,7 +291,7 @@ sub createWorker {
 		workerStatus => $workerStatus,
 		workerQueue  => $workerQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents jobQueue stash)
+			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents sheduledEvents jobQueue stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }          = $workerQueue;

@@ -4,11 +4,13 @@ use strict;
 use threads;
 use threads::shared;
 use Eldhelm::Util::Tool;
+use Eldhelm::Util::Factory;
 use Eldhelm::Server::Shedule;
 use Data::Dumper;
 use Time::HiRes;
 use Time::HiRes qw(time usleep);
 use Date::Format;
+use Digest::MD5 qw(md5_hex);
 use Carp;
 
 use base qw(Eldhelm::Server::Child);
@@ -27,6 +29,7 @@ sub new {
 
 		$self->addInstance;
 		$self->init;
+		$self->initShedule;
 		$self->run;
 	}
 	return $self;
@@ -38,13 +41,34 @@ sub init {
 	$self->{keepaliveInterval} = $self->getConfig("server.keepaliveInterval") || 20;
 	$self->{pingAvgSamples}    = (60 / $self->{keepaliveInterval}) * 10;
 	$self->{interval}          = 100_000;
+}
 
-	my $named = $self->getConfig("server.shedule.namedAction") || {};
-	$self->{sheduled} = [
-		map { Eldhelm::Server::Shedule->new(init => $_) }
-			Eldhelm::Util::Tool->toList($self->getConfig("server.shedule.action")),
-		values %$named
-	];
+sub initShedule {
+	my ($self) = @_;
+
+	my $listed = $self->getConfig("server.shedule.action")      || [];
+	my $named  = $self->getConfig("server.shedule.namedAction") || {};
+
+	my $i = 0;
+	foreach (@$listed) {
+		$named->{"unnamed-shedule-$i"} = $_;
+		$i++;
+	}
+
+	my $se = $self->{sheduledEvents};
+	lock($se);
+
+	$self->{sheduledObjects} ||= {};
+	foreach my $id (keys %$named) {
+		my $obj = $named->{$id};
+		$se->{$id} = shared_clone(
+			{   name    => $id,
+				shedule => $obj->[0],
+				action  => $obj->[1],
+				data    => $obj->[2],
+			}
+		);
+	}
 }
 
 # =================================
@@ -160,12 +184,26 @@ sub cleanUp {
 
 sub checkShedule {
 	my ($self) = @_;
-	my $list = $self->{sheduled};
-	return if !$list;
+	my $so = $self->{sheduledObjects};
+	return unless $so;
 
-	foreach (@$list) {
-		next unless $_->isTime;
-		$self->doJob($_->job);
+	my @list;
+	{
+		my $se = $self->{sheduledEvents};
+		lock($se);
+		@list = map { [ $_, $se->{$_} ] } keys %$se;
+	}
+
+	foreach (@list) {
+		my ($k, $v, $id) = @$_;
+		{
+			lock($v);
+			$id = $v->{uid} ||= md5_hex(rand().time);
+		}
+		my $s = $so->{$id} ||= Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Shedule", $v)->init;
+		
+		next unless $s->isTime;
+		$self->doJob($s->job);
 	}
 }
 

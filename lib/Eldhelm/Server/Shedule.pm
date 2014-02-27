@@ -7,15 +7,7 @@ use Data::Dumper;
 use Date::Calc qw(Date_to_Time Time_to_Date Add_Delta_YMDHMS Today Today_and_Now);
 use Date::Format;
 
-sub new {
-	my ($class, %args) = @_;
-	my $self = { interval => [ 0, 0, 0, 0, 0, 0 ], };
-	bless $self, $class;
-
-	$self->init($args{init}) if $args{init};
-
-	return $self;
-}
+use base qw(Eldhelm::Server::BaseObject);
 
 sub worker {
 	my ($self) = @_;
@@ -23,38 +15,50 @@ sub worker {
 }
 
 sub init {
-	my ($self, $data) = @_;
-	$self->setRule($data->[0]);
-	($self->{action}, $self->{data}) = @$data[ 1 .. 2 ];
-	return $self;
-}
+	my ($self) = @_;
+	my $rule   = $self->get("shedule");
+	my $logRec = $self->get("name")." for $rule ".$self->get("action");
+	$self->worker->log("Initialize shedule $logRec");
 
-sub setRule {
-	my ($self, $rule) = @_;
-	if ($rule =~ /^(\d+):(\d+):?(\d*)$/) {
-		$self->{time} = Date_to_Time(Today(), $1, $2, $3 || 0);
-		$self->{interval} = [ 0, 0, 1, 0, 0, 0 ];
+	my ($time, $interval) = (0);
+	if ($rule =~ /^(\d+)-(\d+)-(\d+)\s+(\d+):(\d+):?(\d*)$/) {
+		$time = Date_to_Time($1, $2, $3, $4, $5, $6 || 0);
+		$time = 0 if $time <= $self->curTime;
+	} elsif ($rule =~ /^(\d+):(\d+):?(\d*)$/) {
+		$time = Date_to_Time(Today(), $1, $2, $3 || 0);
+		$interval = [ 0, 0, 1, 0, 0, 0 ];
 	} elsif ($rule =~ /^(\d+)h/) {
-		$self->{time} = $self->curTime;
-		$self->{interval} = [ 0, 0, 0, $1, 0, 0 ];
+		$time = $self->curTime;
+		$interval = [ 0, 0, 0, $1, 0, 0 ];
 	} elsif ($rule =~ /^(\d+)m/) {
-		$self->{time} = $self->curTime;
-		$self->{interval} = [ 0, 0, 0, 0, $1, 0 ];
+		$time = $self->curTime;
+		$interval = [ 0, 0, 0, 0, $1, 0 ];
 	} elsif ($rule =~ /^(\d+)s/) {
-		$self->{time} = $self->curTime;
-		$self->{interval} = [ 0, 0, 0, 0, 0, $1 ];
+		$time = $self->curTime;
+		$interval = [ 0, 0, 0, 0, 0, $1 ];
 	} elsif ($rule > 0) {
-		$self->{time} = $self->curTime;
-		$self->{interval} = [ 0, 0, 0, 0, 0, int($rule) ];
-	} else {
-		$self->worker->error("Unable to set shedule rule for: $rule");
-		$self->{wait} = 1;
+		$time = $self->curTime;
+		$interval = [ 0, 0, 0, 0, 0, int($rule) ];
 	}
-	$self->nextTime if $self->{time} <= $self->curTime;
+
+	$self->setHash(
+		time     => $time,
+		interval => $interval,
+		inited   => 1,
+	);
+	unless ($time) {
+		$self->worker->error("Unable to set shedule $logRec");
+		$self->set("wait", 1);
+	}
+	$self->nextTime if $time <= $self->curTime;
+
+	return $self;
 }
 
 sub isTime {
 	my ($self) = @_;
+	lock($self);
+	return unless $self->{time};
 	$self->{remain} = $self->{time} - $self->curTime;
 	return if $self->{wait} || $self->{remain} >= 0;
 	$self->{wait} = 1;
@@ -63,23 +67,28 @@ sub isTime {
 
 sub job {
 	my ($self) = @_;
-	return unless $self->{wait};
+	return unless $self->get("wait");
 	$self->setTime();
+
 	return {
 		job    => "handleAction",
-		action => $self->{action},
-		data   => $self->{data},
+		action => $self->get("action"),
+		data   => $self->clone("data"),
 	};
 }
 
 sub setTime {
 	my ($self) = @_;
-	$self->{wait} = 0;
-	$self->{time} = $self->nextTime;
+	$self->setHash(
+		wait => 0,
+		time => $self->nextTime,
+	);
 }
 
 sub nextTime {
 	my ($self) = @_;
+	lock($self);
+	return 0 unless $self->{interval};
 	return $self->{time} = Date_to_Time(Add_Delta_YMDHMS(Time_to_Date($self->{time}), @{ $self->{interval} }));
 }
 

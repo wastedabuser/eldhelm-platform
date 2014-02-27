@@ -10,6 +10,7 @@ use Carp qw(longmess);
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Router;
 use Eldhelm::Util::Tool;
+use Eldhelm::Server::Shedule;
 
 my $instance;
 
@@ -32,7 +33,7 @@ sub config {
 
 	lock($self->{config});
 	return $self->{configObject} =
-		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{config});	
+		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{config});
 }
 
 sub getConfig {
@@ -270,6 +271,59 @@ sub cancelDelay {
 	return $self unless $list;
 
 	$list->[$num]{canceled} = 1;
+
+	return $self;
+}
+
+sub doJob {
+	my ($self, $job) = @_;
+	if (!$job->{job}) {
+		$self->error("Can not execute a job without a job name:\n".Dumper($job));
+		return;
+	}
+
+	my $queue = $self->{jobQueue};
+	lock($queue);
+
+	push @$queue, shared_clone({ %$job, proto => "System" });
+
+	return $self;
+}
+
+sub doAction {
+	my ($self, $action, $data) = @_;
+	return $self->doJob(
+		{   job    => "handleAction",
+			action => $action,
+			data   => $data,
+		}
+	);
+}
+
+sub getShedule {
+	my ($self, $name) = @_;
+	my $s;
+	{
+		my $se = $self->{sheduledEvents};
+		lock($se);
+		$s = $se->{$name};
+	}
+	return unless $s;
+	return Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Shedule", $s);
+}
+
+sub setShedule {
+	my ($self, $name, $shedule, $action, $data) = @_;
+	my $se = $self->{sheduledEvents};
+
+	lock($se);
+	$se->{$name} = shared_clone(
+		{   name    => $name,
+			shedule => $shedule,
+			action  => $action,
+			data    => $data,
+		}
+	);
 
 	return $self;
 }

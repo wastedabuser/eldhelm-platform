@@ -168,21 +168,6 @@ sub closeConnection {
 	return;
 }
 
-sub doJob {
-	my ($self, $job) = @_;
-	if (!$job->{job}) {
-		$self->error("Can not execute a job without a job name:\n".Dumper($job));
-		return;
-	}
-
-	my $queue = $self->{jobQueue};
-	lock($queue);
-
-	push @$queue, shared_clone({ %$job, proto => "System" });
-
-	return $self;
-}
-
 # =================================
 # Utility
 # =================================
