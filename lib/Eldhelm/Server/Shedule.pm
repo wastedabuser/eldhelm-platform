@@ -16,8 +16,8 @@ sub worker {
 
 sub init {
 	my ($self) = @_;
-	my $rule   = $self->get("shedule");
-	my $logRec = $self->get("name")." for $rule ".$self->get("action");
+	my ($rule, $name, $action, $uid)   = $self->getList("shedule", "name", "action", "uid");
+	my $logRec = "$uid($name) for $rule $action";
 	$self->worker->log("Initialize shedule $logRec");
 
 	my ($time, $interval) = (0);
@@ -94,6 +94,12 @@ sub nextTime {
 
 sub curTime {
 	return Date_to_Time(Today_and_Now());
+}
+
+sub dispose {
+	my ($self) = @_;
+	$self->set("disposed", 1);
+	return $self;
 }
 
 1;

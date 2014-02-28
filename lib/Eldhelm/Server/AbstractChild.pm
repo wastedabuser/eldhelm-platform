@@ -314,9 +314,13 @@ sub getShedule {
 
 sub setShedule {
 	my ($self, $name, $shedule, $action, $data) = @_;
+	
+	my $prevShedule = $self->getShedule($name);
+	$prevShedule->dispose if $prevShedule;
+	
 	my $se = $self->{sheduledEvents};
-
 	lock($se);
+	
 	$se->{$name} = shared_clone(
 		{   name    => $name,
 			shedule => $shedule,
@@ -327,6 +331,20 @@ sub setShedule {
 
 	return $self;
 }
+
+sub removeShedule {
+	my ($self, $name) = @_;
+	
+	my $prevShedule = $self->getShedule($name);
+	$prevShedule->dispose if $prevShedule;
+	
+	my $se = $self->{sheduledEvents};
+	lock($se);
+	delete $se->{$name};
+	
+	return $self;
+}
+
 
 # =================================
 # Utility

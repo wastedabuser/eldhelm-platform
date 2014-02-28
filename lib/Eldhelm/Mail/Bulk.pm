@@ -127,6 +127,7 @@ sub send {
 				$self->debug(Dumper $rcp);
 				$self->debug(longmess $@);
 				$self->triggerCallback("onSendError", $rcp, $@);
+				last;
 			} else {
 				$self->triggerCallback("onSendMail", $rcp);
 			}

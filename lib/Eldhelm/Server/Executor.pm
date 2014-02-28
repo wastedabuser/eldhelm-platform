@@ -205,6 +205,16 @@ sub checkShedule {
 		next unless $s->isTime;
 		$self->doJob($s->job);
 	}
+	
+	my @objs = keys %$so;
+	foreach (@objs) {
+		my $sobj = $so->{$_};
+		if ($sobj->get("disposed")) {
+			my ($n, $s, $a, $u) = $sobj->getList("name", "shedule", "action", "uid");
+			$self->log("cleaning up shedule $u($n) for $s $a");
+			delete $so->{$_};
+		}
+	}
 }
 
 sub checkConnectionTimeout {

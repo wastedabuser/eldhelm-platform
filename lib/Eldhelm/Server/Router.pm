@@ -63,6 +63,7 @@ sub route {
 
 sub parseControllerName {
 	my ($self, $name) = @_;
+	return $self->parseAction($name) if $name =~ /:/;
 	my @list = split /\./, $name;
 	my $method = pop @list;
 	return join(".", @list), $method;

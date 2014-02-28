@@ -236,4 +236,15 @@ sub rpcId {
 	return $self->{requestHeaders}{rpcId};
 }
 
+sub trigger {
+	my ($self, $name, $argsList) = @_;
+	my $list = $self->worker->getConfig("server.router.events.$name");
+	return $self unless $list;
+	
+	my $router = $self->{router};
+	$router->executeAction($_, $argsList ? @$argsList : ()) foreach @$list;
+
+	return $self;
+}
+
 1;
