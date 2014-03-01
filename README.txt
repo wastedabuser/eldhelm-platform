@@ -1,9 +1,8 @@
-Eldhelm platform is a production ready application server tailored for online game development. 
-
-It features:
+Eldhelm platform features:
+- Pure perl implementation
 - Multithreaded architecture
 - A http server - supports light http 1.0 + virtual hosting, url rewriting, ssl and http status hooks
-- A socket server - supports a custom built json protocol and options to accept other protocols
+- A socket server - supports a custom built json protocol and the option to be extended with other protocols
 - MVC framework + advanced routing engine
 - Event framework 
 - MySQL Database abstraction layer framework
