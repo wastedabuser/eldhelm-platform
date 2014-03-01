@@ -64,6 +64,7 @@ sub new {
 			fileContentCache     => {},
 			proxySocketMap       => {},
 			proxySocketS2SConn   => {},
+			reservedWorkerId     => {},
 			debugMessageCount    => 0,
 		};
 		bless $instance, $class;
@@ -80,15 +81,15 @@ sub start {
 	$self->readConfig;
 	$self->configure;
 	$self->loadState;
-	
+
 	$self->createLogger;
 	$self->init;
-	
+
 	my $startHanlers = $self->getConfig("server.handlers.start");
 	if ($startHanlers && @$startHanlers) {
 		$self->doAction(@$_) foreach @$startHanlers;
 	}
-	
+
 	$self->listen;
 
 	return $self;
@@ -294,9 +295,18 @@ sub createWorker {
 			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents sheduledEvents jobQueue stash)
 	);
 	$self->log("Created worker: ".$t->tid);
-	$self->{workerQueue}{ $t->tid }          = $workerQueue;
-	$self->{workerStatus}{ $t->tid }         = $workerStatus;
-	$self->{workerStats}{ $t->tid }{jobs}    = 0;
+	$self->{workerQueue}{ $t->tid }  = $workerQueue;
+	$self->{workerStatus}{ $t->tid } = $workerStatus;
+	$self->{workerStats}{ $t->tid } ||= {};
+	$self->{workerStats}{ $t->tid }{jobs} = 0;
+
+	if (!$self->{reservedWorkerId}{ $t->tid } && keys %{ $self->{reservedWorkerId} } < 2) {
+		$self->{workerStats}{ $t->tid }{type} = "R";
+		$self->{reservedWorkerId}{ $t->tid } = 1;
+	} else {
+		$self->{workerStats}{ $t->tid }{type} = "";
+	}
+
 	$self->{connectionWorkerLoad}{ $t->tid } = 0;
 	$t->detach();
 	push @{ $self->{workers} }, $t;
@@ -936,6 +946,7 @@ sub selectWorker {
 			status => $status,
 			queue  => $queueLn,
 			conn   => $self->{connectionWorkerLoad}{$tid},
+			type   => $self->{workerStats}{$tid}{type},
 			trd    => $t
 		);
 		$stats{weight} = $stats{queue} + $stats{conn};
@@ -945,9 +956,12 @@ sub selectWorker {
 	$self->log(
 		"Worker load: ["
 			.join(", ",
-			map { "$_->{tid}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" } @list)
+			map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" }
+				@list)
 			."]"
 	);
+
+	@list = grep { $_->{type} ne "R" } @list if $id && @list > keys %{ $self->{reservedWorkerId} };
 	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
 		unless $chosen;
 
@@ -1061,6 +1075,7 @@ sub gracefullRestart {
 	$self->removeExecutor;
 	$self->createExecutor;
 
+	%{ $self->{reservedWorkerId} } = ();
 	my @workers = @{ $self->{workers} };
 	@{ $self->{workers} } = ();
 	foreach (@workers) {
