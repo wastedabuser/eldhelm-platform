@@ -8,4 +8,5 @@ Eldhelm platform features:
 - MySQL Database abstraction layer framework
 - A templating engine
 - A.I. framework
+- Localization framework
 - Testing framework

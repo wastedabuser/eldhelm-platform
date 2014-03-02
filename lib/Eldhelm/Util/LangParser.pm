@@ -4,6 +4,7 @@ use strict;
 use Data::Dumper;
 use Carp;
 use Encode qw();
+use Eldhelm::Util::Tool;
 
 sub ks             { "~" }
 sub apr            { "a" }
@@ -416,7 +417,7 @@ sub _compare_object {
 			push @diff, [ "pair", $_->[1], $df ] if @$df;
 		}
 	}
-	unshift @diff, "object", {} if @diff;
+	unshift @diff, "object", { map { +$_->[1] => $_->[2] } @diff } if @diff;
 	return \@diff;
 }
 
@@ -428,7 +429,7 @@ sub _compare_string {
 
 sub merge {
 	my ($self, $set) = @_;
-	$self->mergeSubset($self->{syntax}, $self->{syntax}, $set->{syntax});
+	$self->mergeSubset(Eldhelm::Util::Tool->cloneStructure($self->{syntax}), $self->{syntax}, $set->{syntax});
 	return;
 }
 

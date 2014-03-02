@@ -7,6 +7,7 @@ use Eldhelm::Server::Parser::Json;
 use Eldhelm::Util::Tool;
 use Data::Dumper;
 use Date::Format;
+use Eldhelm::Util::Factory;
 
 use base qw(Eldhelm::Server::Handler);
 
@@ -194,7 +195,7 @@ sub respond {
 		return;
 	}
 
-	my $path = "$self->{documentRoot}/$url";
+	my $path = $self->getPathFromUrl($url);
 	$path .= ($path =~ m|/$| ? "" : "/")."$self->{directoryIndex}" if -d $path;
 	unless (-f $path) {
 		$cont = $self->createStatusResponse(404, $path);
@@ -358,6 +359,20 @@ sub _default404Response {
 sub _default500Response {
 	my ($self, @data) = @_;
 	return "<pre>".Dumper(@data)."</pre>";
+}
+
+# ============================
+# File access api
+# ============================
+
+sub getPathFromUrl {
+	my ($self, $url) = @_;
+	return Eldhelm::Util::Factory->getAbsoluteClassPath($self->validatePath($url), "/Eldhelm/Application/www", $self->{documentRoot});
+}
+
+sub readDocumentUrl {
+	my ($self, $url) = @_;
+	return $self->readDocument($self->getPathFromUrl($url));
 }
 
 1;

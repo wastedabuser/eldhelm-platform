@@ -2,7 +2,7 @@ package Eldhelm::Server::Handler;
 
 use strict;
 use Data::Dumper;
-use Eldhelm::Server::Session;
+use Eldhelm::Util::Factory;
 use Carp;
 
 sub proxyPossible {
@@ -114,31 +114,22 @@ sub readDocument {
 	}
 }
 
+sub validatePath {
+	my ($self, $url) = @_;
+	$url =~ s|^/+||;
+	$url =~ s/[^\w\.\!\?\/\-]//g;
+	$url =~ s/\.{2,}//g;
+	return $url;
+}
+
 sub getPathTmp {
 	my ($self, $url) = @_;
-	$self->getPathFromUrl($self->worker->getConfig("server.tmp"), $url);
+	return $self->worker->getConfig("server.tmp")."/".$self->validatePath($url);
 }
 
 sub getPathHome {
 	my ($self, $url) = @_;
-	$self->getPathFromUrl($self->worker->getConfig("server.home"), $url);
-}
-
-sub getPathFromUrl {
-	my ($self, $folder, $url) = @_;
-	unless ($url) {
-		$url = $folder;
-		$folder = $self->{documentRoot};
-	}
-	$url =~ s|^/+||;
-	$url =~ s/[^\w\.\!\?\/\-]//g;
-	$url =~ s/\.{2,}//g;
-	return "$folder/$url";
-}
-
-sub readDocumentUrl {
-	my ($self, $url) = @_;
-	return $self->readDocument($self->getPathFromUrl($url));
+	return $self->worker->getConfig("server.home")."/".$self->validatePath($url);
 }
 
 1;

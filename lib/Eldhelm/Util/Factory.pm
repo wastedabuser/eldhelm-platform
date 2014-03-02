@@ -3,6 +3,27 @@ package Eldhelm::Util::Factory;
 use strict;
 use Carp;
 
+my %absolutePathCache;
+
+sub getAbsoluteClassPath {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($name, $prefix, @paths) = @_;
+	return $absolutePathCache{$name} if $absolutePathCache{$name};
+	
+	if ($prefix) {
+		push @paths, map { "$_$prefix" } @INC;
+	} else {
+		push @paths, @INC;
+	}
+	
+	foreach (@paths) {
+		my $pt = "$_/$name";
+		return $absolutePathCache{$name} = $pt if -f $pt;
+	}
+	
+	return undef;
+}
+
 sub instance {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($nm, %args) = @_;

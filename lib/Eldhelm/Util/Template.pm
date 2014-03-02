@@ -3,6 +3,7 @@ package Eldhelm::Util::Template;
 use strict;
 use Data::Dumper;
 use Eldhelm::Server::Parser::Json;
+use Eldhelm::Util::Factory;
 use Carp;
 
 sub new {
@@ -24,7 +25,9 @@ sub new {
 
 sub getPath {
 	my ($self, $name) = @_;
-	return "$self->{rootPath}Eldhelm/Application/Template/".join("/", split(/\./, $name)).".tpl";
+	my $relPath = "Eldhelm/Application/Template/".join("/", split(/\./, $name)).".tpl";
+	return $self->{rootPath}.$relPath if $self->{rootPath};
+	return Eldhelm::Util::Factory->getAbsoluteClassPath($relPath) || $relPath;
 }
 
 sub load {
