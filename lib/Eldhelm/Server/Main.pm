@@ -1097,6 +1097,7 @@ sub saveStateAndShutDown {
 		exit;
 	}
 
+	%{ $self->{fileContentCache} } = ();
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
 
