@@ -1110,12 +1110,12 @@ sub saveStateAndShutDown {
 	# wait for all workers to stop
 	my $wait;
 	do {
-		print "Waiting for workers...\n" if $wait;
+		print "Waiting for $wait threads to go down ... \n" if $wait;
 		usleep(250_000);
 		$wait = 0;
 		foreach my $st (values %statuses) {
-			lock $st;
-			$wait = 1 if $st->{action} ne "exit";
+			lock($st);
+			$wait++ if $st->{action} ne "exit";
 		}
 	} while ($wait);
 

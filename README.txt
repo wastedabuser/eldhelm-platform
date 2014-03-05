@@ -1,12 +1,15 @@
 Eldhelm platform features:
 - Pure perl implementation
+- Works on both Linux and Windows
 - Multithreaded architecture
-- A http server - supports light http 1.0 + virtual hosting, url rewriting, ssl and http status hooks
+- A http server - supports light http 1.0 + cookies, virtual hosting, url rewriting, https
 - A socket server - supports a custom built json protocol and the option to be extended with other protocols
 - MVC framework + advanced routing engine
-- Event framework 
-- MySQL Database abstraction layer framework
+- Publish-subscribe framework 
+- Task sheduler
+- Advanced MySQL Database abstraction layer framework
 - A templating engine
+- Bulk mailer
 - A.I. framework
 - Localization framework
 - Testing framework

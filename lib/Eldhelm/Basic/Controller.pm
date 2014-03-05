@@ -98,11 +98,33 @@ sub worker {
 	return $self->{worker};
 }
 
+sub connection {
+	my ($self) = @_;
+	return $self->{connection};
+}
+
+sub getConnection {
+	my ($self) = @_;
+	return $self->{connection};
+}
+
+sub handler {
+	my ($self) = @_;
+	return $self->{worker}{handler};
+}
+
+sub getHandler {
+	my ($self) = @_;
+	return $self->{worker}{handler};
+}
+
 sub canCall {
 	my ($self, $fn) = @_;
 
 	return unless $self->{exported}{$fn};
 	return 1 if $self->{public}{$fn};
+
+	return unless $self->{connection};
 
 	my $sess = $self->{connection}->getSession;
 	return unless $sess;
@@ -115,44 +137,36 @@ sub canCall {
 
 sub callDump {
 	my ($self, $fn) = @_;
-	return Dumper($self->callDebug);
+	return Dumper($self->callDebug($fn));
 }
 
 sub callDebug {
 	my ($self, $fn) = @_;
-	my $sess = $self->{connection}->getSession;
+	my $conn = $self->{connection};
 	my %more;
-	if ($sess) {
-		%more = (
-			sessionConnected => $sess->connected,
-			sessionClosed    => $sess->closed,
-			sessionId        => $sess->id,
-		);
-		my $conn = $sess->getConnection;
-		$more{sessionConnection} = $conn->fno if $conn;
+	if ($conn) {
+		$more{connection} = $conn->fno;
+		my $sess = $conn->getSession;
+		if ($sess) {
+			%more = (%more,
+				sessionConnected => $sess->connected,
+				sessionClosed    => $sess->closed,
+				sessionId        => $sess->id,
+			);
+			my $conn = $sess->getConnection;
+			$more{sessionConnection} = $conn->fno if $conn;
+		}
 	}
 	return {
-		exported   => $self->{exported}{$fn},
-		public     => $self->{public}{$fn},
-		connection => $self->{connection}{fno},
+		exported => $self->{exported}{$fn},
+		public   => $self->{public}{$fn},
 		%more,
-
 	};
-}
-
-sub getConnection {
-	my ($self) = @_;
-	return $self->{connection};
 }
 
 sub getController {
 	my ($self, $name) = @_;
 	return $self->{router}->getInstance($name, data => $self->{data}, connection => $self->{connection});
-}
-
-sub getHandler {
-	my ($self) = @_;
-	return $self->{worker}{handler};
 }
 
 sub responseWrite {
@@ -205,8 +219,8 @@ sub getModel {
 }
 
 sub log {
-	my ($self, $msg) = @_;
-	$self->{worker}->log($msg);
+	my ($self, $msg, $type) = @_;
+	$self->{worker}->log($msg, $type);
 	return $self;
 }
 
@@ -240,7 +254,7 @@ sub trigger {
 	my ($self, $name, $argsList) = @_;
 	my $list = $self->worker->getConfig("server.router.events.$name");
 	return $self unless $list;
-	
+
 	my $router = $self->{router};
 	$router->executeAction($_, $argsList ? @$argsList : ()) foreach @$list;
 
