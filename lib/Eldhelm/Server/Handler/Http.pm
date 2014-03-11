@@ -26,7 +26,7 @@ sub parse {
 	return ({ len => -2 }, $data) unless $data =~ /\r\n\r\n/;
 
 	my @chunks = split /\r\n/, $data;
-	my $fl = shift @chunks;
+	my $fl     = shift @chunks;
 	my %parsed = (headerContent => "$fl\r\n");
 	$fl =~ m~^([a-z]+)\s+/(.*?)\s+http/(.*)~i;
 	$parsed{method} = uc($1);
@@ -36,12 +36,17 @@ sub parse {
 	$parsed{queryString} = join "?", @parts;
 	$parsed{version}     = $3;
 
+	my $cf;
 	foreach (@chunks) {
+		if ($cf) {
+			$parsed{content} .= $_;
+			next;
+		}
 		if (m/^(.*?)\s*:\s*(.*)$/) {
 			$parsed{headers}{$1} = $2;
 			$parsed{headerContent} .= "$_\r\n";
 		} else {
-			$parsed{content} .= $_;
+			$cf = 1 unless $_;
 		}
 	}
 	$parsed{headerContent} .= "\r\n";
@@ -367,7 +372,8 @@ sub _default500Response {
 
 sub getPathFromUrl {
 	my ($self, $url) = @_;
-	return Eldhelm::Util::Factory->getAbsoluteClassPath($self->validatePath($url), "/Eldhelm/Application/www", $self->{documentRoot});
+	return Eldhelm::Util::Factory->getAbsoluteClassPath($self->validatePath($url),
+		"/Eldhelm/Application/www", $self->{documentRoot});
 }
 
 sub readDocumentUrl {
