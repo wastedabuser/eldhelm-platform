@@ -355,7 +355,8 @@ sub log {
 	$type ||= "general";
 	my $queue = $self->{logQueue}{$type};
 	return if !$queue;
-
+	$msg = $$msg if ref $msg eq "SCALAR";
+	
 	lock($queue);
 	my $tm = Time::HiRes::time;
 	push @$queue, "~$tm~".($self->{id} ? "Worker $self->{id}: $msg" : $msg);

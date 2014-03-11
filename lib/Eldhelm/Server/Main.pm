@@ -755,6 +755,7 @@ sub addToStream {
 	$self->message("adding chunk to stream ".length($$data));
 	my $fileno = $sock->fileno;
 	$self->{debugStreamMap}{$fileno} = $self->{inputStreamMap}{$fileno} .= $$data;
+	$self->log($data, "receive");
 
 	while ($self->readSocketData($sock)) { }
 }
