@@ -96,22 +96,22 @@ sub error {
 
 sub readDocument {
 	my ($self, $path) = @_;
-	if (-f $path) {
-		my $buf;
-		eval {
-			$self->access("Open '$path'");
-			open FILE, $path or confess $!;
-			binmode FILE;
-			my $data;
-			while (read(FILE, $data, 4) != 0) {
-				$buf .= $data;
-			}
-			close FILE or confess $!;
-			$self->access("File '$path' is ".length($buf));
-		};
-		$self->error("Error reading file: $@") if $@;
-		return $buf;
-	}
+	return unless -f $path;
+
+	my $buf;
+	eval {
+		$self->access("Open '$path'");
+		open FILE, $path or confess $!;
+		binmode FILE;
+		my $data;
+		while (read(FILE, $data, 4) != 0) {
+			$buf .= $data;
+		}
+		close FILE or confess $!;
+		$self->access("File '$path' is ".length($buf));
+	};
+	$self->error("Error reading file: $@") if $@;
+	return $buf;
 }
 
 sub validatePath {
