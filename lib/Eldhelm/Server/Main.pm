@@ -150,6 +150,8 @@ sub loadState {
 				}
 				print "\n";
 			}
+		} else {
+			print "State is empty!\n";
 		}
 	};
 	if ($@) {
@@ -1162,6 +1164,7 @@ sub saveStateAndShutDown {
 		@persistsList = values %$persists;
 	}
 
+	print "Calling beforeSaveState on ".scalar(@persistsList)." pesrsist objects\n";
 	foreach (@persistsList) {
 		next unless $_;
 
@@ -1171,8 +1174,12 @@ sub saveStateAndShutDown {
 		$obj->beforeSaveState;
 	}
 
-	my $data = Eldhelm::Util::Tool::cloneStructure(
-		{ map { +$_ => $self->{$_} } qw(stash persists persistsByType persistLookup delayedEvents jobQueue) });
+	my $data = {};
+	foreach (qw(stash persists persistsByType persistLookup delayedEvents jobQueue)) {
+		# $data->{$_} = Eldhelm::Util::Tool::cloneStructure($self->{$_});
+		$data->{$_} = $self->{$_};
+		delete $self->{$_};
+	}
 
 	my $path = "$cfg->{tmp}/$cfg->{name}-state.res";
 	print "Writing $path to disk\n";

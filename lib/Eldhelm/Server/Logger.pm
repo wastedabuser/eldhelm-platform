@@ -40,18 +40,29 @@ sub init {
 # =================================
 
 sub run {
-	my ($self)   = @_;
-	my @queues   = keys %{ $self->{logQueue} };
+	my ($self) = @_;
+	my @queues;
+	{
+		my $lq = $self->{logQueue};
+		lock($lq);
+		@queues = keys %$lq;
+	}
+
 	my $interval = $self->{interval};
-	loggermain: while (1) {
-		foreach (@queues) {
-			my @data = $self->fetchTask($_);
-			last loggermain if $_ eq "threadCmdQueue" && $data[0] eq "exitWorker";
-			$self->runTask($_, @data) if @data;
+loggermain: while (1) {
+		foreach my $q (@queues) {
+			my @data = $self->fetchTask($q);
+			if ($q eq "threadCmdQueue") {
+				foreach (@data) {
+					last loggermain if $_ eq "exitWorker";
+				}
+				next;
+			}
+			$self->runTask($q, @data) if @data;
 		}
 		Time::HiRes::usleep($interval);
 	}
-	
+
 	print "Exitting logger ...\n";
 	$self->status("action", "exit");
 	threads->exit();
