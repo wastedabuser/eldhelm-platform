@@ -32,7 +32,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info                 => { version => "1.3.1" },
+			info                 => { version => "1.3.3" },
 			ioSocketList         => [],
 			config               => shared_clone({}),
 			workers              => [],
@@ -258,10 +258,19 @@ sub init {
 
 sub createLogger {
 	my ($self) = @_;
-	$self->{logQueue} = shared_clone({ map { +$_ => [] } keys %{ $self->getConfig("server.logger.logs") } });
-	$self->{logger} =
-		threads->create(\&Eldhelm::Server::Logger::create, map { +$_ => $self->{$_} } qw(config info logQueue));
-	$self->{logger}->detach();
+	my $workerStatus = shared_clone({ action => "startup" });
+	$self->{logQueue} = shared_clone(
+		{   threadCmdQueue => [],
+			map { +$_ => [] } keys %{ $self->getConfig("server.logger.logs") }
+		}
+	);
+	my $t = $self->{logger} = threads->create(
+		\&Eldhelm::Server::Logger::create,
+		workerStatus => $workerStatus,
+		map { +$_ => $self->{$_} } qw(config info logQueue)
+	);
+	$self->{workerStatus}{ $t->tid } = $workerStatus;
+	$t->detach();
 	return;
 }
 
@@ -1069,6 +1078,23 @@ sub removeExecutor {
 	return;
 }
 
+sub removeLogger {
+	my ($self) = @_;
+
+	my $tid = $self->{logger}->tid;
+	$self->log("Removing logger: $tid");
+
+	{
+		my $queue = $self->{logQueue}{threadCmdQueue};
+		lock($queue);
+
+		@$queue = ("exitWorker");
+	}
+
+	delete $self->{workerStatus}{$tid};
+	return;
+}
+
 sub gracefullRestart {
 	my ($self) = @_;
 	$self->readConfig;
@@ -1098,7 +1124,6 @@ sub saveStateAndShutDown {
 		exit;
 	}
 
-	%{ $self->{fileContentCache} } = ();
 	$self->{shuttingDown} = 1;
 	print "Saving state ...\n";
 
@@ -1108,6 +1133,7 @@ sub saveStateAndShutDown {
 
 	$self->removeExecutor;
 	$self->removeWorker($_) foreach @{ $self->{workers} };
+	$self->removeLogger;
 
 	# wait for all workers to stop
 	my $wait;
@@ -1123,6 +1149,9 @@ sub saveStateAndShutDown {
 
 	# just to be sure!
 	usleep(100_000);
+
+	# clear some memory
+	%{ $self->{fileContentCache} } = ();
 
 	# get the persist data
 	my @persistsList;

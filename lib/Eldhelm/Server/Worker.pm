@@ -72,7 +72,7 @@ sub fetchTask {
 	return () if !$task;
 
 	if ($task eq "exitWorker") {
-		$self->log("Exitting ...");
+		print "Exitting worker ".threads->tid()." ... \n";
 		$self->status("action", "exit");
 		threads->exit();
 	}
