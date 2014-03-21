@@ -56,7 +56,7 @@ sub parseSource {
 
 	my $blocks = $self->{block};
 	$source =~
-		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~block~$1~~;;"/gei;
+		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~block~$1~~;;"/gsei;
 
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
