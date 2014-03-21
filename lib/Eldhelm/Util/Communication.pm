@@ -5,6 +5,7 @@ use strict;
 use Data::Dumper;
 use LWP::UserAgent;
 use Eldhelm::Util::Url;
+use Eldhelm::Server::Parser::Json;
 use Digest::MD5 qw(md5_hex);
 
 sub simpleHttpRequest {
@@ -26,6 +27,17 @@ sub simpleHttpRequest {
 	} else {
 		die $response->status_line;
 	}
+}
+
+sub loadJson {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($url, $args, $method) = @_;
+	
+	my $url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args);
+	my $jsonStream = Eldhelm::Util::Communication->simpleHttpRequest($url, $method);
+	my $jsonData = Eldhelm::Server::Parser::Json::parse($jsonStream);
+	
+	return $jsonData;
 }
 
 sub httpGetWithChecksum {
