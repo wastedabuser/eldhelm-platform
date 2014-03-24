@@ -8,7 +8,8 @@ use Socket;
 use POSIX;
 use IO::Handle;
 use IO::Select;
-use IO::Socket::SSL qw(debug3);
+# use IO::Socket::SSL qw(debug3);
+use IO::Socket::SSL;
 use IO::Socket::INET;
 use Eldhelm::Util::MachineInfo;
 use Eldhelm::Server::Worker;
@@ -32,7 +33,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info                 => { version => "1.3.3" },
+			info                 => { version => "1.3.4" },
 			ioSocketList         => [],
 			config               => shared_clone({}),
 			workers              => [],
@@ -578,7 +579,7 @@ sub createConnection {
 
 	my $cHandles = $self->{connectionHandles};
 	my $oldSock  = $cHandles->{$fileno};
-	$self->removeConnection($oldSock) if $oldSock;
+	$self->removeConnection($oldSock, "replace") if $oldSock;
 
 	my $id = $self->{connId}++;
 	$self->{fnoToConidMap}{$fileno}  = $id;
@@ -613,7 +614,7 @@ sub createConnection {
 		$self->{responseQueue}{$id} = shared_clone([]);
 	}
 
-	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." ".$sock->peerhost." open", "access");
+	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." '".($sock->peerhost || "host unknown")."' open", "access");
 }
 
 sub createProxyConnection {
@@ -731,7 +732,7 @@ sub removeConnection {
 	delete $self->{proxySocketS2SConn}{$sock};
 	delete $self->{outputStreamMap}{$sock};
 	$self->{ioSelect}->remove($sock);
-	$self->log("Connection $id($fileno) from ".$sock->peerhost." closed by $initiator", "access");
+	$self->log("Connection $id($fileno) from '".($sock->peerhost || "host unknown")."' closed by $initiator", "access");
 
 	$sock->close;
 
