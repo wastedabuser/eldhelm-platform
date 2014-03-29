@@ -34,31 +34,24 @@ sub createFields {
 		next if $self->{skipMap}{ $_->{COLUMN_NAME} };
 
 		if ($_->{COLUMN_NAME} eq "id") {
-			$field = $self->createHidden(
-				{   id   => $_->{COLUMN_NAME},
-					name => $_->{COLUMN_NAME},
-				}
-			);
+			$field = $self->createHidden({ name => $_->{COLUMN_NAME}, });
 		} elsif ($fk && $fk->{PKTABLE_NAME}) {
 			$field = $self->createRelationSelctor($lbl, $_, $fk);
 		} elsif ($_->{TYPE_NAME} =~ /tinyint/i && $_->{COLUMN_SIZE} == 1) {
 			$field = $self->createCheckbox(
-				{   id    => $_->{COLUMN_NAME},
-					name  => $_->{COLUMN_NAME},
+				{   name  => $_->{COLUMN_NAME},
 					label => $lbl,
 				}
 			);
 		} elsif ($_->{TYPE_NAME} =~ /text/i) {
 			$field = $self->createArea(
-				{   id    => $_->{COLUMN_NAME},
-					name  => $_->{COLUMN_NAME},
+				{   name  => $_->{COLUMN_NAME},
 					label => $lbl,
 				}
 			);
 		} elsif ($_->{TYPE_NAME} =~ /enum/i) {
 			$field = $self->createCombo(
-				{   id    => $_->{COLUMN_NAME},
-					name  => $_->{COLUMN_NAME},
+				{   name  => $_->{COLUMN_NAME},
 					label => $lbl,
 				},
 				[   $_->{IS_NULLABLE} eq "YES" ? { value => "- none -" } : (),
@@ -67,8 +60,7 @@ sub createFields {
 			);
 		} else {
 			$field = $self->createText(
-				{   id    => $_->{COLUMN_NAME},
-					name  => $_->{COLUMN_NAME},
+				{   name  => $_->{COLUMN_NAME},
 					label => $lbl,
 				}
 			);
@@ -82,17 +74,12 @@ sub createRelationSelctor {
 	my ($self, $lbl, $col, $fk) = @_;
 	my $data = $self->createRelationList($col->{COLUMN_NAME}, $fk->{PKTABLE_NAME}, $col->{IS_NULLABLE} eq "YES");
 	my %args = (
-		id    => $col->{COLUMN_NAME},
 		name  => $col->{COLUMN_NAME},
 		label => $lbl
 	);
 	return $self->createCombo({%args}, $data) if ref $data eq "ARRAY";
 
-	return $self->createText(
-		{   %args,
-			autocomplete => "$data->{table},$data->{key},$data->{value}"
-		}
-	);
+	return $self->createText({ %args, autocomplete => "$data->{table},$data->{key},$data->{value}" });
 }
 
 sub createRelationList {

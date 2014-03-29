@@ -29,7 +29,7 @@ push @defaultPats, "../../test/t" if $ops{product}  || $ops{all};
 
 my @tests;
 foreach (@defaultPats, @{ $ops{list} }) {
-	push @tests, Eldhelm::Util::FileSystem->readFileList($_);
+	push @tests, grep { /\.pl$/ } Eldhelm::Util::FileSystem->readFileList($_);
 }
 
 $harness->runtests(sort { $a cmp $b } @tests);

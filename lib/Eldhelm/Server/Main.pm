@@ -225,7 +225,8 @@ sub init {
 	$self->createExecutor;
 
 	# start workers
-	foreach (1 .. $cnf->{workerCount} || 1) {
+	$self->{workerCount} = $cnf->{workerCount};
+	foreach (1 .. $self->{workerCount} || 1) {
 		$self->createWorker;
 	}
 
@@ -312,7 +313,7 @@ sub createWorker {
 	$self->{workerStats}{ $t->tid } ||= {};
 	$self->{workerStats}{ $t->tid }{jobs} = 0;
 
-	if (!$self->{reservedWorkerId}{ $t->tid } && keys %{ $self->{reservedWorkerId} } < 2) {
+	if (!$self->{reservedWorkerId}{ $t->tid } && keys %{ $self->{reservedWorkerId} } <= int($self->{workerCount} / 3)) {
 		$self->{workerStats}{ $t->tid }{type} = "R";
 		$self->{reservedWorkerId}{ $t->tid } = 1;
 	} else {

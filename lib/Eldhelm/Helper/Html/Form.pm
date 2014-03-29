@@ -3,10 +3,12 @@ package Eldhelm::Helper::Html::Form;
 use strict;
 use Carp;
 use Data::Dumper;
+use Eldhelm::Helper::Html::Node;
 
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
+		id    => $args{id}    || "form".int(rand() * 100_000),
 		items => $args{items} || [],
 		action     => $args{action},
 		method     => $args{method} || "post",
@@ -19,21 +21,12 @@ sub new {
 	return $self;
 }
 
-sub enc {
-	my ($self, $str) = @_;
-	$str =~ s/&/&amp;/g;
-	$str =~ s/"/&quot;/g;
-	$str =~ s/</&lt;/g;
-	$str =~ s/>/&gt;/g;
-	return $str;
-}
-
 sub compile {
 	my ($self) = @_;
 
 	my $items = join "\n", map { "\t<p>$_</p>" } @{ $self->{items} };
 
-	return qq~<form action="$self->{action}" method="$self->{method}">
+	return qq~<form action="$self->{action}" id="$self->{id}" method="$self->{method}">
 $items
 </form>~;
 }
@@ -55,7 +48,7 @@ sub add {
 
 sub createFieldProperties {
 	my ($self, $args) = @_;
-	return join " ", map { qq~$_="~.$self->enc($args->{$_}).'"' }
+	return join " ", map { qq~$_="~.Eldhelm::Helper::Html::Node->enc($args->{$_}).'"' }
 		grep { $_ !~ /^_/ && defined $args->{$_} } keys %$args;
 }
 
@@ -68,6 +61,7 @@ sub createLabel {
 sub createInput {
 	my ($self, $args) = @_;
 	$args->{_tag} ||= "input";
+	$args->{id}   ||= "$self->{id}-$args->{name}" if $args->{name};
 	return
 		 $self->createLabel($args)
 		."<$args->{_tag} "
@@ -131,7 +125,7 @@ sub createArea {
 	$args ||= {};
 	my $cont = $self->createValue($args);
 	delete $args->{value};
-	$args->{_content} = $self->enc($cont);
+	$args->{_content} = Eldhelm::Helper::Html::Node->enc($cont);
 	$args->{_tag}     = "textarea";
 	return $self->createInput($args);
 }
