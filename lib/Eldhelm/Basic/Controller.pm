@@ -201,7 +201,9 @@ sub getView {
 	my ($self, $view, $args, $standAlone) = @_;
 	$args ||= {};
 	my $inst;
-	if ($view) {
+	if (ref $view eq "HASH") {
+		$inst = Eldhelm::Basic::View->new(%$view, data => $self->{data});
+	} elsif ($view) {
 		$inst =
 			Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::View", $view, %$args,
 			data => $self->{data});

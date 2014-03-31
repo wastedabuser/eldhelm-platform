@@ -11,17 +11,32 @@ use Digest::MD5 qw(md5_hex);
 sub simpleHttpRequest {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $method) = @_;
+
+	my $headers;
+	$headers = {
+		"Accept-Language" => "en-us,en;q=0.5",
+		"Accept-Charset"  => "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
+		"User-Agent"      => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20100101 Firefox/6.0",
+		"Accept"          => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+		}
+		if $method eq "get";
+
+	return loadUrl($url, {}, $method, undef, $headers);
+}
+
+sub loadUrl {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($url, $args, $method, $content, $headers) = @_;
 	$method ||= "get";
 
-	my $ua = LWP::UserAgent->new;
-	if ($method eq "get") {
-		$ua->default_header("Accept-Language" => "en-us,en;q=0.5");
-		$ua->default_header("Accept-Charset"  => "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
-		$ua->default_header("User-Agent" => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20100101 Firefox/6.0");
-		$ua->default_header("Accept"     => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-	}
-	my $response = $ua->$method($url);
+	$url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args) if $args;
 
+	my $ua = LWP::UserAgent->new;
+	if ($headers) {
+		$ua->default_header($_ => $headers->{$_}) foreach keys %$headers;
+	}
+
+	my $response = $ua->$method($url);
 	if ($response->is_success) {
 		return $response->content;
 	} else {
@@ -30,14 +45,7 @@ sub simpleHttpRequest {
 }
 
 sub loadJson {
-	shift @_ if $_[0] eq __PACKAGE__;
-	my ($url, $args, $method) = @_;
-	
-	my $url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args);
-	my $jsonStream = Eldhelm::Util::Communication->simpleHttpRequest($url, $method);
-	my $jsonData = Eldhelm::Server::Parser::Json::parse($jsonStream);
-	
-	return $jsonData;
+	return Eldhelm::Server::Parser::Json->parse(loadUrl(@_));
 }
 
 sub httpGetWithChecksum {
