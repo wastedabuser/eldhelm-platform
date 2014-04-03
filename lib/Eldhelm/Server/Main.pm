@@ -36,7 +36,7 @@ sub new {
 			%args,
 			info                 => { version => "1.3.4" },
 			ioSocketList         => [],
-			config               => shared_clone({}),
+			config               => shared_clone($args{config} || {}),
 			workers              => [],
 			workerQueue          => {},
 			workerStatus         => {},

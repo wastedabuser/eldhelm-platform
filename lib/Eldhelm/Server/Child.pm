@@ -22,7 +22,7 @@ sub new {
 		%args
 	}, $class;
 
-	$self->{router} = Eldhelm::Server::Router->new;
+	$self->{router} ||= Eldhelm::Server::Router->new;
 
 	return $self;
 }

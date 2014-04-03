@@ -33,10 +33,10 @@ sub new {
 sub usage {
 	my ($self) = @_;
 
-	my $opts = join "\n\t", map { join " - ", @$_ } @{ $self->{usage} };
+	my $opts = join "\n\t", map { "-".join(" - ", @$_) } @{ $self->{usage} };
 
 	return qq~Usage:
-perl $0 [list of folders or options]\n
+perl $0 [list of items or options]\n
 Options:
 	$opts
 \n~;

@@ -5,19 +5,14 @@ use threads;
 use threads::shared;
 use Carp;
 use Eldhelm::Util::Factory;
-use Eldhelm::Test::Mock::Worker;
-use Eldhelm::Test::Mock::Connection;
-use Eldhelm::Test::Mock::Session;
+
+use base qw(Eldhelm::Test::Fixture::TestBench);
 
 sub new {
 	my ($class, %args) = @_;
 
-	my $self = {};
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
-
-	$self->{config} = shared_clone($args{config} || {});
-	$self->{worker} = Eldhelm::Test::Mock::Worker->new(config => $self->{config});
-	$self->{session} = Eldhelm::Test::Mock::Session->new($args{sessionArgs} ? %{ $args{sessionArgs} } : ());
 
 	confess "No controller class supplied" unless $args{controller};
 
@@ -25,7 +20,7 @@ sub new {
 		"Eldhelm::Application::Controller",
 		$args{controller},
 		worker     => $self->{worker},
-		connection => Eldhelm::Test::Mock::Connection->new(session => $self->{session}),
+		connection => $self->{connection},
 		data       => {},
 		$args{controllerArgs} ? %{ $args{controllerArgs} } : ()
 	);
@@ -33,19 +28,9 @@ sub new {
 	return $self;
 }
 
-sub worker {
-	my ($self) = @_;
-	return $self->{worker};
-}
-
 sub controller {
 	my ($self) = @_;
 	return $self->{controller};
-}
-
-sub session {
-	my ($self) = @_;
-	return $self->{session};
 }
 
 1;

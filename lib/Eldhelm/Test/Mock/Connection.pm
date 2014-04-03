@@ -23,4 +23,8 @@ sub say {
 	$self->getSession->say($data);
 }
 
+sub sendHeader {
+	
+}
+
 1;
