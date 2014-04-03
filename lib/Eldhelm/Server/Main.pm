@@ -8,6 +8,7 @@ use Socket;
 use POSIX;
 use IO::Handle;
 use IO::Select;
+
 # use IO::Socket::SSL qw(debug3);
 use IO::Socket::SSL;
 use IO::Socket::INET;
@@ -615,7 +616,8 @@ sub createConnection {
 		$self->{responseQueue}{$id} = shared_clone([]);
 	}
 
-	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." '".($sock->peerhost || "host unknown")."' open", "access");
+	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." '".($sock->peerhost || "host unknown")."' open",
+		"access");
 }
 
 sub createProxyConnection {
@@ -1178,6 +1180,7 @@ sub saveStateAndShutDown {
 
 	my $data = {};
 	foreach (qw(stash persists persistsByType persistLookup delayedEvents jobQueue)) {
+
 		# $data->{$_} = Eldhelm::Util::Tool::cloneStructure($self->{$_});
 		$data->{$_} = $self->{$_};
 		delete $self->{$_};
@@ -1195,8 +1198,10 @@ sub saveResFile {
 	my ($self, $data, $file) = @_;
 	open my $fh, '>', $file
 		or die "Can't write '$file': $!";
-	local $Data::Dumper::Terse = 1;    # no '$VAR1 = '
-	local $Data::Dumper::Useqq = 1;    # double quoted strings
+	local $Data::Dumper::Sparseseen = 1;    # no seen structure
+	local $Data::Dumper::Terse      = 1;    # no '$VAR1 = '
+	local $Data::Dumper::Useqq      = 1;    # double quoted strings
+	local $Data::Dumper::Deepcopy   = 1;
 	print $fh Dumper $data;
 	close $fh or die "Can't close '$file': $!";
 }

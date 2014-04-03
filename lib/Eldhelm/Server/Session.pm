@@ -13,7 +13,7 @@ sub new {
 	my $self = Eldhelm::Basic::Persist->new(
 		persistType => __PACKAGE__,
 		%args,
-		executedMessages => {},
+		executeMessageId => 1,
 	);
 	bless $self, $class;
 

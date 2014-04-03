@@ -150,10 +150,11 @@ sub route {
 		my ($headers, $data) = @$_;
 		if ($session) {
 			my $id = $headers->{id};
-			if ($id && $session->get("executedMessages.$id")) {
-				next;
-			} else {
-				$session->set("executedMessages.$id", 1);
+			if ($id) {
+				my $eid = $session->get("executeMessageId");
+				next if $id < $eid;
+
+				$session->inc("executeMessageId");
 			}
 		}
 		$router->route($headers, $data);

@@ -222,7 +222,7 @@ sub clone {
 	my ($var, $key) = $self->getRefByNotation($key);
 	my $ref = $var->{$key};
 
-	return Eldhelm::Util::Tool::cloneStructure($ref);
+	return Eldhelm::Util::Tool->cloneStructure($ref);
 }
 
 sub doFn {
