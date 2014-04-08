@@ -35,6 +35,7 @@ sub getPath {
 sub descTable {
 	my ($self, $table) = @_;
 	my $sql = $self->getSql;
+	return $self->{tableDesc}{$table} ||= [] if $self->{doNotUseDesc};
 	confess "No sql" unless $sql;
 	return $self->{tableDesc}{$table} ||= $sql->fetchArray("DESC $table");
 }
@@ -364,11 +365,13 @@ sub _lex_tables {
 	push @tbls, "tables" if $nodeName;
 	while ($tkn = shift @$tokens) {
 		($tbl, $tkn) = $self->lexTable($tkn, $tokens);
+		if (@$tbl){ 
+			push @tbls, $tbl;
+			redo;
+		}
 		$lv++ if $tkn && $tkn->[0] eq "openBracket";
 		$lv-- if $tkn && $tkn->[0] eq "closeBracket";
-		push @tbls, $tbl if @$tbl;
 		last if $lv == 0 && $tkn && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
-		redo if @$tbl;
 		push @tbls, $tkn if $tkn && @$tkn;
 	}
 	return (\@tbls, $tkn);
@@ -388,13 +391,32 @@ sub lexTable {
 		while ($tkn = shift @$tokens) {
 			$lv++ if $tkn->[0] eq "openBracket";
 			$lv-- if $tkn->[0] eq "closeBracket";
-			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
+			last
+				if $lv == 0
+					&& $tkn->[0] eq "word"
+					&& $tkn->[1] =~ /where|order|having|group|limit|left|right|inner|outer/i;
 			last if $lv == 0 && $tkn->[0] eq "symbol" && $tkn->[1] eq ",";
 			my $expr = $self->lexExpression($tkn, $tokens);
-
-			# $lv++ if $expr->[0] eq "function";
 			push @syntax, $expr;
 		}
+	} elsif ($tkn->[0] eq "openBracket"
+		&& $next->[0] eq "word"
+		&& lc($next->[1]) eq "select")
+	{
+		push @syntax, "table", $tkn;
+		while ($tkn = shift @$tokens) {
+			$lv++ if $tkn->[0] eq "openBracket";
+			if ($tkn->[0] eq "closeBracket") {
+				$lv--;
+				last if $lv < 0;
+			}
+			push @syntax, $tkn;
+		}
+		push @syntax, $tkn, $self->lexTableAlias(undef, $tokens);
+		$tkn = undef;
+
+	} elsif ($tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i) {
+
 	} elsif ($tkn->[0] eq "word" && $next->[0] eq "word") {
 		push @syntax, "table", $self->lexTableAlias($tkn, $tokens);
 		$tkn = shift(@$tokens);
@@ -405,9 +427,9 @@ sub lexTable {
 sub lexTableAlias {
 	my ($self, $tkn, $tokens) = @_;
 	my $alias = shift(@$tokens);
-	my @syntax = ($tkn, $alias);
+	my @syntax = ($tkn || (), $alias);
 	push @syntax, $alias = shift(@$tokens) if lc($alias->[1]) eq "as";
-	$self->{tableAliases}{ $alias->[1] } = $tkn->[1];
+	$self->{tableAliases}{ $alias->[1] } = $tkn->[1] if $tkn;
 	return @syntax;
 }
 
@@ -513,6 +535,12 @@ sub clearFields {
 sub clearFilter {
 	my ($self) = @_;
 	%{ $self->{conditions} } = ();
+	return $self;
+}
+
+sub clearTableAliases {
+	my ($self) = @_;
+	%{ $self->{tableAliases} } = ();
 	return $self;
 }
 
@@ -731,7 +759,7 @@ sub convertFilterToTokens {
 		confess "You supplied the following conditions: "
 			.Dumper($self->{conditions})
 			."The table alias of the field `$name` is unknown. Make sure `$name` is available as a field in the tables or is defined as [$name ...]\n"
-			if !$alias;
+			if !$alias && !$self->{ignoreUndefAlias};
 		my $fld = [ "reference", [ "word", $alias ], [ "symbol", "." ], [ "word", $name ] ];
 		if (ref $val eq "ARRAY") {
 			my @values = map { [ "string", $_ ], [ "symbol", "," ] } @$val;

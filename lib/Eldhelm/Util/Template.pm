@@ -154,6 +154,12 @@ sub _format_json {
 	return Eldhelm::Server::Parser::Json->encodeFixNumbers($value);
 }
 
+sub _format_css {
+	my ($self, $value, $format, $name) = @_;
+	return $value unless ref $value;
+	return join " ", map { "$_: $value->{$_};" } keys %$value;
+}
+
 sub _format_html {
 	my ($self, $value, $format, $name) = @_;
 	if (!ref $value) {

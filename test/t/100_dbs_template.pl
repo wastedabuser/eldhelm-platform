@@ -5,7 +5,7 @@ use Test::More "no_plan";
 use Data::Dumper;
 use Eldhelm::Database::Template;
 
-my $tpl = Eldhelm::Database::Template->new;
+my $tpl = Eldhelm::Database::Template->new(doNotUseDesc => 1, ignoreUndefAlias => 1);
 
 diag("===============> test 1 - basic");
 
@@ -186,3 +186,75 @@ ORDER BY x");
 $query = $tpl->clearFields->clearFilter->compile;
 note($query);
 ok($query =~ /!=/);
+
+diag("===============> test 10 - pasing grouped tables in from and joins");
+
+$tpl->stream("SELECT
+		t1.a,
+	FROM (table1 t1, table2 t2)
+	WHERE 
+		a = 1
+");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
+note($query);
+note(Dumper $tpl->{tableAliases});
+ok(keys %{ $tpl->{tableAliases}} == 2);
+ok($tpl->{tableAliases}{t1});
+ok($tpl->{tableAliases}{t2});
+
+$tpl->stream("SELECT
+		t1.a,
+	FROM 
+		(table1 AS t1, table2 AS t2)
+		LEFT JOIN table3 AS t3 ON (kiro1 = 1 AND pesho1 = 2)
+	WHERE 
+		a = 1
+");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
+note($query);
+note(Dumper $tpl->{tableAliases});
+ok(keys %{ $tpl->{tableAliases}} == 3);
+ok($tpl->{tableAliases}{t1});
+ok($tpl->{tableAliases}{t2});
+ok($tpl->{tableAliases}{t3});
+
+$tpl->stream("SELECT
+		t1.a,
+	FROM 
+		table1 t1, table2 t2
+		LEFT JOIN table3 t3 ON (kiro1 = 1 AND pesho1 = 2)
+		LEFT JOIN table4 t4 ON (kiro2 = 1 AND pesho2 = 2)
+	WHERE 
+		a = 1
+");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
+note($query);
+note(Dumper $tpl->{tableAliases});
+ok(keys %{ $tpl->{tableAliases}} == 4);
+ok($tpl->{tableAliases}{t1});
+ok($tpl->{tableAliases}{t2});
+ok($tpl->{tableAliases}{t3});
+ok($tpl->{tableAliases}{t4});
+
+diag("===============> test 11 - pasing subquery in FROM");
+
+$tpl->stream("SELECT 
+	DATE_FORMAT(t.start_date, '{aggregation}') battle_date,
+	COUNT(*) AS wins,
+	(SELECT character_id FROM hero WHERE id = bp.hero_id) AS character_id
+FROM 
+	(SELECT b.id, b.start_date FROM battle b 
+		WHERE DATE(b.start_date) >= DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL {period} MONTH) 
+		AND total_turns > 0 AND game_type IN ('challenge', 'rank', 'tournament')) as tsubq,
+	battle_player as bp
+WHERE 
+	bp.battle_id = t.id
+GROUP BY battle_date, character_id
+ORDER BY battle_date, wins");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile({ filter => { win => 1 } });
+note($query);
+note(Dumper $tpl->{tableDesc});
+note(Dumper $tpl->{tableAliases});
+ok(!$tpl->{tableDesc}{as});
+ok(!$tpl->{tableDesc}{id});
+ok(!$tpl->{tableDesc}{start_date});

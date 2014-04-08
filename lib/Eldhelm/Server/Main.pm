@@ -137,6 +137,7 @@ sub loadState {
 	eval {
 		my $data = do $path;
 		if ($data) {
+			print "State is loading ...\n";
 			foreach my $k (keys %$data) {
 				my $d = $data->{$k};
 				print "Loading $k: ";
