@@ -11,6 +11,7 @@ use Digest::MD5 qw(md5_hex);
 sub simpleHttpRequest {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $method) = @_;
+	$method ||= "get";
 
 	my $headers;
 	$headers = {
