@@ -118,6 +118,13 @@ sub fetchKeyValue {
 	return Eldhelm::Util::Tool->assocKeyValue($data, $key);
 }
 
+sub fetchAssocColumn {
+	my ($self, $query, @params) = @_;
+	my $key = pop @params;
+	my $data = $self->fetchArray($query, @params);
+	return Eldhelm::Util::Tool->assocColumn($data, $key);
+}
+
 sub fetchAssocArray {
 	my ($self, $query, @params) = @_;
 	my $key = pop @params;

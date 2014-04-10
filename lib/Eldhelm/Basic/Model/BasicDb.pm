@@ -89,6 +89,12 @@ sub getAssocArray {
 	return Eldhelm::Util::Tool->assocArray($self->getAll($fields), $key);
 }
 
+sub getAssocColumn {
+	my ($self, $key, $fields) = @_;
+	$key = $self->fieldList($fields, $key);
+	return Eldhelm::Util::Tool->assocColumn($self->getAll($fields), $key);
+}
+
 sub getListByIds {
 	my ($self, $list, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;

@@ -75,6 +75,22 @@ sub assocKeyValue {
 	return \%result;
 }
 
+sub assocColumn {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($array, $key) = @_;
+	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
+	return {} if @keys < 2;
+	my $vKey = pop @keys;
+	my $lk   = pop @keys;
+	my %result;
+	foreach my $it (@$array) {
+		my $ret = \%result;
+		$ret = $ret->{ $it->{$_} } ||= {} foreach @keys;
+		push @{ $ret->{ $it->{$lk} } }, $it->{$vKey};
+	}
+	return \%result;
+}
+
 sub mapArray {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
