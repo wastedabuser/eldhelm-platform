@@ -180,12 +180,17 @@ sub init {
 		}
 		} @{ $cnf->{listen} }
 		if ref $cnf->{listen};
-
-	foreach ($cnf, @listen) {
+	
+	my @autoList;
+	foreach (@listen) {
 		my ($h, $p) = ($_->{host}, $_->{port});
-		next if !$h || !$p;
-
-		$h = Eldhelm::Util::MachineInfo->ip($h) if $h =~ /auto/;
+		next unless $h =~ /auto/;
+		push @autoList, map { { host => $_, port => $p } } Eldhelm::Util::MachineInfo->ip($h); 
+	}
+		
+	foreach ($cnf, @listen, @autoList) {
+		my ($h, $p) = ($_->{host}, $_->{port});
+		next if !$h || !$p || $h =~ /auto/;
 
 		my $sockObj;
 		if ($_->{ssl}) {
