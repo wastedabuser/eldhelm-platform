@@ -8,14 +8,15 @@ sub isWin {
 }
 
 sub ip {
-	my ($self, $host) = @_;
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($host) = @_;
 	
 	my @ip;
 	if (isWin) {
 		@ip = `ipconfig` =~ m/IPv4 Address.+:\s([\d\.]+)/g;
 	} else {
-		my ($iface) = $host =~ /auto:(.+)/;
-		@ip = `ifconfig $iface` =~ m/inet addr:([\d\.]+)/;
+		my ($iface) = $host =~ /auto:?(.*)/;
+		@ip = `ifconfig $iface` =~ m/inet addr:([\d\.]+)/g;
 	}
 	
 	confess("Unable to get ip for $host") unless @ip;

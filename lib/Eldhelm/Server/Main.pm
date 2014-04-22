@@ -34,9 +34,9 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info                 => { version => "1.3.4" },
-			ioSocketList         => [],
-			config               => shared_clone($args{config} || {}),
+			info         => { version => "1.3.4" },
+			ioSocketList => [],
+			config => shared_clone($args{config} || {}),
 			workers              => [],
 			workerQueue          => {},
 			workerStatus         => {},
@@ -171,7 +171,6 @@ sub init {
 	my ($self) = @_;
 
 	my $cnf = $self->getConfig("server");
-	my ($host, $port) = ($cnf->{host}, $cnf->{port});
 	my @listen;
 	@listen = map {
 		{   host => $_->{host} || $cnf->{host},
@@ -180,14 +179,14 @@ sub init {
 		}
 		} @{ $cnf->{listen} }
 		if ref $cnf->{listen};
-	
+
 	my @autoList;
-	foreach (@listen) {
-		my ($h, $p) = ($_->{host}, $_->{port});
+	foreach ($cnf, @listen) {
+		my ($h, $p, $s) = ($_->{host}, $_->{port}, $_->{ssl});
 		next unless $h =~ /auto/;
-		push @autoList, map { { host => $_, port => $p } } Eldhelm::Util::MachineInfo->ip($h); 
+		push @autoList, map { { host => $_, port => $p, ssl => $s } } Eldhelm::Util::MachineInfo->ip($h);
 	}
-		
+
 	foreach ($cnf, @listen, @autoList) {
 		my ($h, $p) = ($_->{host}, $_->{port});
 		next if !$h || !$p || $h =~ /auto/;
