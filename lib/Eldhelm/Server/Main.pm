@@ -621,8 +621,17 @@ sub createConnection {
 		$self->{responseQueue}{$id} = shared_clone([]);
 	}
 
-	$self->log("Connection $id($fileno) ".($out ? "to" : "from")." '".($sock->peerhost || "host unknown")."' open",
-		"access");
+	$self->log(
+		"Connection $id($fileno) "
+			.($out ? "to" : "from")." '"
+			.($sock->peerhost || "host unknown").":"
+			.($sock->peerport || "port unknown")
+			."' via '"
+			.($sock->sockhost || "host unknown").":"
+			.($sock->sockport || "port unknown")
+			."' open",
+		"access"
+	);
 }
 
 sub createProxyConnection {
@@ -740,7 +749,16 @@ sub removeConnection {
 	delete $self->{proxySocketS2SConn}{$sock};
 	delete $self->{outputStreamMap}{$sock};
 	$self->{ioSelect}->remove($sock);
-	$self->log("Connection $id($fileno) from '".($sock->peerhost || "host unknown")."' closed by $initiator", "access");
+	$self->log(
+		"Connection $id($fileno) from '"
+			.($sock->peerhost || "host unknown").":"
+			.($sock->peerport || "port unknown")
+			."' via '"
+			.($sock->sockhost || "host unknown").":"
+			.($sock->sockport || "port unknown")
+			."' closed by $initiator",
+		"access"
+	);
 
 	$sock->close;
 
