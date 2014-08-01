@@ -20,14 +20,20 @@ sub new {
 	return $self;
 }
 
+sub createSelectQuery {
+	my ($self, $what, $where, $order, $limit) = @_;
+
+	return "SELECT $what FROM `$self->{table}` t WHERE $where $order $limit";
+}
+
 sub chooseFields {
 	my ($self, $fields) = @_;
 	if (ref $fields eq "ARRAY") {
-		return join ",", map { "`$_`" } @$fields;
+		return join ",", map { "t.`$_`" } @$fields;
 	} elsif (ref $fields eq "HASH") {
 		my @list;
 		while (my ($k, $v) = each %$fields) {
-			push @list, "`$k` as $v";
+			push @list, "t.`$k` AS $v";
 		}
 		return join ",", @list;
 	}
@@ -71,10 +77,10 @@ sub limitClause {
 sub getAll {
 	my ($self, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;
-	my $what  = $self->chooseFields($fields) || "*";
+	my $what  = $self->chooseFields($fields) || "t.*";
 	my $order = $self->orderClause;
 	my $limit = $self->limitClause;
-	return $sql->fetchArray("SELECT $what FROM `$self->{table}` $order $limit");
+	return $sql->fetchArray($self->createSelectQuery($what, "1", $order, $limit));
 }
 
 sub getHash {
@@ -98,9 +104,9 @@ sub getAssocColumn {
 sub getListByIds {
 	my ($self, $list, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;
-	my $what  = $self->chooseFields($fields) || "*";
+	my $what  = $self->chooseFields($fields) || "t.*";
 	my $order = $self->orderClause;
-	return $sql->fetchArray("SELECT $what FROM `$self->{table}` WHERE id IN (".join(",", map { "?" } @$list).") $order",
+	return $sql->fetchArray($self->createSelectQuery($what, "id IN (".join(",", map { "?" } @$list).")", $order),
 		@$list);
 }
 
@@ -135,12 +141,11 @@ sub createFilter {
 sub filter {
 	my ($self, $filter, $fields) = @_;
 	my $sql    = $self->{dbPool}->getDb;
-	my $what   = $self->chooseFields($fields) || "*";
+	my $what   = $self->chooseFields($fields) || "t.*";
 	my $filter = $self->createFilter($filter);
 	my $order  = $self->orderClause;
 	my $limit  = $self->limitClause;
-	return $sql->fetchArray("SELECT $what FROM `$self->{table}` WHERE $filter->{compiled} $order $limit",
-		@{ $filter->{data} });
+	return $sql->fetchArray($self->createSelectQuery($what, $filter->{compiled}, $order, $limit), @{ $filter->{data} });
 }
 
 sub filterOne {
