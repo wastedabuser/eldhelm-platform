@@ -48,7 +48,11 @@ sub fieldList {
 
 sub setOrder {
 	my ($self, $order) = @_;
-	$self->{currentOrder} = $order;
+	if (ref $order ne "ARRAY") {
+		$self->{currentOrder} = [$order];
+	} else {
+		$self->{currentOrder} = $order;
+	}
 	return $self;
 }
 
@@ -61,6 +65,13 @@ sub orderClause {
 sub setPage {
 	my ($self, $page, $size) = @_;
 	$self->{limitOffset} = ($page - 1) * $size;
+	$self->{limitAmount} = $size;
+	return $self;
+}
+
+sub setLimit {
+	my ($self, $size) = @_;
+	$self->{limitOffset} = 0;
 	$self->{limitAmount} = $size;
 	return $self;
 }
