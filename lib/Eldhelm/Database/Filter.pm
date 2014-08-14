@@ -82,7 +82,7 @@ sub compileArrayRef {
 		foreach (@list) {
 			my $fl = $self->compileRef($_);
 			push @chunks, $fl->[0];
-			push @data,   @{ $fl->[1] };
+			push @data,   @{ $fl->[1] } if ref $fl->[1] eq "ARRAY";
 		}
 		return [ join(" $op ", @chunks), \@data ],;
 	}
@@ -100,6 +100,12 @@ sub _fn_like {
 	my ($self, $var, $value) = @_;
 	$var = $self->compileVar($var);
 	return [ "`$var` LIKE ?", ["%$value%"] ];
+}
+
+sub _fn_isnull {
+	my ($self, $var, $value) = @_;
+	$var = $self->compileVar($var);
+	return [ "`$var` IS NULL"];
 }
 
 1;

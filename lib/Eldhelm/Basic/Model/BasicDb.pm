@@ -170,6 +170,12 @@ sub filterAssocArray {
 	return Eldhelm::Util::Tool->assocArray($self->filter($filter, $fields), $key);
 }
 
+sub filterKeyValue {
+	my ($self, $filter, $key, $fields) = @_;
+	$key = $self->fieldList($fields, $key);
+	return Eldhelm::Util::Tool->assocKeyValue($self->filter($filter, $fields), $key);
+}
+
 sub save {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
