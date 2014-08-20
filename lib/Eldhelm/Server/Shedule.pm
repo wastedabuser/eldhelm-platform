@@ -14,12 +14,14 @@ sub worker {
 	return Eldhelm::Server::Child->instance;
 }
 
-sub init {
-	my ($self) = @_;
-	my ($rule, $name, $action, $uid)   = $self->getList("shedule", "name", "action", "uid");
-	my $logRec = "$uid($name) for $rule $action";
-	$self->worker->log("Initialize shedule $logRec");
+sub validate {
+	my ($self, $rule) = @_;
+	my ($time, $interval) = $self->readTime($rule);
+	return $time;
+}
 
+sub readTime {
+	my ($self, $rule) = @_;
 	my ($time, $interval) = (0);
 	if ($rule =~ /^(\d+)-(\d+)-(\d+)\s+(\d+):(\d+):?(\d*)$/) {
 		$time = Date_to_Time($1, $2, $3, $4, $5, $6 || 0);
@@ -40,7 +42,16 @@ sub init {
 		$time = $self->curTime;
 		$interval = [ 0, 0, 0, 0, 0, int($rule) ];
 	}
+	return ($time, $interval);
+}
 
+sub init {
+	my ($self) = @_;
+	my ($rule, $name, $action, $uid)   = $self->getList("shedule", "name", "action", "uid");
+	my $logRec = "$uid($name) for $rule $action";
+	$self->worker->log("Initialize shedule $logRec");
+
+	my ($time, $interval) = $self->readTime($rule);
 	$self->setHash(
 		time     => $time,
 		interval => $interval,

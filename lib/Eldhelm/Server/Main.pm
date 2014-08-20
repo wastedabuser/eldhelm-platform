@@ -68,6 +68,7 @@ sub new {
 			proxySocketS2SConn   => {},
 			reservedWorkerId     => {},
 			debugMessageCount    => 0,
+			lastHeartbeat        => time,
 		};
 		bless $instance, $class;
 
@@ -115,7 +116,8 @@ sub readConfig {
 sub configure {
 	my ($self) = @_;
 
-	$self->{debugMode} = $self->getConfig("debugMode");
+	$self->{debugMode}         = $self->getConfig("debugMode");
+	$self->{heartbeatInterval} = $self->getConfig("server.monitoring.heartbeat.interval");
 
 	my $protoList = $self->{protoList} = $self->getConfig("server.acceptProtocols") || [];
 	Eldhelm::Util::Factory->usePackage("Eldhelm::Server::Handler::$_") foreach @$protoList;
@@ -167,8 +169,45 @@ sub loadState {
 	return;
 }
 
+sub clearCache {
+	my ($self) = @_;
+	%{ $self->{fileContentCache} } = ();
+	$self->{messagesLogPath} = "";
+}
+
 sub init {
 	my ($self) = @_;
+
+	$SIG{PIPE} = sub {
+		my $sig = shift @_;
+		if ($currentFh) {
+			my $fno = $currentFh->fileno;
+			$self->error("A pipe $fno is broken");
+			$self->removeConnection($currentFh, "pipe");
+			$currentFh = undef;
+		}
+	};
+
+	$SIG{INT} = sub {
+		my $sig = shift @_;
+		print "Server shutting down by INT signal\n";
+		$self->saveStateAndShutDown;
+	};
+
+	$SIG{TERM} = sub {
+		my $sig = shift @_;
+		print "Server shutting down by TERM signal\n";
+		$self->saveStateAndShutDown;
+	};
+
+	$SIG{HUP} = sub {
+		my $sig = shift @_;
+		print "Server clearing cache and re-reading configuration after HUP signal ...\n";
+		$self->clearCache;
+		$self->readConfig;
+		$self->configure;
+		print "Done\n";
+	};
 
 	my $cnf = $self->getConfig("server");
 	my @listen;
@@ -236,34 +275,6 @@ sub init {
 		$self->createWorker;
 	}
 
-	$SIG{PIPE} = sub {
-		my $sig = shift @_;
-		if ($currentFh) {
-			my $fno = $currentFh->fileno;
-			$self->error("A pipe $fno is broken");
-			$self->removeConnection($currentFh, "pipe");
-			$currentFh = undef;
-		}
-	};
-
-	$SIG{INT} = sub {
-		my $sig = shift @_;
-		print "Server shutting down by INT signal\n";
-		$self->saveStateAndShutDown;
-	};
-
-	$SIG{TERM} = sub {
-		my $sig = shift @_;
-		print "Server shutting down by TERM signal\n";
-		$self->saveStateAndShutDown;
-	};
-
-	$SIG{HUP} = sub {
-		my $sig = shift @_;
-		print "Server re-reading configuration after HUP signal ...\n";
-		$self->readConfig;
-		print "Done\n";
-	};
 }
 
 sub createLogger {
@@ -466,6 +477,10 @@ sub listen {
 		}
 		$self->message("closed sockets");
 
+		$self->message("do heartbeat");
+		$self->heartbeat();
+		$self->message("done heartbeat");
+		
 		$self->message("will do other jobs");
 		$self->doOtherJobs();
 		$self->message("done other jobs");
@@ -992,13 +1007,10 @@ sub selectWorker {
 		push @list, \%stats;
 
 	}
-	$self->log(
-		"Worker load: ["
-			.join(", ",
-			map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" }
-				@list)
-			."]"
-	);
+	$self->{workerStatusMessage} = join(", ",
+		map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" }
+			@list);
+	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
 	@list = grep { $_->{type} ne "R" } @list if $id && @list > keys %{ $self->{reservedWorkerId} };
 	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
@@ -1064,6 +1076,15 @@ sub evaluateCodeMain {
 
 	eval $job->{code};
 	$self->error("Error while evaluating code in main context: $@") if $@;
+}
+
+sub heartbeat {
+	my ($self) = @_;
+	return unless $self->{heartbeatInterval};
+	return if $self->{lastHeartbeat} + $self->{heartbeatInterval} >= time;
+	$self->{lastHeartbeat} = time;
+
+	$self->doAction("monitoring.heartbeat:sendHeartbeat", { message => $self->{workerStatusMessage} });
 }
 
 # =================================
@@ -1180,7 +1201,7 @@ sub saveStateAndShutDown {
 	usleep(100_000);
 
 	# clear some memory
-	%{ $self->{fileContentCache} } = ();
+	$self->clearCache;
 
 	# get the persist data
 	my @persistsList;
