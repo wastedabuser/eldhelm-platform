@@ -194,6 +194,20 @@ sub prepareFields {
 	return @flds;
 }
 
+sub prepareWhere {
+	my ($self, $where) = @_;
+	my (@filter, @fValues);
+	while (my ($k, $v) = each %$where) {
+		if (defined $v) {
+			push @filter,  "`$k`=?";
+			push @fValues, $v;
+		} else {
+			push @filter, "`$k` IS NULL";
+		}
+	}
+	return (\@filter, \@fValues);
+}
+
 sub updateFields {
 	my ($self, $table, $data) = @_;
 	my $hcols = $self->descHash($table);
@@ -242,25 +256,17 @@ sub saveRow {
 
 sub updateRow {
 	my ($self, $table, $data, $where) = @_;
-	my (@filter, @fValues);
 	my ($fields, $values) = $self->updateFields($table, $data);
-	while (my ($k, $v) = each %$where) {
-		push @filter,  "`$k`=?";
-		push @fValues, $v;
-	}
-	my $query = "UPDATE `$table` SET $fields WHERE ".join(" AND ", @filter);
-	$self->query($query, @$values, @fValues);
+	my ($filter, $fValues) = $self->prepareWhere($where);
+	my $query = "UPDATE `$table` SET $fields WHERE ".join(" AND ", @$filter);
+	$self->query($query, @$values, @$fValues);
 }
 
 sub deleteRow {
 	my ($self, $table, $where) = @_;
-	my (@filter, @fValues);
-	while (my ($k, $v) = each %$where) {
-		push @filter,  "`$k`=?";
-		push @fValues, $v;
-	}
-	my $query = "DELETE FROM `$table` WHERE ".join(" AND ", @filter);
-	$self->query($query, @fValues);
+	my ($filter, $fValues) = $self->prepareWhere($where);
+	my $query = "DELETE FROM `$table` WHERE ".join(" AND ", @$filter);
+	$self->query($query, @$fValues);
 }
 
 sub insertRow {
