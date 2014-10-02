@@ -118,7 +118,7 @@ sub sendSignOut {
 	$conn ||= $self->getConnection;
 
 	$self->worker->log("Sending signOut");
-	$conn->sendSignOut;
+	$conn->sendSignOut if $conn;
 
 	return;
 }
@@ -132,6 +132,16 @@ sub resendNotAcknowledged {
 	$conn->sendStream($_) foreach @list;
 
 	return;
+}
+
+sub resetSession {
+	my ($self) = @_;
+	$self->removeList("fno", "eventFno", "connected", "recvMaxMessageId", "recvNextMessageId");
+	$self->setHash(
+		executeMessageId  => 1,
+		sendMessageId     => 0,
+		sendMessagesCache => {}
+	);
 }
 
 # ================================================
