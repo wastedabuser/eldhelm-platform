@@ -112,13 +112,6 @@ sub toList {
 	return ref $var eq "ARRAY" ? @$var : ($var);
 }
 
-sub randomString {
-	shift @_ if $_[0] eq __PACKAGE__;
-	my ($len, $chars) = @_;
-	my @chars = @{ $chars || [ 'a' .. 'z', 'A' .. 'Z', '0' .. '9', '_' ] };
-	return join "", map { $chars[ rand scalar @chars ] } 1 .. $len;
-}
-
 sub utfFlagDeep {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data, $state) = @_;
