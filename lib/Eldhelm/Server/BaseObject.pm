@@ -193,6 +193,8 @@ sub getHashrefKeys {
 	my ($self, $key) = @_;
 	lock($self);
 
+	return keys(%$self) unless $key;
+	
 	my ($var, $key) = $self->getRefByNotation($key);
 	my $ref = $var->{$key};
 	return () if ref $ref ne "HASH";

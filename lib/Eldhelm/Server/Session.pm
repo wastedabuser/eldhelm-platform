@@ -151,6 +151,8 @@ sub resetSession {
 		sendMessageId     => 0,
 		sendMessagesCache => {}
 	);
+	
+	$self->trigger("reset", {});
 }
 
 # ================================================
