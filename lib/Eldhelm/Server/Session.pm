@@ -136,6 +136,15 @@ sub resendNotAcknowledged {
 
 sub resetSession {
 	my ($self) = @_;
+	
+	my $currentFno = $self->get("fno");
+	if ($currentFno) {
+		$self->unregisterLookupProperty($_, $currentFno) foreach @conProps;
+	}
+	
+	my $conn = $self->getConnection;
+	$conn->removeSession if $conn;
+	
 	$self->removeList("fno", "eventFno", "connected", "recvMaxMessageId", "recvNextMessageId");
 	$self->setHash(
 		executeMessageId  => 1,

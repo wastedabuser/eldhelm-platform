@@ -47,6 +47,12 @@ sub getSessionId {
 	return $self->get("sessionId") || $self->worker->getPersistId("fno", $self->fno);
 }
 
+sub removeSession {
+	my ($self) = @_;
+	$self->remove("sessionId");
+	return $self;
+}
+
 sub hasSession {
 	my ($self) = @_;
 	return $self->worker->hasPersist($self->getSessionId);
