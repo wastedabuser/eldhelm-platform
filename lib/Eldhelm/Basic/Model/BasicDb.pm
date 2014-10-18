@@ -156,6 +156,7 @@ sub filter {
 	my $filter = $self->createFilter($filter);
 	my $order  = $self->orderClause;
 	my $limit  = $self->limitClause;
+	
 	return $sql->fetchArray($self->createSelectQuery($what, $filter->{compiled}, $order, $limit), @{ $filter->{data} });
 }
 

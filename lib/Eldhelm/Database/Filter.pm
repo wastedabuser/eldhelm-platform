@@ -114,4 +114,10 @@ sub _fn_between {
 	return [ "`$var` BETWEEN ? AND ?", [ $value1, $value2 ] ];
 }
 
+sub _fn_streq {
+	my ($self, $var, $value) = @_;
+	$var = $self->compileVar($var);
+	return [ "STRCMP(`$var`, ?) = 0", [$value] ];
+}
+
 1;
