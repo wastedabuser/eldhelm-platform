@@ -74,6 +74,7 @@ sub fetchTask {
 	if ($task eq "exitWorker") {
 		print "Exitting worker ".threads->tid()." ... \n";
 		$self->status("action", "exit");
+		usleep(1000);
 		threads->exit();
 	}
 

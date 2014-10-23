@@ -4,7 +4,7 @@ use strict;
 use threads;
 use threads::shared;
 use Data::Dumper;
-use Time::HiRes;
+use Time::HiRes qw(usleep);
 use Date::Format;
 use Carp;
 
@@ -60,11 +60,12 @@ loggermain: while (1) {
 			}
 			$self->runTask($q, @data) if @data;
 		}
-		Time::HiRes::usleep($interval);
+		usleep($interval);
 	}
 
 	print "Exitting logger ...\n";
 	$self->status("action", "exit");
+	usleep(1000);
 	threads->exit();
 }
 

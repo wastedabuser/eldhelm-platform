@@ -138,6 +138,7 @@ sub fetchTask {
 	if ($task eq "exitWorker") {
 		print "Exitting executor ...\n";
 		$self->status("action", "exit");
+		usleep(1000);
 		threads->exit();
 	}
 
