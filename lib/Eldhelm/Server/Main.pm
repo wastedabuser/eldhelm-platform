@@ -34,33 +34,36 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info         => { version => "1.3.4" },
+			info         => { version => "1.4.0" },
 			ioSocketList => [],
 			config => shared_clone($args{config} || {}),
-			workers              => [],
-			workerQueue          => {},
-			workerStatus         => {},
-			connId               => 1,
-			conidToFnoMap        => {},
-			fnoToConidMap        => {},
-			inputStreamMap       => {},
-			outputStreamMap      => {},
-			parseBufferMap       => {},
-			connectionHandles    => {},
-			connections          => shared_clone({}),
-			connectionEvents     => shared_clone({}),
-			delayedEvents        => shared_clone({}),
-			sheduledEvents       => shared_clone({}),
-			responseQueue        => shared_clone({}),
-			closeQueue           => shared_clone({}),
-			persists             => shared_clone({}),
-			persistsByType       => shared_clone({}),
-			persistLookup        => shared_clone({}),
+			workers           => [],
+			workerQueue       => {},
+			workerStatus      => {},
+			connId            => 1,
+			conidToFnoMap     => {},
+			fnoToConidMap     => {},
+			inputStreamMap    => {},
+			outputStreamMap   => {},
+			parseBufferMap    => {},
+			connectionHandles => {},
+			responseQueue     => {},
+			closeMap          => {},
+
+			persists       => shared_clone({}),
+			persistsByType => shared_clone({}),
+			persistLookup  => shared_clone({}),
+			jobQueue       => shared_clone([]),
+			stash          => shared_clone({}),
+			delayedEvents  => shared_clone({}),
+
+			connections      => shared_clone({}),
+			connectionEvents => shared_clone({}),
+			sheduledEvents   => shared_clone({}),
+
 			workerStats          => {},
 			connectionWorkerMap  => {},
 			connectionWorkerLoad => {},
-			jobQueue             => shared_clone([]),
-			stash                => shared_clone({}),
 			sslClients           => {},
 			debugStreamMap       => {},
 			fileContentCache     => {},
@@ -298,17 +301,20 @@ sub createLogger {
 sub createExecutor {
 	my ($self) = @_;
 	my $executorQueue = shared_clone([]);
-	my $workerStatus = shared_clone({ action => "startup" });
-	my $t = $self->{executor} = threads->create(
+	my $workerStatus  = shared_clone({ action => "startup" });
+	my $responseQueue = shared_clone([]);
+	my $t             = $self->{executor} = threads->create(
 		\&Eldhelm::Server::Executor::create,
-		workerStatus => $workerStatus,
-		workerQueue  => $executorQueue,
+		workerStatus  => $workerStatus,
+		workerQueue   => $executorQueue,
+		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents jobQueue stash)
+			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents jobQueue stash)
 	);
 	$self->log("Created executor: ".$t->tid);
-	$self->{workerQueue}{ $t->tid }  = $executorQueue;
-	$self->{workerStatus}{ $t->tid } = $workerStatus;
+	$self->{workerQueue}{ $t->tid }   = $executorQueue;
+	$self->{workerStatus}{ $t->tid }  = $workerStatus;
+	$self->{responseQueue}{ $t->tid } = $responseQueue;
 	$t->detach();
 	return;
 }
@@ -316,19 +322,22 @@ sub createExecutor {
 sub createWorker {
 	my ($self, $jobs) = @_;
 	my $workerQueue = shared_clone($jobs || []);
-	my $workerStatus = shared_clone({ action => "startup" });
-	my $t = threads->create(
+	my $workerStatus  = shared_clone({ action => "startup" });
+	my $responseQueue = shared_clone([]);
+	my $t             = threads->create(
 		\&Eldhelm::Server::Worker::create,
-		workerStatus => $workerStatus,
-		workerQueue  => $workerQueue,
+		workerStatus  => $workerStatus,
+		workerQueue   => $workerQueue,
+		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections responseQueue closeQueue persists persistsByType persistLookup delayedEvents sheduledEvents jobQueue stash)
+			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents jobQueue stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $workerQueue;
 	$self->{workerStatus}{ $t->tid } = $workerStatus;
 	$self->{workerStats}{ $t->tid } ||= {};
 	$self->{workerStats}{ $t->tid }{jobs} = 0;
+	$self->{responseQueue}{ $t->tid } = $responseQueue;
 
 	if (!$self->{reservedWorkerId}{ $t->tid } && keys %{ $self->{reservedWorkerId} } <= int($self->{workerCount} / 3)) {
 		$self->{workerStats}{ $t->tid }{type} = "R";
@@ -397,90 +406,86 @@ sub listen {
 				$self->addToStream($fh, \$data);
 			}
 		}
-		$self->message("will write to sockets");
+
+		$self->message("gathering responses");
+		my %responseQueues;
+		my @tids = keys %{ $self->{responseQueue} };
+		foreach my $tid (@tids) {
+			my $tq = $self->{responseQueue}{$tid};
+			lock($tq);
+			while (@$tq) {
+				my ($id, $d) = (shift @$tq, shift @$tq);
+				if (ref $d && !$d->{file}) {
+					$self->{closeMap}{$id} = $d;
+				} else {
+					push @{ $responseQueues{$id} }, $d;
+				}
+			}
+		}
 
 		$hasPending = 0;
 		@clients    = $select->can_write(0);
 		$self->message("can write to socket ".scalar @clients);
-		my $h = 0;
-		foreach my $fh (@clients) {
-			$self->message("write to $h");
-			my $fno   = $fh->fileno;
-			my $id    = $self->{fnoToConidMap}{$fno};
-			my $queue = $self->{responseQueue}{$id};
-			my $invalid;
 
-			$self->message("lock $h");
-			{
-				lock($queue);
-				$self->message("sending $h");
-				if (@$queue) {
-					if ($fh->connected) {
-						$self->message("do send $h");
-						while (my $ch = shift @$queue) {
-							if (ref $ch && $ch->{file}) {
+		foreach my $fh (@clients) {
+			my $fno = $fh->fileno;
+			my $id  = $self->{fnoToConidMap}{$fno};
+			$self->message("sending $id");
+
+			my $queue = $responseQueues{$id};
+			my $invalid;
+			if ($queue && @$queue) {
+				if ($fh->connected) {
+					$self->message("do send $id");
+					while (my $ch = shift @$queue) {
+						if (ref $ch) {
+							lock($ch);
+							if ($ch->{file}) {
 								$self->send($fh, $self->getFileContent($ch));
 								next;
 							}
-							$self->send($fh, $ch);
 						}
-					} else {
-						$self->error("A connection error occured while sending to $id($fno)");
-						$invalid = 1;
+						$self->send($fh, $ch);
 					}
+				} else {
+					$self->error("A connection error occured while sending to $id($fno)");
+					$invalid = 1;
 				}
 			}
-			$self->message("writen to $h");
 
 			if ($invalid) {
-				$self->message("remove $h");
+				$self->message("remove $id");
 				$self->removeConnection($fh, "unknown");
-				$self->message("removed $h");
+				$self->message("removed $id");
 			} else {
 				my $rr = \$self->{outputStreamMap}{$fh};
 				if ($$rr) {
 					$hasPending = 1 if $self->sendToSock($fh, $rr);
 				}
 			}
-
-			$h++;
 		}
-		$self->message("writen to socket");
+		$self->message("finish response");
 
-		{
-			lock($self->{closeQueue});
-			@clients = keys %{ $self->{closeQueue} };
-		}
+		@clients = keys %{ $self->{closeMap} };
 		$self->message("will close socket ".scalar @clients);
-		$h = 0;
 		foreach my $id (@clients) {
 			my $fno = $self->{conidToFnoMap}{$id};
-			unless ($fno) {
-				lock($self->{closeQueue});
-				delete $self->{closeQueue}{$id};
-				next;
-			}
-			my $fh    = $self->{connectionHandles}{$fno};
-			my $queue = $self->{responseQueue}{$id};
-			my $ln;
-			{
-				lock($queue);
-				$ln = @$queue;
-			}
-			$self->message("check close $h");
-			if ($fh && !$ln && !$self->{outputStreamMap}{$fh}) {
-				$self->message("close remove $h");
+			next unless $fno;
+
+			my $fh = $self->{connectionHandles}{$fno};
+			$self->message("check close $id");
+			if ($fh && !$self->{outputStreamMap}{$fh}) {
+				$self->message("close remove $id");
 				$self->removeConnection($fh, "server");
-				$self->message("close removed $h");
+				$self->message("close removed $id");
 			}
-			$h++;
 		}
-		$self->message("closed sockets");
+		$self->message("finish closes");
 
 		$self->message("do heartbeat");
 		$self->heartbeat();
 		$self->message("done heartbeat");
-		
+
 		$self->message("will do other jobs");
 		$self->doOtherJobs();
 		$self->message("done other jobs");
@@ -630,12 +635,6 @@ sub createConnection {
 		);
 	}
 
-	$self->message("create connection response queue");
-	{
-		lock($self->{responseQueue});
-		$self->{responseQueue}{$id} = shared_clone([]);
-	}
-
 	$self->log(
 		"Connection $id($fileno) "
 			.($out ? "to" : "from")." '"
@@ -712,7 +711,9 @@ sub removeConnection {
 	my $id     = $self->{fnoToConidMap}{$fileno};
 	return unless $id;
 
-	my ($event, $conn);
+	my $event = delete $self->{closeMap}{$id};
+
+	my $conn;
 	{
 		lock($self->{connections});
 		$conn = delete $self->{connections}{$id};
@@ -723,28 +724,18 @@ sub removeConnection {
 		$conn->{connected} = 0;
 	}
 
-	{
-		lock($self->{responseQueue});
-		delete $self->{responseQueue}{$id};
+	# if there this is a proxy to another socket close it when possible
+	my $pSock = $self->{proxySocketMap}{$sock};
+	if ($pSock) {
+		delete $self->{proxySocketMap}{$pSock};
+		my $pId = $self->{fnoToConidMap}{ $pSock->fileno };
+		$self->{closeMap}{$pId} = shared_clone(
+			{   initiator => "server",
+				reason    => "proxy",
+			}
+		) if $pId;
 	}
 
-	{
-		my $closeQueue = $self->{closeQueue};
-		lock($closeQueue);
-		$event = delete $closeQueue->{$id};
-
-		# if there this is a proxy to another socket close it when possible
-		my $pSock = $self->{proxySocketMap}{$sock};
-		if ($pSock) {
-			delete $self->{proxySocketMap}{$pSock};
-			my $pId = $self->{fnoToConidMap}{ $pSock->fileno };
-			$closeQueue->{$pId} = shared_clone(
-				{   initiator => "server",
-					reason    => "proxy",
-				}
-			) if $pId;
-		}
-	}
 	delete $self->{conidToFnoMap}{$id};
 
 	my $t = delete $self->{connectionWorkerMap}{$id};
@@ -755,14 +746,10 @@ sub removeConnection {
 	delete $self->{parseBufferMap}{$fileno};
 	delete $self->{connectionHandles}{$fileno};
 
-	if (!$sock) {
-		$self->error("Connection $id($fileno) is not available any more");
-		return;
-	}
-
 	delete $self->{proxySocketMap}{$sock};
 	delete $self->{proxySocketS2SConn}{$sock};
 	delete $self->{outputStreamMap}{$sock};
+
 	$self->{ioSelect}->remove($sock);
 	$self->log(
 		"Connection $id($fileno) from '"
@@ -1107,6 +1094,7 @@ sub removeWorker {
 	delete $self->{workerQueue}{$tid};
 	delete $self->{workerStatus}{$tid};
 	delete $self->{workerStats}{$tid};
+	delete $self->{responseQueue}{$tid};
 	return \@jobs;
 }
 
@@ -1125,6 +1113,7 @@ sub removeExecutor {
 
 	delete $self->{workerQueue}{$tid};
 	delete $self->{workerStatus}{$tid};
+	delete $self->{responseQueue}{$tid};
 	return;
 }
 

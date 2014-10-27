@@ -2,10 +2,10 @@ Eldhelm platform is the application server running the entire back-end of the fa
 
 Eldhelm platform features:
 
-- Pure perl 5 implementation
+- Perl 5 implementation
 - Works on both Linux and Windows
 - Multithreaded architecture
-- Reliable non-blocking IO
+- Reliable event driven, non-blocking IO 
 - 2 way gracefull restart - worker threads restart or save and reload state from disk
 - Abbility to handle multiple protocols on a single port
 - A socket server - supports a custom built json protocol + authentication, latency detection, timeouts, guarantees message delivery in case of reconnects

@@ -92,18 +92,11 @@ sub sendFile {
 	$fno ||= $self->{fno};
 	$self->log("Responding $path to $fno");
 
-	my $queue;
-	{
-		lock($self->{responseQueue});
-		$queue = $self->{responseQueue}{$fno};
-	}
-
-	lock($queue);
-	return $self->addDataToQueue($queue, shared_clone({ file => $path, ln => $ln }), $fno);
+	return $self->addDataToQueue($fno, shared_clone({ file => $path, ln => $ln }));
 }
 
 sub sendData {
-	my ($self, $data, $fno, $chunked) = @_;
+	my ($self, $data, $fno) = @_;
 
 	return $self unless $data;
 
@@ -112,59 +105,26 @@ sub sendData {
 	my $ln = length($data);
 	$self->log("Responding ($ln bytes) to $fno");
 
-	my $queue;
-	{
-		lock($self->{responseQueue});
-		$queue = $self->{responseQueue}{$fno};
-	}
-
-	if (!$queue) {
-		$self->error("Can not send data to $fno, may be the connection dropped.");
-		return $self;
-	}
-	lock($queue);
-
-	return $self->addDataToQueueChunked($queue, $data, $fno)
-		if $chunked;
-
-	return $self->addDataToQueue($queue, $data, $fno);
+	return $self->addDataToQueue($fno, $data);
 }
 
 sub addDataToQueue {
-	my ($self, $queue, $data, $fno) = @_;
-	eval { push @$queue, $data };
-	$self->error(longmess "Error putting data via '$fno': $@\n".Dumper($data)) if $@;
-	return $self;
-}
+	my ($self, $fno, $data) = @_;
+	my $queue = $self->{responseQueue};
+	lock($queue);
 
-sub addDataToQueueChunked {
-	my ($self, $queue, $data, $fno) = @_;
-	my $ln = length($data);
-	my ($cs, $i) = (65536, 0);
-
-	return $self->addDataToQueue($queue, $data, $fno)
-		if $ln <= $cs;
-
-	while (1) {
-		my $pos    = $i * $cs;
-		my $remain = $ln - $pos;
-		last if $remain < 1;
-		my $size = $remain > $cs ? $cs : $remain;
-		my $chunk = substr $data, $pos, $size;
-		eval { push @$queue, $chunk };
-		$self->error(longmess "Error putting data via '$fno': $@") if $@;
-		$i++;
-	}
-
+	push @$queue, $fno, $data;
 	return $self;
 }
 
 sub closeConnection {
 	my ($self, $fno, $event) = @_;
 	$fno ||= $self->{fno};
-	lock($self->{closeQueue});
+	my $ev = shared_clone($event || { initiator => "server" });
+	my $queue = $self->{responseQueue};
+	lock($queue);
 
-	$self->{closeQueue}{$fno} = $event ? shared_clone($event) : 1;
+	push @$queue, $fno, $ev;
 	return;
 }
 

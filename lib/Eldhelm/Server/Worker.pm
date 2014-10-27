@@ -53,6 +53,7 @@ sub run {
 			next;
 		}
 		$self->runTask($conn, $data);
+		threads->yield();
 	}
 }
 
