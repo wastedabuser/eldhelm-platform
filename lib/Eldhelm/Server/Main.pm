@@ -34,33 +34,22 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info         => { version => "1.4.0" },
-			ioSocketList => [],
+			info => { version => "1.4.0" },
 			config => shared_clone($args{config} || {}),
-			workers           => [],
-			workerQueue       => {},
-			workerStatus      => {},
-			connId            => 1,
-			conidToFnoMap     => {},
-			fnoToConidMap     => {},
-			inputStreamMap    => {},
-			outputStreamMap   => {},
-			parseBufferMap    => {},
-			connectionHandles => {},
-			responseQueue     => {},
-			closeMap          => {},
 
-			persists       => shared_clone({}),
-			persistsByType => shared_clone({}),
-			persistLookup  => shared_clone({}),
-			jobQueue       => shared_clone([]),
-			stash          => shared_clone({}),
-			delayedEvents  => shared_clone({}),
-
-			connections      => shared_clone({}),
-			connectionEvents => shared_clone({}),
-			sheduledEvents   => shared_clone({}),
-
+			ioSocketList         => [],
+			workers              => [],
+			workerQueue          => {},
+			workerStatus         => {},
+			connId               => 1,
+			conidToFnoMap        => {},
+			fnoToConidMap        => {},
+			inputStreamMap       => {},
+			outputStreamMap      => {},
+			parseBufferMap       => {},
+			connectionHandles    => {},
+			responseQueue        => {},
+			closeMap             => {},
 			workerStats          => {},
 			connectionWorkerMap  => {},
 			connectionWorkerLoad => {},
@@ -72,6 +61,17 @@ sub new {
 			reservedWorkerId     => {},
 			debugMessageCount    => 0,
 			lastHeartbeat        => time,
+
+			persists       => shared_clone({}),
+			persistsByType => shared_clone({}),
+			persistLookup  => shared_clone({}),
+			jobQueue       => shared_clone([]),
+			stash          => shared_clone({}),
+			delayedEvents  => shared_clone({}),
+
+			connections      => shared_clone({}),
+			connectionEvents => shared_clone({}),
+			sheduledEvents   => shared_clone({}),
 		};
 		bless $instance, $class;
 
@@ -152,8 +152,8 @@ sub loadState {
 						$self->{$k}{$_} = shared_clone($d->{$_});
 						usleep(10_000);
 					}
-				} else {
-					print "list";
+				} elsif (ref $d eq "ARRAY") {
+					print scalar(@$d)." items";
 					$self->{$k} = shared_clone($d);
 				}
 				print "\n";
@@ -423,18 +423,16 @@ sub listen {
 			}
 		}
 
-		$hasPending = 0;
-		@clients    = $select->can_write(0);
-		$self->message("can write to socket ".scalar @clients);
+		@clients = keys %responseQueues;
+		$self->message("responses for clients: ".scalar @clients);
+		foreach my $id (@clients) {
+			my $fno = $self->{conidToFnoMap}{$id};
+			next unless $fno;
 
-		foreach my $fh (@clients) {
-			my $fno = $fh->fileno;
-			my $id  = $self->{fnoToConidMap}{$fno};
-			$self->message("sending $id");
-
-			my $queue = $responseQueues{$id};
 			my $invalid;
-			if ($queue && @$queue) {
+			my $fh    = $self->{connectionHandles}{$fno};
+			my $queue = $responseQueues{$id};
+			if ($queue) {
 				if ($fh->connected) {
 					$self->message("do send $id");
 					while (my $ch = shift @$queue) {
@@ -457,14 +455,21 @@ sub listen {
 				$self->message("remove $id");
 				$self->removeConnection($fh, "unknown");
 				$self->message("removed $id");
-			} else {
-				my $rr = \$self->{outputStreamMap}{$fh};
-				if ($$rr) {
-					$hasPending = 1 if $self->sendToSock($fh, $rr);
-				}
 			}
 		}
-		$self->message("finish response");
+
+		$hasPending = 0;
+		@clients    = keys %{ $self->{outputStreamMap} };
+		$self->message("responding to clients: ".scalar @clients);
+		foreach my $fno (@clients) {
+			my $fh = $self->{connectionHandles}{$fno};
+			next if !$fh || !$fh->connected;
+
+			my $rr = \$self->{outputStreamMap}{$fno};
+			if ($$rr) {
+				$hasPending = 1 if $self->sendToSock($fh, $rr);
+			}
+		}
 
 		@clients = keys %{ $self->{closeMap} };
 		$self->message("will close socket ".scalar @clients);
@@ -474,21 +479,18 @@ sub listen {
 
 			my $fh = $self->{connectionHandles}{$fno};
 			$self->message("check close $id");
-			if ($fh && !$self->{outputStreamMap}{$fh}) {
+			if ($fh && !$self->{outputStreamMap}{$fno}) {
 				$self->message("close remove $id");
 				$self->removeConnection($fh, "server");
 				$self->message("close removed $id");
 			}
 		}
-		$self->message("finish closes");
 
 		$self->message("do heartbeat");
 		$self->heartbeat();
-		$self->message("done heartbeat");
 
 		$self->message("will do other jobs");
 		$self->doOtherJobs();
-		$self->message("done other jobs");
 	}
 
 	$self->error("Server is going down");
@@ -609,11 +611,11 @@ sub createConnection {
 	$self->removeConnection($oldSock, "replace") if $oldSock;
 
 	my $id = $self->{connId}++;
-	$self->{fnoToConidMap}{$fileno}  = $id;
-	$self->{inputStreamMap}{$fileno} = "";
-	$cHandles->{$fileno}             = $sock;
-	$self->{conidToFnoMap}{$id}      = $fileno;
-	$self->{outputStreamMap}{$sock}  = "";
+	$self->{fnoToConidMap}{$fileno}   = $id;
+	$self->{inputStreamMap}{$fileno}  = "";
+	$cHandles->{$fileno}              = $sock;
+	$self->{conidToFnoMap}{$id}       = $fileno;
+	$self->{outputStreamMap}{$fileno} = "";
 
 	{
 		lock($self->{connections});
@@ -745,10 +747,10 @@ sub removeConnection {
 	delete $self->{inputStreamMap}{$fileno};
 	delete $self->{parseBufferMap}{$fileno};
 	delete $self->{connectionHandles}{$fileno};
+	delete $self->{outputStreamMap}{$fileno};
 
 	delete $self->{proxySocketMap}{$sock};
 	delete $self->{proxySocketS2SConn}{$sock};
-	delete $self->{outputStreamMap}{$sock};
 
 	$self->{ioSelect}->remove($sock);
 	$self->log(
@@ -1013,7 +1015,7 @@ sub selectWorker {
 
 sub send {
 	my ($self, $sock, $msg) = @_;
-	$self->{outputStreamMap}{$sock} .= ref $msg ? $$msg : $msg;
+	$self->{outputStreamMap}{ $sock->fileno } .= ref $msg ? $$msg : $msg;
 	return $self;
 }
 
