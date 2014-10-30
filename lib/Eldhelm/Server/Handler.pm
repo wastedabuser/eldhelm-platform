@@ -70,6 +70,15 @@ sub finish {
 	return;
 }
 
+sub stop {
+	my ($self, $value) = @_;
+	if (defined $value) {
+		$self->{stopped} = $value;
+		return;
+	}
+	return $self->{stopped};
+}
+
 sub log {
 	my $self = shift;
 	$self->{worker}->log(@_);

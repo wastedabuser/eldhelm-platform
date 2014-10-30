@@ -128,6 +128,18 @@ sub closeConnection {
 	return;
 }
 
+sub doActionInBackground {
+	my ($self, $action, $data) = @_;
+	return $self->doJob(
+		{   job          => "handleAction",
+			action       => $action,
+			data         => $data,
+			priority     => 1,
+			connectionId => $self->{fno}
+		}
+	);
+}
+
 # =================================
 # Utility
 # =================================

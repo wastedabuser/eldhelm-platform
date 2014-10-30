@@ -15,20 +15,24 @@ sub worker {
 }
 
 sub validate {
-	my ($self, $rule) = @_;
+	my ($self, $rule)     = @_;
 	my ($time, $interval) = $self->readTime($rule);
 	return $time;
 }
 
 sub readTime {
 	my ($self, $rule) = @_;
-	my ($time, $interval) = (0);
+
+	# priority - 0 high, 1 low
+	my ($time, $interval, $priority) = (0);
 	if ($rule =~ /^(\d+)-(\d+)-(\d+)\s+(\d+):(\d+):?(\d*)$/) {
 		$time = Date_to_Time($1, $2, $3, $4, $5, $6 || 0);
 		$time = 0 if $time <= $self->curTime;
+		$priority = 1;
 	} elsif ($rule =~ /^(\d+):(\d+):?(\d*)$/) {
 		$time = Date_to_Time(Today(), $1, $2, $3 || 0);
 		$interval = [ 0, 0, 1, 0, 0, 0 ];
+		$priority = 1;
 	} elsif ($rule =~ /^(\d+)h/) {
 		$time = $self->curTime;
 		$interval = [ 0, 0, 0, $1, 0, 0 ];
@@ -42,19 +46,20 @@ sub readTime {
 		$time = $self->curTime;
 		$interval = [ 0, 0, 0, 0, 0, int($rule) ];
 	}
-	return ($time, $interval);
+	return ($time, $interval, $priority);
 }
 
 sub init {
 	my ($self) = @_;
-	my ($rule, $name, $action, $uid)   = $self->getList("shedule", "name", "action", "uid");
+	my ($rule, $name, $action, $uid) = $self->getList("shedule", "name", "action", "uid");
 	my $logRec = "$uid($name) for $rule $action";
 	$self->worker->log("Initialize shedule $logRec");
 
-	my ($time, $interval) = $self->readTime($rule);
+	my ($time, $interval, $priority) = $self->readTime($rule);
 	$self->setHash(
 		time     => $time,
 		interval => $interval,
+		priority => $priority,
 		inited   => 1,
 	);
 	unless ($time) {
@@ -82,9 +87,10 @@ sub job {
 	$self->setTime();
 
 	return {
-		job    => "handleAction",
-		action => $self->get("action"),
-		data   => $self->clone("data"),
+		job      => "handleAction",
+		action   => $self->get("action"),
+		data     => $self->clone("data"),
+		priority => $self->get("priority")
 	};
 }
 

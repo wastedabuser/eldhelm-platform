@@ -6,7 +6,7 @@ use threads::shared;
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Handler::Factory;
 use Data::Dumper;
-use Time::HiRes qw(usleep);
+use Time::HiRes qw(usleep time);
 use Carp;
 use Carp qw(longmess);
 
@@ -33,7 +33,7 @@ sub new {
 
 sub init {
 	my ($self) = @_;
-	
+	$self->{maxTaskTime} = $self->getConfig("server.logger.slowLogTime");
 }
 
 # =================================
@@ -52,7 +52,15 @@ sub run {
 			usleep(1000);
 			next;
 		}
+
+		my $taskStartTime = time;
 		$self->runTask($conn, $data);
+		my $maxTime  = $self->{maxTaskTime};
+		my $execTime = time - $taskStartTime;
+		if ($maxTime > 0 && $execTime > $maxTime) {
+			$self->log("A worker task took ".sprintf("%.4f", $execTime)." seconds: ".Dumper($data), "slow");
+		}
+
 		threads->yield();
 	}
 }
@@ -95,7 +103,7 @@ sub fetchTask {
 sub runTask {
 	my ($self, $conn, $data) = @_;
 	$self->status("action", "run");
-	my $handler = $self->createHandler($data->{proto}, %$data, worker => $self);
+	my $handler = $self->createHandler($data->{proto}, %$data);
 	if ($handler) {
 		if ($handler->{composer}) {
 			eval { $handler->setConnection($conn) };
@@ -115,7 +123,7 @@ sub runTask {
 sub createHandler {
 	my ($self, $type, %args) = @_;
 	return if !$type;
-	return $self->{handler} = Eldhelm::Server::Handler::Factory->instance($type, %args);
+	return $self->{handler} = Eldhelm::Server::Handler::Factory->instance($type, %args, worker => $self);
 }
 
 sub endTask {

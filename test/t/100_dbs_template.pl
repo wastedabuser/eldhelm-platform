@@ -236,7 +236,7 @@ ok($tpl->{tableAliases}{t2});
 ok($tpl->{tableAliases}{t3});
 ok($tpl->{tableAliases}{t4});
 
-diag("===============> test 11 - pasing subquery in FROM");
+diag("===============> test 11 - parsing subquery in FROM");
 
 $tpl->stream("SELECT 
 	DATE_FORMAT(t.start_date, '{aggregation}') battle_date,
@@ -258,3 +258,27 @@ note(Dumper $tpl->{tableAliases});
 ok(!$tpl->{tableDesc}{as});
 ok(!$tpl->{tableDesc}{id});
 ok(!$tpl->{tableDesc}{start_date});
+
+diag("===============> test 12 - parsing subquery in FROM and wildcard in SELECT");
+
+$tpl->stream("SELECT 
+	*,
+	COUNT(*) * 10 AS gold
+FROM 
+	(
+		SELECT 
+				bp.hero_id,
+				DATE(b.start_date) AS for_date
+			FROM battle_player bp, battle b
+			WHERE
+				bp.user_id = 1 AND bp.battle_id = b.id AND b.result = 'finished' AND
+				DATE(b.start_date) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+	) AS t
+WHERE
+	EXISTS(SELECT 1 FROM hero WHERE id = t.hero_id AND archive = 0) AND
+	NOT EXISTS(SELECT 1 FROM hero_daily_bonus WHERE hero_id = t.hero_id AND for_date = t.for_date)
+GROUP BY hero_id, for_date
+HAVING gold >= 100");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
+note($query);
+ok($query =~ /\*\s,/);

@@ -339,7 +339,11 @@ sub createWorker {
 	$self->{workerStats}{ $t->tid }{jobs} = 0;
 	$self->{responseQueue}{ $t->tid } = $responseQueue;
 
-	if (!$self->{reservedWorkerId}{ $t->tid } && keys %{ $self->{reservedWorkerId} } <= int($self->{workerCount} / 3)) {
+	my $reservedCount = scalar keys %{ $self->{reservedWorkerId} };
+	if (!$reservedCount) {
+		$self->{workerStats}{ $t->tid }{type} = "U";
+		$self->{reservedWorkerId}{ $t->tid } = 1;
+	} elsif ($reservedCount <= 2) {
 		$self->{workerStats}{ $t->tid }{type} = "R";
 		$self->{reservedWorkerId}{ $t->tid } = 1;
 	} else {
@@ -584,7 +588,9 @@ sub sendToSock {
 		return $data;
 	}
 	if (!defined $charCnt) {
-		$self->error("Can not write to $id($fileno)");
+
+		# some error but this case seems to be normal
+		# $self->error("Can not write to $id($fileno)");
 	} elsif ($block) {
 		$self->error("Block; Buffer full for $id($fileno)");
 		use bytes;
@@ -947,7 +953,7 @@ sub handleTransmissionFlags {
 sub delegateToWorker {
 	my ($self, $id, $data) = @_;
 
-	my $t   = $self->selectWorker($id);
+	my $t = $self->selectWorker($id, $data->{priority});
 	my $tid = $t->tid;
 	$self->log("Delegating to worker $tid: [proto:$data->{proto}; len:".($data->{len} || "")."]");
 
@@ -963,13 +969,13 @@ sub delegateToWorker {
 	return;
 }
 
+# priority - 0 high, 1 low
 sub selectWorker {
-	my ($self, $id) = @_;
+	my ($self, $id, $priority) = @_;
 
 	$self->message("select worker");
-	my ($chosen, @list);
-	$chosen = $self->{connectionWorkerMap}{$id} if $id;
 
+	my @list;
 	foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
 		my $status;
@@ -1001,7 +1007,19 @@ sub selectWorker {
 			@list);
 	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
-	@list = grep { $_->{type} ne "R" } @list if $id && @list > keys %{ $self->{reservedWorkerId} };
+	my $chosen;
+	if ($priority) {
+		@list = grep { $_->{type} eq "U" } @list;
+	} elsif ($id) {
+		$chosen = $self->{connectionWorkerMap}{$id};
+		unless ($chosen) {
+			@list = grep { !$_->{type} } @list;
+		}
+	} else {
+		my @highPriority = grep { $_->{type} ne "U" } @list;
+		@list = @highPriority if @highPriority;
+	}
+
 	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
 		unless $chosen;
 
@@ -1036,13 +1054,19 @@ sub registerConnectionEvent {
 
 sub doOtherJobs {
 	my ($self) = @_;
-	my $job;
+	my $sharedJob;
 	{
 		my $queue = $self->{jobQueue};
 		lock($queue);
 
 		return if !@$queue;
-		$job = shift @$queue;
+		$sharedJob = shift @$queue;
+	}
+
+	my $job;
+	{
+		lock($sharedJob);
+		$job = Eldhelm::Util::Tool->cloneStructure($sharedJob);
 	}
 
 	if ($job->{job} eq "gracefullRestart") {
@@ -1055,7 +1079,7 @@ sub doOtherJobs {
 		return;
 	}
 
-	$self->delegateToWorker(undef, $job);
+	$self->delegateToWorker($job->{connectionId}, $job);
 	return;
 }
 
@@ -1097,6 +1121,7 @@ sub removeWorker {
 	delete $self->{workerStatus}{$tid};
 	delete $self->{workerStats}{$tid};
 	delete $self->{responseQueue}{$tid};
+	delete $self->{reservedWorkerId}{$tid};
 	return \@jobs;
 }
 

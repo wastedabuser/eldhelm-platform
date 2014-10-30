@@ -187,11 +187,13 @@ sub respond {
 	if (my @m = $url =~ /^controller:(.+)$/) {
 		my $router = $self->router;
 
-		# create isntance to update the timeout
+		# create instance to update the timeout
 		$self->worker->getPersist($self->{get}{sessionId})
 			if $self->{get}{sessionId};
 
 		($headers, $contents) = $self->routeAction($m[0]);
+		return if $self->{stopped};
+		
 		$cont = join "", @$contents;
 
 		$self->addHeaders(@$headers) unless $router->hasErrors;
@@ -346,9 +348,17 @@ sub getCookie {
 
 sub finish {
 	my ($self) = @_;
-	$self->worker->endTask;
+	$self->worker->endTask unless $self->{stopped};
 
 	# if !$self->{headers}{Connection} eq "keep-alive";
+}
+
+sub respondContentAndFinish {
+	my ($self, $content) = @_;
+	$self->{contentType} ||= "text/html";
+	$self->worker->sendData($self->createHttpResponse($content, length $content));
+	$self->finish;
+	return;
 }
 
 # ============================
