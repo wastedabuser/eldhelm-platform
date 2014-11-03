@@ -202,11 +202,11 @@ sub checkShedule {
 			$id = $v->{uid} ||= md5_hex(rand().time);
 		}
 		my $s = $so->{$id} ||= Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Shedule", $v)->init;
-		
+
 		next unless $s->isTime;
 		$self->doJob($s->job);
 	}
-	
+
 	my @objs = keys %$so;
 	foreach (@objs) {
 		my $sobj = $so->{$_};
@@ -309,50 +309,70 @@ sub triggerConnectionEvents {
 	my ($self) = @_;
 
 	my $evs = $self->{connectionEvents};
-	lock($evs);
+	my @jobs;
+	{
+		lock($evs);
+		my @ids = keys %$evs;
+		return unless @ids;
 
-	my @ids = keys %$evs;
-	return if !@ids;
-	foreach my $id (@ids) {
-		my $triggers = $evs->{$id};
-		lock($triggers);
+		foreach my $id (@ids) {
+			my $triggers = $evs->{$id};
+			lock($triggers);
 
-		my @trigs = keys %$triggers;
-		foreach my $type (@trigs) {
-			$self->doJob(
-				{   job          => "handleConnectionEvent",
+			my @trigs = keys %$triggers;
+			foreach my $type (@trigs) {
+				push @jobs,
+					{
 					eventType    => $type,
 					eventFno     => $id,
-					eventOptions => delete $triggers->{$type},
-				}
-			);
+					eventOptions => delete $triggers->{$type}
+					};
+			}
+			delete $evs->{$id} if !keys %$triggers;
 		}
-		delete $evs->{$id} if !keys %$triggers;
+	}
+
+	foreach my $ev (@jobs) {
+		$self->doJob(
+			{   job => "handleConnectionEvent",
+				%$ev,
+			}
+		);
 	}
 }
 
 sub triggerDelayedEvents {
 	my ($self) = @_;
-	my $devs = $self->{delayedEvents};
-	lock($devs);
 
-	my @stamps = keys %$devs;
-	return if !@stamps;
-	my ($now, $list) = (time);
-	foreach my $st (@stamps) {
-		next if $now < $st;
-		$self->log("Delayed for $st");
-		next if !@{ $devs->{$st} };
-		$list = delete $devs->{$st};
-		foreach my $ev (@$list) {
-			next if $ev->{canceled};
-			$self->doJob(
-				{   job  => "handleDelayEvent",
-					data => $ev,
-				}
-			);
+	my $devs = $self->{delayedEvents};
+	my @jobs;
+	{
+		lock($devs);
+		my @stamps = keys %$devs;
+		return unless @stamps;
+
+		my $now = time;
+		foreach my $st (@stamps) {
+			next if $now < $st;
+			$self->log("Delayed for $st");
+			next unless @{ $devs->{$st} };
+			push @jobs, @{ delete $devs->{$st} };
+			$self->log("Done delayed for $st");
 		}
-		$self->log("Done delayed for $st");
+	}
+
+	foreach my $ev (@jobs) {
+		my $data;
+		{
+			lock($ev);
+			next if $ev->{canceled};
+			$data = Eldhelm::Util::Tool->cloneStructure($ev);
+		}
+		$self->doJob(
+			{   job  => "handleDelayEvent",
+				data => $data,
+			}
+		) if $data;
 	}
 }
 
@@ -364,7 +384,7 @@ sub log {
 	my ($self, $msg, $type) = @_;
 	$type ||= "general";
 	my $queue = $self->{logQueue}{$type};
-	return if !$queue;
+	return unless $queue;
 
 	lock($queue);
 	my $tm = time;

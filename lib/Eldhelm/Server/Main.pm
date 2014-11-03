@@ -34,7 +34,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info => { version => "1.4.0" },
+			info => { version => "1.4.1" },
 			config => shared_clone($args{config} || {}),
 
 			ioSocketList         => [],
@@ -61,11 +61,11 @@ sub new {
 			reservedWorkerId     => {},
 			debugMessageCount    => 0,
 			lastHeartbeat        => time,
+			jobQueue             => [],
 
 			persists       => shared_clone({}),
 			persistsByType => shared_clone({}),
 			persistLookup  => shared_clone({}),
-			jobQueue       => shared_clone([]),
 			stash          => shared_clone({}),
 			delayedEvents  => shared_clone({}),
 
@@ -309,7 +309,7 @@ sub createExecutor {
 		workerQueue   => $executorQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents jobQueue stash)
+			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents stash)
 	);
 	$self->log("Created executor: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }   = $executorQueue;
@@ -330,7 +330,7 @@ sub createWorker {
 		workerQueue   => $workerQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents jobQueue stash)
+			qw(config info logQueue connections persists persistsByType persistLookup sheduledEvents stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $workerQueue;
@@ -412,20 +412,33 @@ sub listen {
 		}
 
 		$self->message("gathering responses");
-		my %responseQueues;
+		my (%responseQueues, @delays, @delaysCancels);
 		my @tids = keys %{ $self->{responseQueue} };
 		foreach my $tid (@tids) {
 			my $tq = $self->{responseQueue}{$tid};
 			lock($tq);
 			while (@$tq) {
 				my ($id, $d) = (shift @$tq, shift @$tq);
-				if (ref $d && !$d->{file}) {
-					$self->{closeMap}{$id} = $d;
+				if (ref $d) {
+					if ($d->{proto}) {
+						push @{ $self->{jobQueue} }, $d;
+					} elsif ($d->{stamp}) {
+						push @delays, $d;
+					} elsif (defined $d->{cancelDelayId}) {
+						push @delaysCancels, $d->{cancelDelayId};
+					} elsif (!$d->{file}) {
+						$self->{closeMap}{$id} = $d;
+					} else {
+						push @{ $responseQueues{$id} }, $d;
+					}
 				} else {
 					push @{ $responseQueues{$id} }, $d;
 				}
 			}
 		}
+
+		$self->registerDelayEvent($_) foreach @delays;
+		$self->cancelDelayEvent($_)   foreach @delaysCancels;
 
 		@clients = keys %responseQueues;
 		$self->message("responses for clients: ".scalar @clients);
@@ -1052,17 +1065,50 @@ sub registerConnectionEvent {
 	}
 }
 
-sub doOtherJobs {
-	my ($self) = @_;
-	my $sharedJob;
+sub registerDelayEvent {
+	my ($self, $delay) = @_;
+	my $stamp;
 	{
-		my $queue = $self->{jobQueue};
-		lock($queue);
-
-		return if !@$queue;
-		$sharedJob = shift @$queue;
+		lock($delay);
+		$stamp = $delay->{stamp};
 	}
 
+	my $devs = $self->{delayedEvents};
+	lock($devs);
+
+	my $list = $devs->{$stamp};
+	$list = $devs->{$stamp} = shared_clone([]) unless $list;
+	push @$list, $delay;
+}
+
+sub cancelDelayEvent {
+	my ($self, $delayId) = @_;
+
+	my ($stamp, $num) = split /-/, $delayId;
+	return if !$stamp || !defined $num;
+
+	my @events;
+	my $devs = $self->{delayedEvents};
+	{
+		lock($devs);
+
+		my $list = $devs->{$stamp};
+		return unless $list;
+		@events = @$list;
+	}
+
+	foreach my $ev (@events) {
+		lock($ev);
+		next if $ev->{delayId} ne $delayId;
+		$ev->{canceled} = 1;
+	}
+}
+
+sub doOtherJobs {
+	my ($self) = @_;
+	return unless @{ $self->{jobQueue} };
+
+	my $sharedJob = shift @{ $self->{jobQueue} };
 	my $job;
 	{
 		lock($sharedJob);

@@ -236,45 +236,6 @@ sub unregisterPersistLookup {
 	return $key;
 }
 
-sub delay {
-	my ($self, $interval, $handle, $args, $persistId) = @_;
-	my $devs = $self->{delayedEvents};
-	lock($devs);
-
-	my $stamp = time + $interval;
-	my $list  = $devs->{$stamp};
-	$list = $devs->{$stamp} = shared_clone([]) if !$list;
-
-	my $num = scalar @$list;
-	push @$list,
-		shared_clone(
-		{   persistId => $persistId,
-			stamp     => $stamp,
-			handle    => $handle,
-			args      => $args,
-		}
-		);
-
-	return "$stamp-$num";
-}
-
-sub cancelDelay {
-	my ($self, $delayId) = @_;
-
-	my ($stamp, $num) = split /-/, $delayId;
-	return $self if !$stamp || !defined $num;
-
-	my $devs = $self->{delayedEvents};
-	lock($devs);
-
-	my $list = $devs->{$stamp};
-	return $self unless $list;
-
-	$list->[$num]{canceled} = 1;
-
-	return $self;
-}
-
 sub doJob {
 	my ($self, $job) = @_;
 	if (!$job->{job}) {
@@ -282,12 +243,7 @@ sub doJob {
 		return;
 	}
 
-	my $queue = $self->{jobQueue};
-	lock($queue);
-
-	push @$queue, shared_clone({ %$job, proto => "System" });
-
-	return $self;
+	return push @{ $self->{jobQueue} }, shared_clone({ %$job, proto => "System" });
 }
 
 sub doAction {
@@ -314,13 +270,13 @@ sub getShedule {
 
 sub setShedule {
 	my ($self, $name, $shedule, $action, $data) = @_;
-	
+
 	my $prevShedule = $self->getShedule($name);
 	$prevShedule->dispose if $prevShedule;
-	
+
 	my $se = $self->{sheduledEvents};
 	lock($se);
-	
+
 	$se->{$name} = shared_clone(
 		{   name    => $name,
 			shedule => $shedule,
@@ -334,17 +290,16 @@ sub setShedule {
 
 sub removeShedule {
 	my ($self, $name) = @_;
-	
+
 	my $prevShedule = $self->getShedule($name);
 	$prevShedule->dispose if $prevShedule;
-	
+
 	my $se = $self->{sheduledEvents};
 	lock($se);
 	delete $se->{$name};
-	
+
 	return $self;
 }
-
 
 # =================================
 # Utility
@@ -356,7 +311,7 @@ sub log {
 	my $queue = $self->{logQueue}{$type};
 	return if !$queue;
 	$msg = $$msg if ref $msg eq "SCALAR";
-	
+
 	lock($queue);
 	my $tm = Time::HiRes::time;
 	push @$queue, "~$tm~".($self->{id} ? "Worker $self->{id}: $msg" : $msg);

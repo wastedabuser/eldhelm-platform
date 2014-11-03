@@ -24,10 +24,9 @@ sub parseVersion {
 	my ($v, $d) = @_;
 
 	my @c = split /\./, $v;
-	@c = @c[ 0 .. $d - 1 ];
-	$_ *= 1000 foreach @c;
+	@c = @c[ 0 .. $d - 1 ] if $d;
 	my $var = "";
-	$var .= $_ foreach @c;
+	$var .= sprintf("%04d", $_) foreach @c;
 	return $var;
 }
 

@@ -24,7 +24,6 @@ sub new {
 		$self->{config}         = is_shared($args{config}) ? $args{config} : shared_clone($args{config} || {});
 		$self->{persists}       = shared_clone({});
 		$self->{persistsByType} = shared_clone({});
-		$self->{delayedEvents}  = shared_clone({});
 	}
 	return $self;
 }

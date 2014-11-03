@@ -83,6 +83,15 @@ sub router {
 	return $self->{router};
 }
 
+sub addDataToQueue {
+	my ($self, $fno, $data) = @_;
+	my $queue = $self->{responseQueue};
+	lock($queue);
+
+	push @$queue, $fno, $data;
+	return $self;
+}
+
 sub sendFile {
 	my ($self, $data, $path, $ln, $fno) = @_;
 	$self->sendData($data) if $data;
@@ -101,31 +110,27 @@ sub sendData {
 	return $self unless $data;
 
 	$fno ||= $self->{fno};
-
 	my $ln = length($data);
 	$self->log("Responding ($ln bytes) to $fno");
 
 	return $self->addDataToQueue($fno, $data);
 }
 
-sub addDataToQueue {
-	my ($self, $fno, $data) = @_;
-	my $queue = $self->{responseQueue};
-	lock($queue);
-
-	push @$queue, $fno, $data;
-	return $self;
-}
-
 sub closeConnection {
 	my ($self, $fno, $event) = @_;
 	$fno ||= $self->{fno};
-	my $ev = shared_clone($event || { initiator => "server" });
-	my $queue = $self->{responseQueue};
-	lock($queue);
-
-	push @$queue, $fno, $ev;
+	$self->addDataToQueue($fno, shared_clone($event || { initiator => "server" }));
 	return;
+}
+
+sub doJob {
+	my ($self, $job) = @_;
+	if (!$job->{job}) {
+		$self->error("Can not execute a job without a job name:\n".Dumper($job));
+		return;
+	}
+
+	return $self->addDataToQueue(undef, shared_clone({ %$job, proto => "System" }));
 }
 
 sub doActionInBackground {
@@ -138,6 +143,33 @@ sub doActionInBackground {
 			connectionId => $self->{fno}
 		}
 	);
+}
+
+sub delay {
+	my ($self, $interval, $handle, $args, $persistId) = @_;
+	return unless $handle;
+
+	my $stamp = time + $interval;
+	my $id    = $stamp."-".rand();
+
+	$self->addDataToQueue(
+		undef,
+		shared_clone(
+			{   persistId => $persistId,
+				delayId   => $id,
+				stamp     => $stamp,
+				handle    => $handle,
+				args      => $args,
+			}
+		)
+	);
+
+	return $id;
+}
+
+sub cancelDelay {
+	my ($self, $delayId) = @_;
+	return $self->addDataToQueue(undef, shared_clone({ cancelDelayId => $delayId }));
 }
 
 # =================================
