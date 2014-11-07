@@ -1020,20 +1020,22 @@ sub selectWorker {
 			@list);
 	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
+	my @chooseList = @list;
 	my $chosen;
 	if ($priority) {
-		@list = grep { $_->{type} eq "U" } @list;
+		@chooseList = grep { $_->{type} eq "U" } @chooseList;
 	} elsif ($id) {
 		$chosen = $self->{connectionWorkerMap}{$id};
 		unless ($chosen) {
-			@list = grep { !$_->{type} } @list;
+			@chooseList = grep { !$_->{type} } @chooseList;
 		}
 	} else {
-		my @highPriority = grep { $_->{type} ne "U" } @list;
-		@list = @highPriority if @highPriority;
+		my @highPriority = grep { $_->{type} ne "U" } @chooseList;
+		@chooseList = @highPriority if @highPriority;
 	}
 
-	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @list ]->[0]{trd}
+	@chooseList = @list unless @chooseList;
+	$chosen = [ sort { $a->{weight} <=> $b->{weight} } @chooseList ]->[0]{trd}
 		unless $chosen;
 
 	if ($id && !$self->{connectionWorkerMap}{$id}) {
