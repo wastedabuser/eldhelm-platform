@@ -49,7 +49,7 @@ sub run {
 			next;
 		} elsif (!$data) {
 			$self->status("action", "wait");
-			usleep(1000);
+			usleep(5000);
 			next;
 		}
 

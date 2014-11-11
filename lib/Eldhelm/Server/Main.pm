@@ -363,7 +363,7 @@ sub listen {
 		($self->{ioSocketList}, $self->{ioSelect}, $self->getConfig("server"), $self->{sslClients});
 	$self->log("Eldhelm server ready and listening ...");
 
-	my $waitRest = $self->getConfig("waitOnRead") || .001;
+	my $waitRest = $self->getConfig("waitOnRead") || .01;
 	my $waitActive = $waitRest / 10;
 
 	while (1) {
