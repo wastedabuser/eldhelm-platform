@@ -78,13 +78,12 @@ sub fetchTask {
 		$self->log("Fetching (queue length $ln)");
 		$task = shift @$queue;
 	}
-	return () if !$task;
+	return () unless $task;
 
-	if ($task eq "exitWorker") {
-		print "Exitting worker ".threads->tid()." ... \n";
-		$self->status("action", "exit");
-		usleep(1000);
-		threads->exit();
+	unless (ref $task) {
+		$self->exitWorker if $task eq "exitWorker";
+		$self->reconfig   if $task eq "reconfig";
+		return ();
 	}
 
 	my $job;
@@ -131,6 +130,20 @@ sub endTask {
 	$self->log("Closing");
 	$self->closeConnection;
 	return $self;
+}
+
+sub exitWorker {
+	my ($self) = @_;
+	print "Exitting worker ".threads->tid()." ... \n";
+	$self->status("action", "exit");
+	usleep(10_000);
+	threads->exit();
+}
+
+sub reconfig {
+	my ($self) = @_;
+	print "Reconfiguring worker ".threads->tid()." ... \n";
+	$self->init;
 }
 
 1;

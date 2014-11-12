@@ -169,6 +169,11 @@ sub getController {
 	return $self->{router}->getInstance($name, data => $self->{data}, connection => $self->{connection});
 }
 
+sub routeAction {
+	my ($self, $action, $data) = @_;
+	return $self->{router}->doAction($action, $data, 1);
+}
+
 sub responseWrite {
 	my ($self, $data) = @_;
 	$self->{content} .= $data;

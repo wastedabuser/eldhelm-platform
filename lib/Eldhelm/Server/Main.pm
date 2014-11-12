@@ -209,6 +209,9 @@ sub init {
 		$self->clearCache;
 		$self->readConfig;
 		$self->configure;
+		$self->reconfigAllWorkers;
+		$self->reconfigExecutor;
+		$self->reconfigLogger;
 		print "Done\n";
 	};
 
@@ -1146,6 +1149,62 @@ sub heartbeat {
 	$self->{lastHeartbeat} = time;
 
 	$self->doAction("monitoring.heartbeat:sendHeartbeat", { message => $self->{workerStatusMessage} });
+}
+
+# =================================
+# Reconfiguring
+# =================================
+
+sub reconfigAllWorkers {
+	my ($self) = @_;
+	foreach (@{ $self->{workers} }) {
+		$self->removeWorker($_);
+	}
+}
+
+sub reconfigWorker {
+	my ($self, $t) = @_;
+	my $tid = $t->tid;
+	$self->log("Reconfiguring worker: $tid");
+
+	my @jobs;
+	{
+		my $queue = $self->{workerQueue}{$tid};
+		lock($queue);
+		@jobs   = @$queue;
+		@$queue = ("reconfig");
+	}
+	return \@jobs;
+}
+
+sub reconfigExecutor {
+	my ($self) = @_;
+
+	my $tid = $self->{executor}->tid;
+	$self->log("Reconfiguring executor: $tid");
+
+	{
+		my $queue = $self->{workerQueue}{$tid};
+		lock($queue);
+
+		@$queue = ("reconfig");
+	}
+	return;
+}
+
+sub reconfigLogger {
+	my ($self) = @_;
+
+	my $tid = $self->{logger}->tid;
+	$self->log("Reconfiguring logger: $tid");
+
+	{
+		my $queue = $self->{logQueue}{threadCmdQueue};
+		lock($queue);
+
+		@$queue = ("reconfig");
+	}
+	return;
 }
 
 # =================================

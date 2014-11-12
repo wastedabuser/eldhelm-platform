@@ -191,7 +191,7 @@ sub respond {
 		$self->worker->getPersist($self->{get}{sessionId})
 			if $self->{get}{sessionId};
 
-		($headers, $contents) = $self->routeAction($m[0]);
+		($headers, $contents) = $self->routeAction($self->{routedAction} = $m[0]);
 		return if $self->{stopped};
 		
 		$cont = join "", @$contents;

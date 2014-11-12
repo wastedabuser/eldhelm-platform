@@ -33,6 +33,11 @@ sub init {
 	my ($self) = @_;
 	$self->{$_} = $self->getConfig("server.logger.$_") foreach qw(interval logs);
 	$self->{interval} = 1000 * ($self->{interval} || 250);
+	{
+		my $lq = $self->{logQueue};
+		lock($lq);
+		$self->{queues} = [ keys %$lq ];
+	}
 }
 
 # =================================
@@ -41,54 +46,49 @@ sub init {
 
 sub run {
 	my ($self) = @_;
-	my @queues;
-	{
-		my $lq = $self->{logQueue};
-		lock($lq);
-		@queues = keys %$lq;
-	}
+	$self->status("action", "run");
 
-	my $interval = $self->{interval};
-loggermain: while (1) {
-		foreach my $q (@queues) {
+	while (1) {
+		foreach my $q (@{ $self->{queues} }) {
 			my @data = $self->fetchTask($q);
 			if ($q eq "threadCmdQueue") {
-				foreach (@data) {
-					last loggermain if $_ eq "exitWorker";
-				}
+				$self->systemTask(\@data);
 				next;
 			}
-			$self->runTask($q, @data) if @data;
+			$self->runTask($q, \@data) if @data;
 		}
-		usleep($interval);
+		usleep($self->{interval});
 	}
-
-	print "Exitting logger ...\n";
-	$self->status("action", "exit");
-	usleep(1000);
-	threads->exit();
 }
 
 sub fetchTask {
 	my ($self, $type) = @_;
 	my $queue = $self->{logQueue}{$type};
 	lock($queue);
+
 	my @data = @$queue;
 	@$queue = ();
 	return @data;
+}
 
+sub systemTask {
+	my ($self, $data) = @_;
+	foreach (@$data) {
+		$self->exitLogger  if $_ eq "exitWorker";
+		$self->reconfigure if $_ eq "reconfig";
+	}
 }
 
 sub runTask {
-	my ($self, $type, @data) = @_;
+	my ($self, $type, $data) = @_;
 	foreach my $path (@{ $self->{logs}{$type} }) {
 		if ($path eq "stdout") {
-			print $self->createRecord("$type: $_\n") foreach @data;
+			print $self->createRecord("$type: $_\n") foreach @$data;
 		} elsif ($path eq "stderr") {
-			warn $self->createRecord("$type: $_") foreach @data;
+			warn $self->createRecord("$type: $_") foreach @$data;
 		} else {
 			if (open FW, ">>$path") {
-				print FW $self->createRecord("$_\n") foreach @data;
+				print FW $self->createRecord("$_\n") foreach @$data;
 				close FW;
 			} else {
 				warn "Can not write '$path': $!";
@@ -105,6 +105,20 @@ sub createRecord {
 	(my $mk = $time - int $time) =~ s/^0.(\d{3}).*$/$1/;
 	$mk = "000" if $mk < 1;
 	return time2str("%d.%m.%Y %T ${mk}ms", $time).": $msg";
+}
+
+sub exitLogger {
+	my ($self) = @_;
+	print "Exitting logger ...\n";
+	$self->status("action", "exit");
+	usleep(10_000);
+	threads->exit();
+}
+
+sub reconfigure {
+	my ($self) = @_;
+	print "Reconfiguring logger ...\n";
+	$self->init;
 }
 
 1;
