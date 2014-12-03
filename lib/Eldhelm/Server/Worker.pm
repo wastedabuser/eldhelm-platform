@@ -121,7 +121,7 @@ sub runTask {
 
 sub createHandler {
 	my ($self, $type, %args) = @_;
-	return if !$type;
+	return unless $type;
 	return $self->{handler} = Eldhelm::Server::Handler::Factory->instance($type, %args, worker => $self);
 }
 

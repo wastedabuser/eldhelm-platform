@@ -1000,16 +1000,21 @@ sub selectWorker {
 			lock $tStatus;
 			$status = $tStatus->{action};
 		}
-		my $queueLn;
+		my ($pendingJob, $queueLn) = ("");
 		{
 			my $tQueue = $self->{workerQueue}{$tid};
 			lock $tQueue;
 			$queueLn = scalar @$tQueue;
+			my $pending = $tQueue->[0];
+			if ($queueLn) {
+				$pendingJob = ref($pending) ? $pending->[1]{proto}.":".($pending->[1]{job} || $pending->[1]{url} || $pending->[1]{content}) : $pending;
+			}
 		}
 		my %stats = (
 			tid    => $tid,
 			status => $status,
 			queue  => $queueLn,
+			pending  => $pendingJob,
 			conn   => $self->{connectionWorkerLoad}{$tid},
 			type   => $self->{workerStats}{$tid}{type},
 			trd    => $t
@@ -1019,7 +1024,7 @@ sub selectWorker {
 
 	}
 	$self->{workerStatusMessage} = join(", ",
-		map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs}\)" }
+		map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs};$_->{pending}\)" }
 			@list);
 	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
@@ -1158,7 +1163,7 @@ sub heartbeat {
 sub reconfigAllWorkers {
 	my ($self) = @_;
 	foreach (@{ $self->{workers} }) {
-		$self->removeWorker($_);
+		$self->reconfigWorker($_);
 	}
 }
 
@@ -1172,7 +1177,7 @@ sub reconfigWorker {
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
 		@jobs   = @$queue;
-		@$queue = ("reconfig");
+		push @$queue, "reconfig";
 	}
 	return \@jobs;
 }
@@ -1187,7 +1192,7 @@ sub reconfigExecutor {
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
 
-		@$queue = ("reconfig");
+		push @$queue, "reconfig";
 	}
 	return;
 }
@@ -1202,7 +1207,7 @@ sub reconfigLogger {
 		my $queue = $self->{logQueue}{threadCmdQueue};
 		lock($queue);
 
-		@$queue = ("reconfig");
+		push @$queue, "reconfig";
 	}
 	return;
 }
@@ -1221,7 +1226,7 @@ sub removeWorker {
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
 		@jobs   = @$queue;
-		@$queue = ("exitWorker");
+		push @$queue, "exitWorker";
 	}
 
 	delete $self->{workerQueue}{$tid};
@@ -1242,7 +1247,7 @@ sub removeExecutor {
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
 
-		@$queue = ("exitWorker");
+		push @$queue, "exitWorker";
 	}
 
 	delete $self->{workerQueue}{$tid};
@@ -1261,7 +1266,7 @@ sub removeLogger {
 		my $queue = $self->{logQueue}{threadCmdQueue};
 		lock($queue);
 
-		@$queue = ("exitWorker");
+		push @$queue, "exitWorker";
 	}
 
 	delete $self->{workerStatus}{$tid};
@@ -1335,7 +1340,7 @@ sub saveStateAndShutDown {
 		@persistsList = values %$persists;
 	}
 
-	print "Calling beforeSaveState on ".scalar(@persistsList)." pesrsist objects\n";
+	print "Calling beforeSaveState on ".scalar(@persistsList)." persist objects\n";
 	foreach (@persistsList) {
 		next unless $_;
 
