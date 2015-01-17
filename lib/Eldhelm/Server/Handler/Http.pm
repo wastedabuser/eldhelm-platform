@@ -122,6 +122,8 @@ sub parseContent {
 	}
 	$self->parseGet($self->{queryString});
 	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
+	
+	$self->worker->status("task", $self->{url});
 	$self->worker->log("$self->{method} $self->{url}", "access");
 }
 

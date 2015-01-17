@@ -48,7 +48,7 @@ sub run {
 		if ($conn && $conn eq "connectionError") {
 			next;
 		} elsif (!$data) {
-			$self->status("action", "wait");
+			$self->setWaitStatus;
 			usleep(5000);
 			next;
 		}
@@ -102,6 +102,7 @@ sub fetchTask {
 sub runTask {
 	my ($self, $conn, $data) = @_;
 	$self->status("action", "run");
+	$self->status("proto", $data->{proto});
 	my $handler = $self->createHandler($data->{proto}, %$data);
 	if ($handler) {
 		if ($handler->{composer}) {

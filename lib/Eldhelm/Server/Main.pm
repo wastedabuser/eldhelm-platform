@@ -994,38 +994,37 @@ sub selectWorker {
 	my @list;
 	foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
-		my $status;
+		my ($pendingJob, $status, $queueLn);
 		{
 			my $tStatus = $self->{workerStatus}{$tid};
 			lock $tStatus;
-			$status = $tStatus->{action};
+			$status     = $tStatus->{action};
+			$pendingJob = "$tStatus->{proto};$tStatus->{task}";
 		}
-		my ($pendingJob, $queueLn) = ("");
 		{
 			my $tQueue = $self->{workerQueue}{$tid};
 			lock $tQueue;
 			$queueLn = scalar @$tQueue;
-			my $pending = $tQueue->[0];
-			if ($queueLn) {
-				$pendingJob = ref($pending) ? $pending->[1]{proto}.":".($pending->[1]{job} || $pending->[1]{url} || $pending->[1]{content}) : $pending;
-			}
 		}
 		my %stats = (
-			tid    => $tid,
-			status => $status,
-			queue  => $queueLn,
-			pending  => $pendingJob,
-			conn   => $self->{connectionWorkerLoad}{$tid},
-			type   => $self->{workerStats}{$tid}{type},
-			trd    => $t
+			tid     => $tid,
+			status  => $status,
+			queue   => $queueLn,
+			pending => $pendingJob,
+			conn    => $self->{connectionWorkerLoad}{$tid},
+			type    => $self->{workerStats}{$tid}{type},
+			trd     => $t
 		);
 		$stats{weight} = $stats{queue} + $stats{conn};
 		push @list, \%stats;
 
 	}
-	$self->{workerStatusMessage} = join(", ",
-		map { "$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs};$_->{pending}\)" }
-			@list);
+	$self->{workerStatusMessage} = join(
+		", ",
+		map {
+			"$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs};$_->{pending}\)"
+			} @list
+	);
 	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
 	my @chooseList = @list;
@@ -1176,7 +1175,7 @@ sub reconfigWorker {
 	{
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
-		@jobs   = @$queue;
+		@jobs = @$queue;
 		push @$queue, "reconfig";
 	}
 	return \@jobs;
@@ -1225,7 +1224,7 @@ sub removeWorker {
 	{
 		my $queue = $self->{workerQueue}{$tid};
 		lock($queue);
-		@jobs   = @$queue;
+		@jobs = @$queue;
 		push @$queue, "exitWorker";
 	}
 
@@ -1321,7 +1320,9 @@ sub saveStateAndShutDown {
 		$wait = 0;
 		foreach my $st (values %statuses) {
 			lock($st);
-			$wait++ if $st->{action} ne "exit";
+			next if $st->{action} eq "exit";
+			print "Still running $st->{proto}:$st->{task}\n" if $st->{proto};
+			$wait++;
 		}
 	} while ($wait);
 

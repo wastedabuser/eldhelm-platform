@@ -46,17 +46,22 @@ sub new {
 sub handle {
 	my ($self) = @_;
 	my $fn = $self->{job};
-	return if !$fn;
+	return unless $fn;
+	
 	$self->$fn();
 }
 
 sub handleAction {
 	my ($self) = @_;
+	$self->worker->status("task", "handleAction:$self->{action}");
+	
 	$self->router->doAction($self->{action}, $self->{data}, 1);
 }
 
 sub handleConnectionEvent {
 	my ($self) = @_;
+	$self->worker->status("task", "handleConnectionEvent:$self->{eventType}");
+	
 	$_->trigger($self->{eventType}, $self->{eventOptions})
 		foreach $self->worker->findPersist("eventFno", $self->{eventFno});
 }
@@ -64,6 +69,7 @@ sub handleConnectionEvent {
 sub handleDelayEvent {
 	my ($self) = @_;
 	my $event = $self->{data};
+	$self->worker->status("task", "handleDelayEvent:$event->{handle}");
 
 	my $persistId = $event->{persistId};
 	if ($persistId) {
@@ -77,6 +83,8 @@ sub handleDelayEvent {
 
 sub evaluateCode {
 	my ($self) = @_;
+	$self->worker->status("task", "evaluateCode");
+	
 	confess "Nothing to evaluate" if !$self->{code};
 	eval $self->{code};
 	confess $@ if $@;

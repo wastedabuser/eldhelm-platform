@@ -49,6 +49,8 @@ sub parseContent {
 	if ($data =~ m|<([a-z_-]+)/>|) {
 		$self->{command} = $1;
 		$self->{file}    = $self->{worker}->getConfig("server.xml.$1");
+		
+		$self->worker->status("task", $self->{file});
 		$self->{worker}->log("$self->{command}: $self->{file}", "access");
 	}
 }

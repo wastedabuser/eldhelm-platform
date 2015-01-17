@@ -38,6 +38,16 @@ sub status {
 	return;
 }
 
+sub setWaitStatus {
+	my ($self) = @_;
+	my $status = $self->{workerStatus};
+	lock($status);
+	
+	$status->{action} = "wait";
+	$status->{proto} = "";
+	$status->{task} = "";
+}
+
 sub getConnection {
 	my ($self, $fno) = @_;
 

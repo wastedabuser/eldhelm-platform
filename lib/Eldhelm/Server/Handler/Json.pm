@@ -67,7 +67,7 @@ sub new {
 sub parseContent {
 	my ($self, $data) = @_;
 	my $headers = $self->{headers};
-
+	
 	if ($data) {
 		eval { $self->{json} = $self->{composer}->parse($data); };
 		if ($@) {
@@ -79,16 +79,19 @@ sub parseContent {
 	if ($self->{protocolVersion} > 1) {
 		if ($headers->{type}) {
 			my $fn = "$headers->{type}Command";
+			$self->worker->status("task", $fn);
 			eval { $self->$fn(); };
 			$self->worker->error("Error processing message: $@\n$headers") if $@;
 			return;
 		}
 		if ($headers->{id} > 0) {
+			$self->worker->status("task", $self->{json});
 			$self->acceptMessage;
 			return;
 		}
 	}
 
+	$self->worker->status("task", $self->{json});
 	$self->router->route($self->{headers}, $self->{json});
 }
 
