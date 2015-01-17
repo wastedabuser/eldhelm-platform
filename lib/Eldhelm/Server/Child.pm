@@ -33,7 +33,8 @@ sub status {
 	lock($status);
 
 	return $status->{$name} unless defined $value;
-
+	confess("Status can not be a reference!") if ref $value;
+	
 	$status->{$name} = $value;
 	return;
 }

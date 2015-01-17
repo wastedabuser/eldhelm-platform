@@ -85,13 +85,13 @@ sub parseContent {
 			return;
 		}
 		if ($headers->{id} > 0) {
-			$self->worker->status("task", $self->{json});
+			$self->worker->status("task", $data);
 			$self->acceptMessage;
 			return;
 		}
 	}
 
-	$self->worker->status("task", $self->{json});
+	$self->worker->status("task", $data);
 	$self->router->route($self->{headers}, $self->{json});
 }
 
