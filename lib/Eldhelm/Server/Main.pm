@@ -1238,7 +1238,8 @@ sub removeWorker {
 
 sub removeExecutor {
 	my ($self) = @_;
-
+	return unless $self->{executor};
+	
 	my $tid = $self->{executor}->tid;
 	$self->log("Removing executor: $tid");
 
@@ -1257,7 +1258,8 @@ sub removeExecutor {
 
 sub removeLogger {
 	my ($self) = @_;
-
+	return unless $self->{logger};
+	
 	my $tid = $self->{logger}->tid;
 	$self->log("Removing logger: $tid");
 
