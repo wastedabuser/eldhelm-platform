@@ -7,8 +7,10 @@ sub new {
 	my $self = {
 		filter => $args{filter},
 		op     => {
-			or  => "OR",
-			and => "AND",
+			or   => "OR",
+			'||' => "OR",
+			and  => "AND",
+			'&&' => "AND",
 		},
 		fn => {
 			'='  => "=",
@@ -22,7 +24,7 @@ sub new {
 			'<=' => "<=",
 			lt   => "<=",
 			'!=' => "!=",
-			ne   => "!="
+			ne   => "!=",
 		}
 	};
 	bless $self, $class;
@@ -84,7 +86,7 @@ sub compileArrayRef {
 			push @chunks, $fl->[0];
 			push @data, @{ $fl->[1] } if ref $fl->[1] eq "ARRAY";
 		}
-		return [ join(" $op ", @chunks), \@data ],;
+		return [ "(".join(" $op ", @chunks).")", \@data ],;
 	}
 	my $fn = $self->{fn}{$nm};
 	if ($fn) {

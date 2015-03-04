@@ -146,7 +146,9 @@ sub getAssocArrayByIds {
 
 sub createFilter {
 	my ($self, $filter) = @_;
-	return Eldhelm::Database::Filter->new(filter => $filter)->compile;
+	my $compiled = Eldhelm::Database::Filter->new(filter => $filter)->compile;
+	warn Dumper($compiled) if $self->{debug};
+	return $compiled;
 }
 
 sub filter {
@@ -156,7 +158,7 @@ sub filter {
 	my $filter = $self->createFilter($filter);
 	my $order  = $self->orderClause;
 	my $limit  = $self->limitClause;
-	
+
 	return $sql->fetchArray($self->createSelectQuery($what, $filter->{compiled}, $order, $limit), @{ $filter->{data} });
 }
 
