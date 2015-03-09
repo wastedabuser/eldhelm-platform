@@ -34,7 +34,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info => { version => "1.4.1" },
+			info => { version => "1.4.2" },
 			config => shared_clone($args{config} || {}),
 
 			ioSocketList         => [],

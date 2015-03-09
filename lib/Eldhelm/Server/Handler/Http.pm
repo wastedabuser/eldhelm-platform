@@ -199,8 +199,8 @@ sub respond {
 		$cont = join "", @$contents;
 
 		$self->addHeaders(@$headers) unless $router->hasErrors;
-		$self->{contentType} ||= "text/html";
-		$self->worker->sendData($self->createHttpResponse($cont, length $cont));
+		$self->{contentType} ||= "text/html; charset=UTF-8";
+		$self->worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
@@ -208,14 +208,15 @@ sub respond {
 	$path .= ($path =~ m|/$| ? "" : "/")."$self->{directoryIndex}" if -d $path;
 	unless (-f $path) {
 		$cont = $self->createStatusResponse(404, $path);
-		$self->{contentType} ||= "text/html";
-		$self->worker->sendData($self->createHttpResponse($cont, length $cont));
+		$self->{contentType} ||= "text/html; charset=UTF-8";
+		$self->worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
 	$self->{contentType} = Eldhelm::Util::Mime->getMime($path);
 	my $ln = -s $path;
-	return $self->worker->sendFile($self->createHttpResponse("", $ln), $path, $ln);
+	my $cref = "";
+	return $self->worker->sendFile($self->createHttpResponse(\$cref, $ln), $path, $ln);
 }
 
 sub routeAction {
@@ -331,6 +332,10 @@ sub setCookie {
 
 sub createHttpResponse {
 	my ($self, $cont, $ln) = @_;
+	unless ($ln) {
+		use bytes;
+		$ln = length $$cont;
+	}
 	my $info    = $self->worker->{info};
 	my @headers = (
 		"HTTP/1.0 $self->{status}",
@@ -339,7 +344,7 @@ sub createHttpResponse {
 		$self->{contentType} ? "Content-Type: $self->{contentType}" : (),
 		@{ $self->{responseHeaders} }, "\r\n",
 	);
-	return join("\r\n", @headers).($self->{method} ne "HEAD" ? $cont : "");
+	return join("\r\n", @headers).($self->{method} ne "HEAD" ? $$cont : "");
 }
 
 sub getCookie {
@@ -357,8 +362,8 @@ sub finish {
 
 sub respondContentAndFinish {
 	my ($self, $content) = @_;
-	$self->{contentType} ||= "text/html";
-	$self->worker->sendData($self->createHttpResponse($content, length $content));
+	$self->{contentType} ||= "text/html; charset=UTF-8";
+	$self->worker->sendData($self->createHttpResponse(\$content));
 	$self->finish;
 	return;
 }

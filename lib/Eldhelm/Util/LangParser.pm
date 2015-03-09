@@ -71,14 +71,16 @@ sub readFile {
 	open FR, $path or confess $!;
 	$self->{lines} = [ map { s/[\n\r]//g; $_ } <FR> ];
 	$self->{lines}[0] =~ s/^\x{ef}\x{bb}\x{bf}//;
-	Encode::_utf8_on($_) foreach @{ $self->{lines} };
+	if ($self->{utf8}) {
+		Encode::_utf8_on($_) foreach @{ $self->{lines} };
+	}
 	close FR;
 	return;
 }
 
 sub readStream {
 	my ($self, $stream) = @_;
-	Encode::_utf8_on($stream);
+	Encode::_utf8_on($stream) if $self->{utf8};
 	$self->{lines} = [ split /(?:\r\n|\n\r|\n)/, $stream ];
 	return;
 }
@@ -270,7 +272,7 @@ sub deparse {
 	$self->{wordCount}      = 0;
 	my @chunks = $self->deparseChunk($self->{syntax}, 0, $callback, "");
 	$self->{stream} = $chunks[0];
-	Encode::_utf8_off($self->{stream});
+	Encode::_utf8_off($self->{stream}) if $self->{utf8};
 	return $self->{stream};
 }
 
@@ -558,7 +560,7 @@ sub getStrokes {
 		sub {
 			my ($self, $str, $key) = @_;
 			my $value = $str;
-			Encode::_utf8_off($value);
+			Encode::_utf8_off($value) if $self->{utf8};
 			$value =~ s/\\"/"/g;
 			push @strokes,
 				{

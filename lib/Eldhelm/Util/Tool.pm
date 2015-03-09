@@ -112,6 +112,31 @@ sub toList {
 	return ref $var eq "ARRAY" ? @$var : ($var);
 }
 
+sub jsonEncode {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($data) = @_;
+	
+	if (ref $data eq "ARRAY") {
+		return "[".join(",", map { jsonEncode($_) } @$data)."]";
+	} elsif (ref $data eq "HASH") {
+		return "{".join(",", map { '"'.$_.'":'.jsonEncode($data->{$_}) } keys %$data)."}";
+	} elsif (!defined $data) {
+		return "null";
+	} elsif ($data eq "true" || $data eq "false" || Scalar::Util::looks_like_number($data)) {
+		return $data;
+	} else {
+		$data =~ s/\\/\\\\/g;
+		$data =~ s/\//\\\//g;
+		$data =~ s/"/\\"/g;
+		$data =~ s/\n/\\n/g;
+		$data =~ s/\r/\\r/g;
+		$data =~ s/\t/\\t/g;
+		$data =~ s/\f/\\f/g;
+		$data =~ s/[\b]/\\b/g;
+		return '"'.$data.'"';
+	}
+}
+
 sub utfFlagDeep {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data, $state) = @_;

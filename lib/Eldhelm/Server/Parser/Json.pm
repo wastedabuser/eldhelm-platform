@@ -14,13 +14,13 @@ sub parse {
 	my ($data) = @_;
 	Encode::_utf8_on($data);
 	my $ret = $json->decode($data);
-	return Eldhelm::Util::Tool::utfFlagDeep($ret, 0);
+	return Eldhelm::Util::Tool->utfFlagDeep($ret, 0);
 }
 
 sub encode {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data) = @_;
-	my $ret = $json->encode(Eldhelm::Util::Tool::utfFlagDeep($data, 1));
+	my $ret = $json->encode(Eldhelm::Util::Tool->utfFlagDeep($data, 1));
 	Encode::_utf8_off($ret);
 	return $ret;
 }
@@ -29,7 +29,7 @@ sub compose {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data, $options) = @_;
 	my ($jsn, $ln);
-	$jsn = encode($data) if $data;
+	$jsn = Eldhelm::Util::Tool->jsonEncode($data) if $data;
 	{
 		use bytes;
 		$ln = length($jsn) || 0;
@@ -38,7 +38,7 @@ sub compose {
 		contentLength => $ln,
 		$options ? %$options : (),
 	);
-	return '["eldhlem-json-1.1",'.encode(\%headers).']'.$jsn;
+	return '["eldhlem-json-1.1",'.Eldhelm::Util::Tool->jsonEncode(\%headers).']'.$jsn;
 }
 
 sub encodeFixNumbers {
