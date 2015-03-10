@@ -41,7 +41,7 @@ sub loadUrl {
 	if ($response->is_success) {
 		return $response->content;
 	} else {
-		die $response->status_line;
+		die $response->status_line.": $url";
 	}
 }
 

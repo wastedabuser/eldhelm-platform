@@ -29,7 +29,12 @@ sub compileWithFolder {
 
 sub compileWithParams {
 	my ($self, $params) = @_;
-	return $self->compile(undef, join("&", $self->{queryString} || (), map { "$_=".$self->urlencode($params->{$_}) } keys %{$params}));
+	return $self->compile(
+		undef,
+		join("&",
+			$self->{queryString} || (),
+			map { "$_=".$self->urlencode($params->{$_}) } sort { $a cmp $b } keys %{$params})
+	);
 }
 
 sub compile {
@@ -42,9 +47,9 @@ sub compile {
 
 sub urlencode {
 	my ($self, $str) = @_;
-    $str =~ s/ /+/g;
-    $str =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
-    return $str;
+	$str =~ s/ /+/g;
+	$str =~ s/([^A-Za-z0-9\+-])/sprintf("%%%02X", ord($1))/seg;
+	return $str;
 }
 
 1;
