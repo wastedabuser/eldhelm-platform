@@ -1,0 +1,168 @@
+{
+	# mysql setup
+	# remove if you do not plan to use mysql
+	mysql => {
+		_default => {
+			user    => "",
+			pass    => "",
+			dbs     => "",
+			address => "127.0.0.1",
+		}
+	},
+	
+	# mailing setup
+	# remove if you do not plan to use mailing
+	mail => {
+		name    => "Your company",
+		from    => 'noreply@essenceworks.com',
+		subject => "Default subject: %s",
+		smtp    => {
+			hello => "essenceworks.com",
+			host  => 'email-smtp.us-east-1.amazonaws.com',
+			user => 'AKIAJT6B5VWP5WKHOAHA',
+			pass => 'AhvDwCix0Jl3eutYQ8O0Vq44anR1yOxG7se4J6p7RRrj',
+			port => 587,
+		},
+		imap => {
+			host => 'imap.essenceworks.com',
+			user => 'noreply+essenceworks.com',
+			pass => '+q%OtIvP6X1q?&kf0',
+			port => 993,
+		},
+		adminMail            => 'a.glavchev@essenceworks.com',
+		globalTemplateParams => {
+			DOMAIN      => "127.0.0.1"
+		}
+	},
+	
+	# server setup
+	server => {
+		name       => "eldhelm",
+		tmp        => "path to temp dir",
+		home       => "path to user home dir",
+		serverHome => "path to server star script dir",
+
+		host   => "auto",
+		port   => 80,
+		listen => [
+		
+			# add additional port
+			#{ port => 12345 },
+			
+			# add additional host
+			# {	host => "127.0.0.1",
+			#	port => 12345
+			# },
+		
+			# ssl setup
+			# {	port => 443,
+			#	ssl  => {
+			#		SSL_key_file  => "server.key",
+			#		SSL_cert_file => "server.crt",
+			# 	}
+			# },
+		],
+		workerCount       => 4,
+		acceptProtocols   => [ "Http", "Json", "Base64", "Xml", "System" ],
+		connectionTimeout => 600,
+		keepaliveInterval => 20,
+		garbageCollect => { persists => 5 * 60 },
+
+		# send a heartbeat message to another server
+		# monitoring     => {
+		# 	heartbeat => {
+		# 		interval => 5,
+		# 			host     => "127.0.0.1",
+		# 			port     => "11111"
+		# 		}
+		# },
+		
+		logger => {
+			interval    => 1000,
+			path        => "path to log dir log",
+			slowLogTime => 1,
+			logs        => {
+				# general	=> ["stdout"], # displays server worker queues
+				# receive	=> ["stdout"], # logs received messages
+				access 		=> ["stdout"], # logs access to files and controllers
+				error       => ["stderr"], # logs errors
+				debug       => ["full path to debug.log"], # logs debug messages
+				slow        => ["full path to slow.log"], # logs slow worker tasks
+			},
+		},
+		
+		# if you use Eldhelm sessions
+		session => {
+			timeout     => 5 * 60,
+			httpTimeout => 12 * 60 * 60,
+		},
+		
+		# if you use flash sockets
+		xml  => { "policy-file-request" => "crossdomain.xml" },
+		
+		# if you use http protocol
+		http => {
+			documentRoot    => "path to http document root",
+			directoryIndex  => "index.html",
+			rewriteUrlCache => 0,
+			rewriteUrl      => [
+			
+				# here are some examples
+
+				# admin panel
+				# [ "^([a-z0-9]{32})/(admin|affiliate)/(.+)/(\\d+)",  'controller:$2.$3', 'sessionId=$1&id=$4' ],
+				# [ "^([a-z0-9]{32})/(backend|admin|affiliate)/(.+)", 'controller:$2.$3', 'sessionId=$1' ],
+				# [ "^backend/(.+)",                                  'controller:backend.$1' ],
+				# [ "^(?:backend|admin)",                             'controller:backend.login' ],
+
+				# default fallbacks
+				# [ '^([a-z]+)/([a-z]{2})$', 'controller:$1.index', 'lang=$2' ],
+				# [ '^([a-z]{2})$',          'controller:index',    'lang=$1' ],
+			],
+			
+			# how to handle 401 status 
+			statusHandlers => [ [ 401, "backend.login" ], ],
+			
+			# virtual hosting
+			host => {
+				# add a virtual host
+				# "chrome.eldhelm.com" => { rewriteUrl => [ [ "", "controller:index" ], ] },
+			}
+		},
+		
+		# json and base64 protocols
+		json   => { handlers => { deviceInfo => ["auth:recordAnalytic"], }, },
+		
+		# router setup
+		router => {
+			defaultMethod => "index",
+			actions       => [
+				# action filters
+				# [ "^admin",           "before:all", "admin.root:checkUserRank" ],
+			],
+			# events => { initializeLogin => [ "call something" ] }
+		},
+		
+		# sheduled tasks
+		shedule => {
+			action => [
+				# sheduled events
+				# [ "12:00", "currency:syncRates" ],
+				# [ "6h", "currency:syncRates" ],
+				# [ "5m", "currency:syncRates" ],
+			],
+			namedAction => {
+				# named sheduled events - manipulate them at runtime
+				# slayTheBeast => [ "15m", "currency:syncRates" ] 
+			}
+		},
+		
+		# server handlers
+		handlers => {
+			start => [
+				# call this at server startup
+				# ["auth:checkDeadSessions"],
+			]
+		}
+	}
+}

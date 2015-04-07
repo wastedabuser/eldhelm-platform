@@ -1,0 +1,20 @@
+use strict;
+
+use Eldhelm::Server::Main;
+use Eldhelm::Util::CommandLine;
+
+my $cmd = Eldhelm::Util::CommandLine->new(
+	argv => \@ARGV,
+	items => [qw[opt kur bate]],
+	options =>
+		[ [ "h help", "this help text" ], [ "configPath", "a path to the configuration file config.pl by default" ], ]
+);
+
+my %args = $cmd->arguments;
+
+if ($args{h} || $args{help}) {
+	print $cmd->usage;
+	exit;
+}
+
+Eldhelm::Server::Main->new(%args)->start;

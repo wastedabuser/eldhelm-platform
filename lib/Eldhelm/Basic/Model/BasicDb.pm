@@ -117,7 +117,7 @@ sub getListByIds {
 	my $sql   = $self->{dbPool}->getDb;
 	my $what  = $self->chooseFields($fields) || "t.*";
 	my $order = $self->orderClause;
-	return $sql->fetchArray($self->createSelectQuery($what, "id IN (".join(",", map { "?" } @$list).")", $order),
+	return $sql->fetchArray($self->createSelectQuery($what, "`".$self->{pkFields}[0]."` IN (".join(",", map { "?" } @$list).")", $order),
 		@$list);
 }
 

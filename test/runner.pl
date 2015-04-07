@@ -6,8 +6,8 @@ use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
-	argv  => \@ARGV,
-	usage => [
+	argv    => \@ARGV,
+	options => [
 		[ "all",      "runs all avaialbale tests" ],
 		[ "platform", "runs platform test only" ],
 		[ "product",  "runs product test only" ],
