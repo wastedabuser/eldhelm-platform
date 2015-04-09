@@ -115,9 +115,9 @@ sub init {
 sub parseContent {
 	my ($self, $content) = @_;
 	my $ct = $self->{headers}{'Content-Type'};
-	if ($ct =~ m|application/x-www-form-urlencoded|) {
+	if (index($ct, "application/x-www-form-urlencoded") >= 0) {
 		$self->parsePostUrlencoded($content);
-	} elsif ($ct =~ m|application/json|) {
+	} elsif (index($ct, "application/json") >= 0) {
 		$self->parsePostJson($content);
 	}
 	$self->parseGet($self->{queryString});

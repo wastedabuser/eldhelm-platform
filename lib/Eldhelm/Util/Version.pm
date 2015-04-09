@@ -2,6 +2,41 @@ package Eldhelm::Util::Version;
 
 use strict;
 
+sub greaterThan {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($v1, $v2, $d) = @_;
+	
+	return compare($v1, $v2, $d) > 0;
+}
+
+sub lessThan {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($v1, $v2, $d) = @_;
+	
+	return compare($v1, $v2, $d) < 0;
+}
+
+sub greaterOrEqThan {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($v1, $v2, $d) = @_;
+	
+	return compare($v1, $v2, $d) >= 0;
+}
+
+sub lessOrEqThan {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($v1, $v2, $d) = @_;
+	
+	return compare($v1, $v2, $d) <= 0;
+}
+
+sub equal {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($v1, $v2, $d) = @_;
+	
+	return compare($v1, $v2, $d) == 0;
+}
+
 sub compare {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($v1, $v2, $d) = @_;
