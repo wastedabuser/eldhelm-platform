@@ -26,6 +26,12 @@ sub createSelectQuery {
 	return "SELECT $what FROM `$self->{table}` t WHERE $where $order $limit";
 }
 
+sub createDeleteQuery {
+	my ($self, $where, $limit) = @_;
+
+	return "DELETE FROM `$self->{table}` t WHERE $where $limit";
+}
+
 sub chooseFields {
 	my ($self, $fields) = @_;
 	if (ref $fields eq "ARRAY") {
@@ -117,7 +123,8 @@ sub getListByIds {
 	my $sql   = $self->{dbPool}->getDb;
 	my $what  = $self->chooseFields($fields) || "t.*";
 	my $order = $self->orderClause;
-	return $sql->fetchArray($self->createSelectQuery($what, "`".$self->{pkFields}[0]."` IN (".join(",", map { "?" } @$list).")", $order),
+	return $sql->fetchArray(
+		$self->createSelectQuery($what, "`".$self->{pkFields}[0]."` IN (".join(",", map { "?" } @$list).")", $order),
 		@$list);
 }
 
@@ -195,6 +202,15 @@ sub remove {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
 	$sql->deleteRow($self->{table}, $data);
+}
+
+sub removeByFilter {
+	my ($self, $filter, $fields) = @_;
+	my $sql    = $self->{dbPool}->getDb;
+	my $filter = $self->createFilter($filter);
+	my $limit  = $self->limitClause;
+
+	return $sql->query($self->createDeleteQuery($filter->{compiled}, $limit), @{ $filter->{data} });
 }
 
 sub countAll {
