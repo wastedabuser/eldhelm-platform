@@ -36,7 +36,7 @@ sub addFields {
 	foreach (@$list) {
 		confess "Unknown field type $_->{type}" unless $_->{type};
 		my $fn = "create".ucfirst($_->{type});
-		$self->add($self->$fn($_));
+		$self->add($self->$fn($_, $_->{_items}));
 	}
 }
 

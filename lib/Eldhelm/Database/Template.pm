@@ -801,6 +801,7 @@ sub compileFilters {
 	my ($self, $name) = @_;
 	return if !$name;
 	my $query = $self->{filterPlaceholders}{$name};
+	$query =~ s/\{(.+?)\}/$self->{placeholders}{$1}/ge;
 	return unless exists $self->{conditions}{$name};
 	return $query if $query !~ /\?/;
 	my $values = $self->{conditions}{$name};
