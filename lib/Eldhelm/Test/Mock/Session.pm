@@ -13,6 +13,7 @@ sub new {
 	my ($class, %args) = @_;
 	my $self = Eldhelm::Basic::Persist->new(
 		persistType => __PACKAGE__,
+		connected => 1,
 		%args,
 		sayData => [],
 	);
@@ -34,6 +35,11 @@ sub nextSayData {
 sub clearSayData {
 	my ($self) = @_;
 	@{ $self->{sayData} } = ();
+}
+
+sub connected {
+	my ($self) = @_;
+	return $self->{connected};
 }
 
 1;
