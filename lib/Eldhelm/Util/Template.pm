@@ -138,7 +138,7 @@ sub _interpolate_var {
 
 sub _interpolate_function {
 	my ($self, $fnm, $name, $query) = @_;
-	my $name = "_function_$fnm";
+	$name = "_function_$fnm";
 	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
 	return $self->$name(%params ? \%params : $query);
 }

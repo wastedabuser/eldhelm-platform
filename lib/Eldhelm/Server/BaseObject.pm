@@ -41,11 +41,11 @@ sub set {
 	my ($self, $key, $value) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
+	my ($var, $rkey) = $self->getRefByNotation($key);
 	if (ref($value) && !is_shared($value)) {
-		$var->{$key} = shared_clone($value);
+		$var->{$rkey} = shared_clone($value);
 	} else {
-		$var->{$key} = $value;
+		$var->{$rkey} = $value;
 	}
 	return $self;
 }
@@ -62,8 +62,8 @@ sub get {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return $var->{$rkey};
 }
 
 sub getList {
@@ -98,8 +98,8 @@ sub remove {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return delete $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return delete $var->{$rkey};
 }
 
 sub removeList {
@@ -116,37 +116,37 @@ sub inc {
 	my ($self, $key, $amount) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return $var->{$key} += $amount || 1;
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return $var->{$rkey} += $amount || 1;
 }
 
 sub dec {
 	my ($self, $key, $amount) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return $var->{$key} -= $amount || 1;
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return $var->{$rkey} -= $amount || 1;
 }
 
 sub pushItem {
 	my ($self, $key, $item) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
+	my ($var, $rkey) = $self->getRefByNotation($key);
 	return unless ref $var;
 
-	$var->{$key} ||= [];
-	return push @{ $var->{$key} }, shared_clone($item);
+	$var->{$rkey} ||= [];
+	return push @{ $var->{$rkey} }, shared_clone($item);
 }
 
 sub grepArrayref {
 	my ($self, $key, $fn, @options) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return unless ref $var && ref $var->{$key} eq "ARRAY";
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return unless ref $var && ref $var->{$rkey} eq "ARRAY";
 
-	my $list = $var->{$key};
+	my $list = $var->{$rkey};
 	@$list = grep { $fn->($_, @options) } @$list;
 
 	return $list;
@@ -156,13 +156,13 @@ sub clearArrayref {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
+	my ($var, $rkey) = $self->getRefByNotation($key);
 	return $self unless ref $var;
 
-	if (ref $var->{$key} eq "ARRAY") {
-		@{ $var->{$key} } = ();
+	if (ref $var->{$rkey} eq "ARRAY") {
+		@{ $var->{$rkey} } = ();
 	} else {
-		$var->{$key} = shared_clone([]);
+		$var->{$rkey} = shared_clone([]);
 	}
 
 	return $self;
@@ -172,18 +172,18 @@ sub scalarArrayref {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	return unless ref $var && ref $var->{$key} eq "ARRAY";
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return unless ref $var && ref $var->{$rkey} eq "ARRAY";
 
-	return scalar @{ $var->{$key} };
+	return scalar @{ $var->{$rkey} };
 }
 
 sub getHashrefHash {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	my $ref = $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	my $ref = $var->{$rkey};
 	return () if ref $ref ne "HASH";
 
 	return %$ref;
@@ -195,8 +195,8 @@ sub getHashrefKeys {
 
 	return keys(%$self) unless $key;
 	
-	my ($var, $key) = $self->getRefByNotation($key);
-	my $ref = $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	my $ref = $var->{$rkey};
 	return () if ref $ref ne "HASH";
 
 	return keys %$ref;
@@ -206,8 +206,8 @@ sub getHashrefValues {
 	my ($self, $key, $keysList) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	my $ref = $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	my $ref = $var->{$rkey};
 	return () if ref $ref ne "HASH";
 
 	if (ref $keysList eq "ARRAY") {
@@ -221,8 +221,8 @@ sub clone {
 	my ($self, $key) = @_;
 	lock($self);
 
-	my ($var, $key) = $self->getRefByNotation($key);
-	my $ref = $var->{$key};
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	my $ref = $var->{$rkey};
 
 	return Eldhelm::Util::Tool->cloneStructure($ref);
 }

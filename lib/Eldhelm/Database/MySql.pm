@@ -149,10 +149,10 @@ sub descHash {
 sub getColumnAndFkInfo {
 	my ($self, $table) = @_;
 	if (!$self->{colAndFkInfoCache}{$table}) {
-		my $dbh     = $self->dbh;
-		my $sth     = $dbh->column_info(undef, $self->{dbs}, $table, "%");
-		my $list    = $sth->fetchall_arrayref({});
-		my $sth     = $dbh->foreign_key_info(undef, undef, undef, undef, $self->{dbs}, $table);
+		my $dbh  = $self->dbh;
+		my $sth  = $dbh->column_info(undef, $self->{dbs}, $table, "%");
+		my $list = $sth->fetchall_arrayref({});
+		$sth = $dbh->foreign_key_info(undef, undef, undef, undef, $self->{dbs}, $table);
 		my $allKeys = $sth->fetchall_arrayref({});
 
 		my %fks;

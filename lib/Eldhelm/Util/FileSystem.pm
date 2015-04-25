@@ -18,9 +18,11 @@ sub readFileList {
 	my ($path) = @_;
 	$path ||= "./";
 	opendir DIR, $path or confess "Can not open dir '$path': $@";
-	my @files = map { join "/", $path || (), $_ } grep { $_ !~ /^\./ && -f join("/", $path || (), $_) } readdir DIR;
+	my @list = map { join "/", $path || (), $_ } grep { $_ !~ /^\./ } readdir DIR;
+	my @files = grep { -f $_ } @list;
+	my @dirs = grep { -d $_ } @list;
 	closedir DIR;
-	return @files;
+	return @files, map { readFileList($_) } @dirs;
 }
 
 1;

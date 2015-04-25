@@ -21,7 +21,7 @@ if (!@ARGV) {
 }
 
 my %ops = $cmd->arguments;
-my $harness = TAP::Harness->new({ verbosity => $ops{dump} || 0, });
+my $harness = TAP::Harness->new({ verbosity => $ops{dump} || 0 });
 
 my @defaultPats;
 push @defaultPats, "t"            if $ops{platform} || $ops{all};
