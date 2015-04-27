@@ -5,6 +5,7 @@ use Eldhelm::Basic::View;
 use Eldhelm::Database::Pool;
 use Eldhelm::Util::Tool;
 use Eldhelm::Server::Parser::Json;
+use Eldhelm::Basic::Script;
 use Data::Dumper;
 use Carp;
 
@@ -223,6 +224,11 @@ sub getModel {
 	my ($self, $model, $args) = @_;
 	$args ||= {};
 	return Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::Model", $model, %$args);
+}
+
+sub getScript {
+	my ($self, $script) = @_;
+	return Eldhelm::Basic::Script->new(file => $script);
 }
 
 sub log {
