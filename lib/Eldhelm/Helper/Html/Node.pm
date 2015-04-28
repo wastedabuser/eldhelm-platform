@@ -41,12 +41,15 @@ sub compileNode {
 	} elsif (!ref $props) {
 		$content = $props;
 		$inline = 1 if $content !~ /\n/;
+	} elsif (ref $content eq "ARRAY") {
+		$content = compileRef($content, $level + 1);
 	}
 	
 	my $compiledProps;
 	$compiledProps = " ".join " ", map { qq~$_="~.enc($props->{$_}).'"' } keys %$props if ref $props eq "HASH";
 	
 	my $idn = join("", map { "\t" } 1 .. $level );
+	return $idn.$content unless $name;
 	return "$idn<$name$compiledProps>$content</$name>" if $inline;
 	return "$idn<$name$compiledProps>\n$content\n$idn</$name>";	
 }

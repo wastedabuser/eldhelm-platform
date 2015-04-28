@@ -8,10 +8,12 @@ use Eldhelm::Helper::Html::Node;
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
-		id    => $args{id}    || "form".int(rand() * 100_000),
-		items => $args{items} || [],
+		id         => $args{id}         || "form".int(rand() * 100_000),
+		items      => $args{items}      || [],
+		class      => $args{class},
+		wrapperTag => $args{wrapperTag} || "form",
 		action     => $args{action},
-		method     => $args{method} || "post",
+		method     => $args{method}     || "post",
 		formValues => $args{formValues} || {},
 	};
 	bless $self, $class;
@@ -25,10 +27,13 @@ sub compile {
 	my ($self) = @_;
 
 	my $items = join "\n", map { "\t<p>$_</p>" } @{ $self->{items} };
+	my $attributes = join " ",
+		map  { qq~$_="~.Eldhelm::Helper::Html::Node->enc($self->{$_}).'"' }
+		grep { $self->{$_} } qw(id action method class);
 
-	return qq~<form action="$self->{action}" id="$self->{id}" method="$self->{method}">
+	return qq~<$self->{wrapperTag} $attributes>
 $items
-</form>~;
+</$self->{wrapperTag}>~;
 }
 
 sub addFields {
@@ -61,7 +66,7 @@ sub createLabel {
 sub createInput {
 	my ($self, $args) = @_;
 	$args->{_tag} ||= "input";
-	$args->{id}   ||= "$self->{id}-$args->{name}" if $args->{name};
+	$args->{id} ||= "$self->{id}-$args->{name}" if $args->{name};
 	return
 		 $self->createLabel($args)
 		."<$args->{_tag} "
