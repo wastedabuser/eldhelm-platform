@@ -19,14 +19,14 @@ sub template {
 	my ($self, $args) = @_;
 	my $sql = $self->{dbPool}->getDb;
 	return Eldhelm::Database::Template->new(sql => $sql, %$args) if ref $args eq "HASH";
-	
+
 	return Eldhelm::Database::Template->new(
 		sql          => $sql,
 		file         => $args,
 		placeholders => $self->{defaultPlacehoders},
 		filter       => $self->{defaultFilter}
 	) if $args =~ /^[a-z0-9_\-\.]+$/i;
-	
+
 	return Eldhelm::Database::Template->new(
 		sql          => $sql,
 		stream       => $args,
@@ -98,13 +98,18 @@ sub getKeyValue {
 }
 
 sub filterArray {
-	my ($self, $template, $filter) = @_;
-	return $self->getArray($template, { filter => $filter });
+	my ($self, $template, $filter, @more) = @_;
+	return $self->getArray($template, { filter => $filter }, @more);
+}
+
+sub filterAssocArray {
+	my ($self, $template, $filter, @more) = @_;
+	return $self->getAssocArray($template, { filter => $filter }, @more);
 }
 
 sub filterArrayOfArrays {
-	my ($self, $template, $filter) = @_;
-	return $self->getArrayOfArrays($template, { filter => $filter });
+	my ($self, $template, $filter, @more) = @_;
+	return $self->getArrayOfArrays($template, { filter => $filter }, @more);
 }
 
 1;
