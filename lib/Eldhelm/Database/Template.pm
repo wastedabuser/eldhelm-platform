@@ -128,7 +128,7 @@ sub analyze {
 	$self->{filterPlaceholders} = { $self->{stream} =~ m/\[(\w+)[\s\n\r\t]*(.*?)[\s\n\r\t]*\]/gs };
 	$self->{stream} =~ s/\[(\w+).*?\]/[$1]/gs;
 
-	$self->extend(join "/", $self->{path} || (), $placeholders->{extends})
+	$self->extend($placeholders->{extends})
 		if $placeholders->{extends};
 
 	return;
