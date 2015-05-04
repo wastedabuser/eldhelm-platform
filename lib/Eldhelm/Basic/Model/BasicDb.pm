@@ -186,6 +186,13 @@ sub filterKeyValue {
 	return Eldhelm::Util::Tool->assocKeyValue($self->filter($filter, $fields), $key);
 }
 
+sub filterScalar {
+	my ($self, $filter, $field) = @_;
+	my $row = $self->filterOne($filter, [$field]);
+	return unless $row;
+	return $row->{$field};
+}
+
 sub save {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
