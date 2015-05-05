@@ -197,7 +197,8 @@ sub prepareFields {
 sub prepareWhere {
 	my ($self, $where) = @_;
 	my (@filter, @fValues);
-	while (my ($k, $v) = each %$where) {
+	foreach my $k (keys %$where) {
+		my $v = $where->{$k};
 		if (defined $v) {
 			push @filter,  "`$k`=?";
 			push @fValues, $v;

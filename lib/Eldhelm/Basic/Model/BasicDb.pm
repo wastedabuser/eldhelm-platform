@@ -37,12 +37,9 @@ sub chooseFields {
 	if (ref $fields eq "ARRAY") {
 		return join ",", map { "t.`$_`" } @$fields;
 	} elsif (ref $fields eq "HASH") {
-		my @list;
-		while (my ($k, $v) = each %$fields) {
-			push @list, "t.`$k` AS $v";
-		}
-		return join ",", @list;
+		return join ",", map { "t.`$_` AS ".$fields->{$_} } keys %$fields;
 	}
+	return "";
 }
 
 sub fieldList {

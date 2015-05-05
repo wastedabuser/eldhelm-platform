@@ -59,8 +59,9 @@ sub compileRef {
 sub compileHashRef {
 	my ($self, $filter) = @_;
 	my (@where, @data);
-	while (my ($k, $v) = each %$filter) {
-		$k = $self->compileVar($k);
+	foreach (keys %$filter) {
+		my $k = $self->compileVar($_);
+		my $v = $filter->{$_};
 		if (ref $v eq "ARRAY") {
 			push @where, "`$k` IN (".join(",", map { "?" } @$v).")";
 			push @data, @$v;
