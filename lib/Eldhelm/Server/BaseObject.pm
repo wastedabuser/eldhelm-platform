@@ -234,4 +234,15 @@ sub doFn {
 	return $fn->($self, @options);
 }
 
+sub setWhenFalse {
+	my ($self, $key, $value) = @_;
+	lock($self);
+	
+	my ($var, $rkey) = $self->getRefByNotation($key);
+	return $var->{$rkey} if $var->{$rkey};
+	
+	$var->{$rkey} = $value || 1;
+	return;
+}
+
 1;
