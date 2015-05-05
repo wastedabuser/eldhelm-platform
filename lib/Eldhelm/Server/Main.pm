@@ -970,6 +970,8 @@ sub delegateToWorker {
 	my ($self, $id, $data) = @_;
 
 	my $t = $self->selectWorker($id, $data->{priority});
+	return unless $t;
+	
 	my $tid = $t->tid;
 	$self->log("Delegating to worker $tid: [proto:$data->{proto}; len:".($data->{len} || "")."]");
 
@@ -990,7 +992,8 @@ sub selectWorker {
 	my ($self, $id, $priority) = @_;
 
 	$self->message("select worker");
-
+	return unless @{ $self->{workers} };
+	
 	my @list;
 	foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
@@ -1115,7 +1118,7 @@ sub cancelDelayEvent {
 
 sub doOtherJobs {
 	my ($self) = @_;
-	return unless @{ $self->{jobQueue} };
+	return if !$self->{jobQueue} || !@{ $self->{jobQueue} };
 
 	my $sharedJob = shift @{ $self->{jobQueue} };
 	my $job;
@@ -1312,6 +1315,7 @@ sub saveStateAndShutDown {
 
 	$self->removeExecutor;
 	$self->removeWorker($_) foreach @{ $self->{workers} };
+	@{ $self->{workers} } = ();
 	$self->removeLogger;
 
 	# wait for all workers to stop
@@ -1355,8 +1359,6 @@ sub saveStateAndShutDown {
 
 	my $data = {};
 	foreach (qw(stash persists persistsByType persistLookup delayedEvents jobQueue)) {
-
-		# $data->{$_} = Eldhelm::Util::Tool::cloneStructure($self->{$_});
 		$data->{$_} = $self->{$_};
 		delete $self->{$_};
 	}
