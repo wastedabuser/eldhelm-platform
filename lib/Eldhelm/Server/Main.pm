@@ -419,6 +419,8 @@ sub listen {
 		my @tids = keys %{ $self->{responseQueue} };
 		foreach my $tid (@tids) {
 			my $tq = $self->{responseQueue}{$tid};
+			next unless $tq;
+
 			lock($tq);
 			while (@$tq) {
 				my ($id, $d) = (shift @$tq, shift @$tq);
@@ -971,7 +973,7 @@ sub delegateToWorker {
 
 	my $t = $self->selectWorker($id, $data->{priority});
 	return unless $t;
-	
+
 	my $tid = $t->tid;
 	$self->log("Delegating to worker $tid: [proto:$data->{proto}; len:".($data->{len} || "")."]");
 
@@ -993,19 +995,23 @@ sub selectWorker {
 
 	$self->message("select worker");
 	return unless @{ $self->{workers} };
-	
+
 	my @list;
 	foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
 		my ($pendingJob, $status, $queueLn);
 		{
 			my $tStatus = $self->{workerStatus}{$tid};
+			next unless $tStatus;
+
 			lock $tStatus;
 			$status     = $tStatus->{action};
 			$pendingJob = "$tStatus->{proto};$tStatus->{task}";
 		}
 		{
 			my $tQueue = $self->{workerQueue}{$tid};
+			next unless $tQueue;
+
 			lock $tQueue;
 			$queueLn = scalar @$tQueue;
 		}
@@ -1022,11 +1028,13 @@ sub selectWorker {
 		push @list, \%stats;
 
 	}
+	return unless @list;
+
 	$self->{workerStatusMessage} = join(
 		", ",
 		map {
 			"$_->{tid}$_->{type}:$_->{status}q$_->{queue}c$_->{conn}\($self->{workerStats}{$_->{tid}}{jobs};$_->{pending}\)"
-			} @list
+		} @list
 	);
 	$self->log("Worker load: [$self->{workerStatusMessage}]");
 
@@ -1242,7 +1250,7 @@ sub removeWorker {
 sub removeExecutor {
 	my ($self) = @_;
 	return unless $self->{executor};
-	
+
 	my $tid = $self->{executor}->tid;
 	$self->log("Removing executor: $tid");
 
@@ -1262,7 +1270,7 @@ sub removeExecutor {
 sub removeLogger {
 	my ($self) = @_;
 	return unless $self->{logger};
-	
+
 	my $tid = $self->{logger}->tid;
 	$self->log("Removing logger: $tid");
 
