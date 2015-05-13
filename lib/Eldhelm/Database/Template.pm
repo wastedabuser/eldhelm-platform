@@ -96,7 +96,7 @@ sub stream {
 
 sub parse {
 	my ($self) = @_;
-	return if !$self->{stream};
+	return unless $self->{stream};
 
 	$self->applyPlaceholders;
 

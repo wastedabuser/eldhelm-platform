@@ -37,6 +37,7 @@ sub new {
 			info => { version => "1.4.2" },
 			config => shared_clone($args{config} || {}),
 
+			endMainLoopCounter   => -1,
 			ioSocketList         => [],
 			workers              => [],
 			workerQueue          => {},
@@ -193,19 +194,23 @@ sub init {
 
 	$SIG{INT} = sub {
 		my $sig = shift @_;
-		print "Server shutting down by INT signal\n";
-		$self->saveStateAndShutDown;
+		print "Received INT signal\n";
+
+		$self->callSaveStateHandler;
 	};
 
 	$SIG{TERM} = sub {
 		my $sig = shift @_;
-		print "Server shutting down by TERM signal\n";
-		$self->saveStateAndShutDown;
+		print "Received TERM signal\n";
+
+		$self->callSaveStateHandler;
 	};
 
 	$SIG{HUP} = sub {
 		my $sig = shift @_;
-		print "Server clearing cache and re-reading configuration after HUP signal ...\n";
+		print "Received HUP signal\n";
+
+		print "Server clearing cache and re-reading configuration ...\n";
 		$self->clearCache;
 		$self->readConfig;
 		$self->configure;
@@ -370,13 +375,13 @@ sub listen {
 	my $waitActive = $waitRest / 10;
 
 	while (1) {
+		last unless $self->{endMainLoopCounter};
+		$self->{endMainLoopCounter}-- if $self->{endMainLoopCounter} > 0;
 
 		$self->message("will read from socket");
 
 		@clients = $select->can_read($hasPending ? $waitActive : $waitRest);
 		$self->message("will iterate over sockets ".scalar @clients);
-
-		next if $self->{shuttingDown};
 
 		push @clients, values %$sslClients;
 		my %acceptedClients;
@@ -515,7 +520,10 @@ sub listen {
 		$self->doOtherJobs();
 	}
 
-	$self->error("Server is going down");
+	print "Main loop ended with status $self->{endMainLoopReason}\n";
+	if ($self->{endMainLoopReason} eq "saveState") {
+		$self->saveStateAndShutDown;
+	}
 
 }
 
@@ -1126,7 +1134,7 @@ sub cancelDelayEvent {
 
 sub doOtherJobs {
 	my ($self) = @_;
-	return if !$self->{jobQueue} || !@{ $self->{jobQueue} };
+	return unless $self->otherJobCount;
 
 	my $sharedJob = shift @{ $self->{jobQueue} };
 	my $job;
@@ -1147,6 +1155,11 @@ sub doOtherJobs {
 
 	$self->delegateToWorker($job->{connectionId}, $job);
 	return;
+}
+
+sub otherJobCount {
+	my ($self) = @_;
+	return $self->{jobQueue} ? scalar @{ $self->{jobQueue} } : 0;
 }
 
 sub evaluateCodeMain {
@@ -1303,19 +1316,29 @@ sub gracefullRestart {
 	return;
 }
 
+sub callSaveStateHandler {
+	my ($self) = @_;
+	my $saveStateHanlers = $self->getConfig("server.handlers.saveState");
+	if ($saveStateHanlers && @$saveStateHanlers) {
+		foreach (@$saveStateHanlers) {
+			print "Calling $_->[0] ...\n";
+			$self->doAction(@$_);
+		}
+	}
+	$self->{endMainLoopReason}  = "saveState";
+	$self->{endMainLoopCounter} = 5;
+}
+
 sub saveStateAndShutDown {
 	my ($self) = @_;
 
-	return if $self->{shuttingDown};
+	print "Saving state ...\n";
 
 	my $cfg = $self->getConfig("server");
 	if (!$cfg->{name} || !$cfg->{tmp} || !-d $cfg->{tmp}) {
 		print "Saving state is not available, bye bye\n";
 		exit;
 	}
-
-	$self->{shuttingDown} = 1;
-	print "Saving state ...\n";
 
 	# TODO: find a way to save waiting jobs for every worker something with the waiting jobs
 	# the problem is that they are per connection and when connections are lost these jobs are meaningless
@@ -1327,7 +1350,7 @@ sub saveStateAndShutDown {
 	$self->removeLogger;
 
 	# wait for all workers to stop
-	my $wait;
+	my $wait = 1;
 	do {
 		print "Waiting for $wait threads to go down ... \n" if $wait;
 		usleep(250_000);
@@ -1387,6 +1410,7 @@ sub saveResFile {
 	local $Data::Dumper::Terse      = 1;    # no '$VAR1 = '
 	local $Data::Dumper::Useqq      = 1;    # double quoted strings
 	local $Data::Dumper::Deepcopy   = 1;
+	local $Data::Dumper::Maxdepth   = 10;
 	print $fh Dumper $data;
 	close $fh or die "Can't close '$file': $!";
 }
