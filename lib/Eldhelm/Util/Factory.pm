@@ -57,17 +57,29 @@ sub instanceFromScalar {
 
 sub parseNotation {
 	shift @_ if $_[0] eq __PACKAGE__;
-	my ($ns, $name) = @_;
+	my ($name) = @_;
 	$name =~ s/_(.)/uc($1)/ge;
 	my @nm = map { ucfirst $_ } split /[^a-z0-9]+/i, $name;
-	return join("::", $ns || (), @nm);
+	return @nm;
+}
+
+sub packageFromNotation {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($ns, $name) = @_;
+	return join("::", $ns || (), parseNotation($name));
+}
+
+sub pathFromNotation {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($ns, $name) = @_;
+	return join("/", $ns || (), parseNotation($name));
 }
 
 sub instanceFromNotation {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($ns, $name, %args) = @_;
 	my $inst;
-	eval { $inst = instance(parseNotation($ns, $name), %args) };
+	eval { $inst = instance(packageFromNotation($ns, $name), %args) };
 	confess $@ if $@;
 	return $inst;
 }
@@ -75,7 +87,7 @@ sub instanceFromNotation {
 sub instanceOf {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($ref, $ns, $name) = @_;
-	return $ref->isa(parseNotation($ns, $name));
+	return $ref->isa(packageFromNotation($ns, $name));
 }
 
 1;

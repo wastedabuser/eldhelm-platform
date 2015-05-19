@@ -3,6 +3,7 @@ use lib "../lib";
 use Data::Dumper;
 use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
+use Eldhelm::Util::Factory;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
@@ -31,7 +32,14 @@ push @defaultPats, "../../Eldhelm"            if $ops{product}  || $ops{all};
 
 my @sources;
 foreach (@defaultPats, @{ $ops{list} }) {
-	push @sources, grep { /(?:\.pm|\.pl)$/ } Eldhelm::Util::FileSystem->readFileList($_);
+	my $p = m|/| ? $_ : Eldhelm::Util::Factory->pathFromNotation("../../Eldhelm", $_);
+	if (-d $p) {
+		push @sources, grep { /(?:\.pm|\.pl)$/ } Eldhelm::Util::FileSystem->readFileList($p);
+	} elsif (-f "$p.pm") {
+		push @sources, "$p.pm";
+	} else {
+		print "[Skip] $p is neither a folder nor a package!\n";
+	}
 }
 
 my ($i, $ei, $oi) = (0, 0, 0);
