@@ -202,6 +202,14 @@ sub saveByFilter {
 	$sql->updateRow($self->{table}, $data, $filter);
 }
 
+sub saveArray {
+	my ($self, $data) = @_;
+	my $sql = $self->{dbPool}->getDb;
+	foreach (@$data) {
+		$sql->saveRow($self->{table}, $_, $self->{pkFields});
+	}
+}
+
 sub remove {
 	my ($self, $data) = @_;
 	my $sql = $self->{dbPool}->getDb;
