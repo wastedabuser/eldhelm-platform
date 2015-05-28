@@ -33,11 +33,16 @@ push @defaultPats, "../../Eldhelm"            if $ops{product}  || $ops{all};
 my @sources;
 foreach (@defaultPats, @{ $ops{list} }) {
 	my $p = m|/| ? $_ : Eldhelm::Util::Factory->pathFromNotation("../../Eldhelm", $_);
+	my $flag;
 	if (-d $p) {
 		push @sources, grep { /(?:\.pm|\.pl)$/ } Eldhelm::Util::FileSystem->readFileList($p);
-	} elsif (-f "$p.pm") {
+		$flag = 1;
+	}
+	if (-f "$p.pm") {
 		push @sources, "$p.pm";
-	} else {
+		$flag = 1;
+	}
+	unless ($flag) {
 		print "[Skip] $p is neither a folder nor a package!\n";
 	}
 }
