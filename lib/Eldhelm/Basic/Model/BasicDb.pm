@@ -156,10 +156,10 @@ sub createFilter {
 }
 
 sub filter {
-	my ($self, $filter, $fields) = @_;
+	my ($self, $filterData, $fields) = @_;
 	my $sql    = $self->{dbPool}->getDb;
 	my $what   = $self->chooseFields($fields) || "t.*";
-	my $filter = $self->createFilter($filter);
+	my $filter = $self->createFilter($filterData);
 	my $order  = $self->orderClause;
 	my $limit  = $self->limitClause;
 
@@ -217,9 +217,9 @@ sub remove {
 }
 
 sub removeByFilter {
-	my ($self, $filter, $fields) = @_;
+	my ($self, $filterData, $fields) = @_;
 	my $sql    = $self->{dbPool}->getDb;
-	my $filter = $self->createFilter($filter);
+	my $filter = $self->createFilter($filterData);
 	my $limit  = $self->limitClause;
 
 	return $sql->query($self->createDeleteQuery($filter->{compiled}, $limit), @{ $filter->{data} });
@@ -232,9 +232,9 @@ sub countAll {
 }
 
 sub countByFilter {
-	my ($self, $filter) = @_;
+	my ($self, $filterData) = @_;
 	my $sql    = $self->{dbPool}->getDb;
-	my $filter = $self->createFilter($filter);
+	my $filter = $self->createFilter($filterData);
 	return $sql->fetchScalar("SELECT COUNT(*) FROM `$self->{table}` WHERE $filter->{compiled}", @{ $filter->{data} });
 }
 

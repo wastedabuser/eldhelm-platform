@@ -550,6 +550,8 @@ sub limit {
 	return $self;
 }
 
+### TEST SCRIPT: 100_dbs_template.pl ###
+
 sub compile {
 	my ($self, $args) = @_;
 	$self->placeholders($args->{placeholders}) if $args->{placeholders};

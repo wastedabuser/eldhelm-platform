@@ -28,6 +28,8 @@ sub compileRef {
 	return join "\n", map { compileNode($_, $level) } @$ref;
 }
 
+### TEST SCRIPT: 200_html_helper_node.pl ###
+
 sub compileNode {
 	my ($ref, $level) = @_;
 	

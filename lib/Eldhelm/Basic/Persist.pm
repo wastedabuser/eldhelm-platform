@@ -9,6 +9,7 @@ use Data::Dumper;
 use Storable;
 use Time::HiRes qw(time);
 use Math::Random::MT qw(rand);
+use threads;
 use threads::shared;
 
 use base qw(Eldhelm::Server::BaseObject);

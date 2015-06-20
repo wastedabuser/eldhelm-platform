@@ -25,4 +25,13 @@ sub readFileList {
 	return @files, map { readFileList($_) } @dirs;
 }
 
+sub getFileContents {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($path) = @_;
+	open FR, $path or confess "Can not open file '$path': $@";
+	my $content = join "", <FR>;
+	close FR;
+	return $content;
+}
+
 1;

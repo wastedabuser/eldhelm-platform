@@ -82,6 +82,8 @@ sub new {
 	return $instance;
 }
 
+### TEST SCRIPT: 000_message_parsing.pl ###
+
 sub start {
 	my ($self) = @_;
 

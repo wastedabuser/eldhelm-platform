@@ -20,6 +20,7 @@ sub new {
 		requestHeaders => $args{requestHeaders} || {},
 		exported       => {},
 		public         => {},
+		cachedModels   => $args{cachedModels} || {},
 		views          => [],
 		content        => "",
 		headers        => [],
@@ -149,7 +150,8 @@ sub callDebug {
 		$more{connection} = $conn->fno;
 		my $sess = $conn->getSession;
 		if ($sess) {
-			%more = (%more,
+			%more = (
+				%more,
 				sessionConnected => $sess->connected,
 				sessionClosed    => $sess->closed,
 				sessionId        => $sess->id,
@@ -222,6 +224,8 @@ sub getView {
 
 sub getModel {
 	my ($self, $model, $args) = @_;
+	return $self->{cachedModels}{$model} if $self->{cachedModels}{$model};
+
 	$args ||= {};
 	return Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::Model", $model, %$args);
 }

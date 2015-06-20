@@ -25,6 +25,8 @@ sub simpleHttpRequest {
 	return loadUrl($url, {}, $method, undef, $headers);
 }
 
+### TEST SCRIPT: 300_communication.pl ###
+
 sub loadUrl {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $args, $method, $content, $headers) = @_;

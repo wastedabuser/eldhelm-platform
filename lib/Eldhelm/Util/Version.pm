@@ -37,6 +37,8 @@ sub equal {
 	return compare($v1, $v2, $d) == 0;
 }
 
+### TEST SCRIPT: 301_version_parsing.pl ###
+
 sub compare {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($v1, $v2, $d) = @_;
