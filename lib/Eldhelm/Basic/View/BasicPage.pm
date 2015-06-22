@@ -6,7 +6,7 @@ use base qw(Eldhelm::Basic::View);
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Basic::View->new(%args);
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
 	$self->addTemplate($args{headerTpl},  $args{headerTplArgs},  "header")  if $args{headerTpl};

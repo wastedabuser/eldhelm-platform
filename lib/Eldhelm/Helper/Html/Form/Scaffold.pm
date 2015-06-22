@@ -7,7 +7,7 @@ use base qw(Eldhelm::Helper::Html::Form);
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Helper::Html::Form->new(%args);
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
 	$self->{formLists} = $args{formLists};

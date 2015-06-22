@@ -66,7 +66,7 @@ foreach (@defaultPats, @{ $ops{list} }) {
 my %testScripts;
 foreach my $s (@sources) {
 	my $f  = Eldhelm::Util::FileSystem->getFileContents($s);
-	my @ts = $f =~ /###\s*TEST SCRIPT:\s*(.+?)\s*###/g;
+	my @ts = $f =~ /###\s*UNIT TEST:\s*(.+?)\s*###/g;
 	next unless @ts;
 
 	$testScripts{$s} = \@ts;

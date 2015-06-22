@@ -18,7 +18,7 @@ sub check {
 	return $data =~ m/^\["eldhlem-json-\d+\.\d+\"/ ? 1 : undef;
 }
 
-### TEST SCRIPT: 001_json_proto_messages.pl ###
+### UNIT TEST: 001_json_proto_messages.pl ###
 
 sub parse {
 	shift @_ if $_[0] eq __PACKAGE__;

@@ -550,7 +550,7 @@ sub limit {
 	return $self;
 }
 
-### TEST SCRIPT: 100_dbs_template.pl ###
+### UNIT TEST: 100_dbs_template.pl ###
 
 sub compile {
 	my ($self, $args) = @_;

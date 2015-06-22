@@ -70,7 +70,7 @@ sub proxyPossible {
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Server::Handler->new(%args);
+	my $self = $class->SUPER::new(%args);
 	$self->{status} = Eldhelm::Util::HttpStatus->getStatus(200);
 	$self->{headers}         ||= {};
 	$self->{responseHeaders} ||= [];

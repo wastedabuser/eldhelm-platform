@@ -8,7 +8,7 @@ use base qw(Eldhelm::Basic::Persist);
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Basic::Persist->new(%args);
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
 	$self->{session} = $args{session};

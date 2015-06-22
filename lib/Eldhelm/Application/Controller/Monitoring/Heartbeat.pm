@@ -8,7 +8,7 @@ use base qw(Eldhelm::Basic::Controller);
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Basic::Controller->new(%args);
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
 	return $self;

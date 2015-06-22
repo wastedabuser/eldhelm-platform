@@ -10,7 +10,7 @@ my @conProps = qw(fno eventFno);
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Basic::Persist->new(
+	my $self = $class->SUPER::new(
 		persistType => __PACKAGE__,
 		%args,
 		executeMessageId => 1,

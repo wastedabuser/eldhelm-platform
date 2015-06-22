@@ -31,7 +31,7 @@ sub parse {
 
 sub new {
 	my ($class, %args) = @_;
-	my $self = Eldhelm::Server::Handler->new(%args);
+	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
 	$self->init;
