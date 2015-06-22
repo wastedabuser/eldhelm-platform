@@ -1,9 +1,13 @@
-use strict;
 use lib "../lib";
+
+use strict;
+use warnings;
+
 use Data::Dumper;
 use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
 use Eldhelm::Util::Factory;
+use Perl::Critic;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
@@ -13,6 +17,9 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ "util",     "check platform utils code only" ],
 		[ "product",  "check product code only" ],
 		[ "dump",     "show verbose output" ],
+		[ "syntax",   "check syntax" ],
+		[ "static",   "run static anlysis using perl::crytic" ],
+		[ "unittest", "run unit tests refernced in the source" ],
 	]
 );
 
@@ -65,52 +72,98 @@ foreach my $s (@sources) {
 	$testScripts{$s} = \@ts;
 }
 
-my ($i, $ei, $oi) = (0, 0, 0);
+my $critic = Perl::Critic->new(-profile => "perlcritic.config");
+my ($i, $fi, $oi) = (0, 0, 0);
 my $inc = join " ", map { qq~-I "$_"~ } @libPaths;
 my @errors;
-foreach my $s (@sources) {
-	print "Static analysis [$s] ... ";
-	my $res;
+
+sub checkSyntax {
+	my ($s) = @_;
+	print "Syntax check $i [$s] ... ";
 	my $output = `perl $inc -Ttcw "$s" 2>&1`;
 	$output =~ s/\n/\n\t/g;
 	$output = "\t$output";
+
 	if (index($output, "syntax OK") >= 0) {
 		print "OK\n";
-		$res = 1;
-	} else {
-		push @errors, [ $i, $s, $output ];
-		print "FAILED\n";
-		$res = 0;
+		print "$output\n" if $ops{dump};
+		return 1;
 	}
-	print "$output\n" if $ops{dump};
-	next unless $res;
 
-	if ($testScripts{$s}) {
-		print "Dynamic analysis [$s] ... ";
-		print "\n\tRunning the following tests:\n".join("\n", map { "\t$_" } @{ $testScripts{$s}})."\n" if $ops{dump};
-		my $ts = join " ", map { -f("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @{ $testScripts{$s} };
-		my $testResult = `perl runner.pl $ts 2>&1`;
-		$testResult =~ s/\n/\n\t/g;
-		$testResult = "\t$testResult";
-		if (index($testResult, "Result: PASS") >= 0) {
-			print "OK\n";
-			$res = 1;
-		} else {
-			push @errors, [ $i, $s, $testResult];
-			print "FAILED\n";
-			$res = 0;
-		}
+	push @errors, [ $i, $s, $output ];
+	print "FAILED\n";
+	return;
+}
+
+sub runPerlCritic {
+	my ($s) = @_;
+	print "Static analysis $i [$s] ... ";
+	my @violations = $critic->critique($s);
+
+	if (@violations) {
+		push @errors, [ $i, $s, join("", map { "\t$_" } @violations) ];
+		print "VIOLATED\n";
+		print "\t".scalar(@violations)." violations found\n\n" if $ops{dump};
+		return;
+	}
+
+	print "OK\n";
+	print "\tNo violations\n\n" if $ops{dump};
+	return 1;
+}
+
+sub runUnitTests {
+	my ($s) = @_;
+
+	unless ($testScripts{$s}) {
+		print "[Skip] No unit tests defined for $i [$s]\n\n" if $ops{dump};
+		return 1;
+	}
+
+	my $lbl = "Unit tests $i [$s] ... ";
+	print $lbl;
+	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @{ $testScripts{$s} })."\n" if $ops{dump};
+	my $ts = join " ", map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @{ $testScripts{$s} };
+	my $testResult = `perl runner.pl $ts 2>&1`;
+	$testResult =~ s/\n/\n\t/g;
+	$testResult = "\t$testResult";
+
+	if (index($testResult, "Result: PASS") >= 0) {
+		print $ops{dump} ? (" " x length($lbl))."OK\n" : "OK\n";
 		print "$testResult\n" if $ops{dump};
+		return 1;
 	}
 
-	$ei++ unless $res;
-	$oi++ if $res;
+	push @errors, [ $i, $s, $testResult ];
+	print "FAILED\n";
+	return;
+}
+
+foreach my $s (@sources) {
 	$i++;
+	my $ok;
+
+	if ($ops{syntax}) {
+		$ok = checkSyntax($s);
+		next unless $ok;
+	}
+
+	if ($ops{static}) {
+		$ok = runPerlCritic($s);
+	}
+
+	if ($ops{unittest}) {
+		$ok = runUnitTests($s);
+	}
+
+	$fi++ unless $ok;
+	$oi++ if $ok;
 }
 
 if (@errors) {
 	print "=============================================\n";
-	print "$ei FAILED;\n";
+	print "FAILED=$fi; " if $fi;
+	print "ERRORS=".scalar(@errors).";\n";
 	print "=============================================\n";
 	foreach (@errors) {
 		my ($ind, $name, $output) = @$_;
@@ -118,7 +171,9 @@ if (@errors) {
 	}
 }
 print "=============================================\n";
-print "$ei FAILED; " if $ei;
-print "$si SKIPPED; " if $si;
-print "$oi OK; $i files checked;\n";
+print "FAILED=$fi/$i; " if $fi;
+print "OK=$oi/$i; ";
+print "SKIPPED=$si; " if $si;
+print "ERRORS=".scalar(@errors)."; " if @errors;
+print "CHECKED=$i;\n";
 print "=============================================\n";

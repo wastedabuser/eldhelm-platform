@@ -8,7 +8,7 @@ sub parseArgv {
 	while ($arg = shift @_) {
 		if ($arg =~ /^-+(\S+)/) {
 			my $op = $1;
-			if ($_[0] =~ /^-+\S+/) {
+			if ($_[0] && $_[0] =~ /^-+\S+/) {
 				$opt{$op} = 1;
 				next;
 			}
