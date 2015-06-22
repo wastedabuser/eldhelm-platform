@@ -160,20 +160,22 @@ foreach my $s (@sources) {
 	$oi++ if $ok;
 }
 
+my $hr =
+	"=======================================================================================================================================\n";
 if (@errors) {
-	print "=============================================\n";
+	print $hr;
 	print "FAILED=$fi; " if $fi;
 	print "ERRORS=".scalar(@errors).";\n";
-	print "=============================================\n";
+	print $hr;
 	foreach (@errors) {
 		my ($ind, $name, $output) = @$_;
 		print "Failed $ind [$name]\n$output\n";
 	}
 }
-print "=============================================\n";
+print $hr;
 print "FAILED=$fi/$i; " if $fi;
 print "OK=$oi/$i; ";
 print "SKIPPED=$si; " if $si;
 print "ERRORS=".scalar(@errors)."; " if @errors;
 print "CHECKED=$i;\n";
-print "=============================================\n";
+print $hr;

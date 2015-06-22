@@ -5,6 +5,11 @@ use Encode qw();
 use Math::Random::MT qw(rand);
 use Scalar::Util;
 
+use base qw(Exporter);
+our @EXPORT_OK = qw(merge isIn isNotIn toList);
+
+### UNIT TEST: 302_tool.pl ###
+
 sub merge {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($ref, @list) = @_;
@@ -14,6 +19,26 @@ sub merge {
 		}
 	}
 	return $ref;
+}
+
+sub isIn {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($val, @values) = @_;
+	foreach (@values) {
+		return 1 if $_ eq $val;
+	}
+	return;
+}
+
+sub isNotIn {
+	return !isIn(@_);
+}
+
+sub toList {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($var) = @_;
+	return () unless defined $var;
+	return ref $var eq "ARRAY" ? @$var : ($var);
 }
 
 # fisher_yates_shuffle
@@ -105,17 +130,10 @@ sub mapArray {
 	return \%result;
 }
 
-sub toList {
-	shift @_ if $_[0] eq __PACKAGE__;
-	my ($var) = @_;
-	return () unless defined $var;
-	return ref $var eq "ARRAY" ? @$var : ($var);
-}
-
 sub jsonEncode {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($data) = @_;
-	
+
 	if (ref $data eq "ARRAY") {
 		return "[".join(",", map { jsonEncode($_) } @$data)."]";
 	} elsif (ref $data eq "HASH") {
