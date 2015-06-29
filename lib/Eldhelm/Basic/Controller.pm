@@ -263,7 +263,9 @@ sub rpcRespond {
 }
 
 sub rpcId {
-	my ($self) = @_;
+	my ($self, $value) = @_;
+	return $self->{requestHeaders}{rpcId} = $value if $value;
+	
 	return $self->{requestHeaders}{rpcId};
 }
 

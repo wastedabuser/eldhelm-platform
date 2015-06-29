@@ -14,22 +14,22 @@
 	# remove if you do not plan to use mailing
 	mail => {
 		name    => "Your company",
-		from    => 'noreply@essenceworks.com',
+		from    => '<company e-mail>',
 		subject => "Default subject: %s",
 		smtp    => {
-			hello => "essenceworks.com",
-			host  => 'email-smtp.us-east-1.amazonaws.com',
-			user => 'AKIAJT6B5VWP5WKHOAHA',
-			pass => 'AhvDwCix0Jl3eutYQ8O0Vq44anR1yOxG7se4J6p7RRrj',
+			hello => "<tls hello>",
+			host  => '<smtp host>',
+			user => '<smtp user>',
+			pass => '<smtp pass>',
 			port => 587,
 		},
 		imap => {
-			host => 'imap.essenceworks.com',
-			user => 'noreply+essenceworks.com',
-			pass => '+q%OtIvP6X1q?&kf0',
+			host => '<imap host>',
+			user => '<imap user>',
+			pass => '<imap pass>',
 			port => 993,
 		},
-		adminMail            => 'a.glavchev@essenceworks.com',
+		adminMail            => '<administrator e-mail>',
 		globalTemplateParams => {
 			DOMAIN      => "127.0.0.1"
 		}
@@ -38,9 +38,9 @@
 	# server setup
 	server => {
 		name       => "eldhelm",
-		tmp        => "path to temp dir",
-		home       => "path to user home dir",
-		serverHome => "path to server star script dir",
+		tmp        => "<path to temp dir>",
+		home       => "<path to user home dir>",
+		serverHome => "<path to server start script dir>",
 
 		host   => "auto",
 		port   => 80,
@@ -62,7 +62,11 @@
 			# 	}
 			# },
 		],
-		workerCount       => 4,
+		
+		workerCount       => 4, # The maximum number of workers
+		# workerCountU		=> 1, # The number of workers performing low priority tasks
+		# workerCountR		=> 2, # The number of workers performing very high priority tasks
+		
 		acceptProtocols   => [ "Http", "Json", "Base64", "Xml", "System" ],
 		connectionTimeout => 600,
 		keepaliveInterval => 20,
@@ -79,7 +83,7 @@
 		
 		logger => {
 			interval    => 1000,
-			path        => "path to log dir log",
+			path        => "<path to log dir log>",
 			slowLogTime => 1,
 			logs        => {
 				# general	=> ["stdout"], # displays server worker queues
@@ -162,6 +166,10 @@
 			start => [
 				# call this at server startup
 				# ["auth:checkDeadSessions"],
+			],
+			saveState => [
+				# call this before gracefull shutdown/restart
+				# ["do:something"]
 			]
 		}
 	}

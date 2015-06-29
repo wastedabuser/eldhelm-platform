@@ -33,7 +33,9 @@ sub new {
 
 sub init {
 	my ($self) = @_;
-	$self->{maxTaskTime} = $self->getConfig("server.logger.slowLogTime");
+	$self->{maxTaskTime}  = $self->getConfig("server.logger.slowLogTime");
+	$self->{maxTaskTimeU} = $self->getConfig("server.logger.slowLogTimeU") || $self->{maxTaskTime};
+	$self->{maxTaskTimeR} = $self->getConfig("server.logger.slowLogTimeR") || $self->{maxTaskTime};
 }
 
 # =================================
@@ -55,7 +57,7 @@ sub run {
 
 		my $taskStartTime = time;
 		$self->runTask($conn, $data);
-		my $maxTime  = $self->{maxTaskTime};
+		my $maxTime  = $self->{ "maxTaskTime".$self->{workerType} };
 		my $execTime = time - $taskStartTime;
 		if ($maxTime > 0 && $execTime > $maxTime) {
 			$self->log("A worker task took ".sprintf("%.4f", $execTime)." seconds: ".Dumper($data), "slow");
@@ -102,19 +104,25 @@ sub fetchTask {
 sub runTask {
 	my ($self, $conn, $data) = @_;
 	$self->status("action", "run");
-	$self->status("proto", $data->{proto});
+	$self->status("proto",  $data->{proto});
 	my $handler = $self->createHandler($data->{proto}, %$data);
 	if ($handler) {
 		if ($handler->{composer}) {
-			eval { $handler->setConnection($conn) };
-			$self->error("Unable to set connection in handler: $@") if $@;
+			eval {
+				$handler->setConnection($conn);
+				1;
+			} or do {
+				$self->error("Unable to set connection in handler: $@");
+			};
 		}
 		eval {
 			$handler->handle;
 			$handler->respond;
 			$handler->finish;
+			1;
+		} or do {
+			$self->error("Handler error: $@");
 		};
-		$self->error("Handler error: $@") if $@;
 	} else {
 		$self->endTask;
 	}

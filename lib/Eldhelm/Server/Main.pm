@@ -73,6 +73,9 @@ sub new {
 			connections      => shared_clone({}),
 			connectionEvents => shared_clone({}),
 			sheduledEvents   => shared_clone({}),
+
+			workerCountU => 1,
+			workerCountR => 2,
 		};
 		bless $instance, $class;
 
@@ -283,7 +286,9 @@ sub init {
 	$self->createExecutor;
 
 	# start workers
-	$self->{workerCount} = $cnf->{workerCount};
+	$self->{workerCountU} = $cnf->{workerCountU} if $cnf->{workerCountU};
+	$self->{workerCountR} = $cnf->{workerCountR} if $cnf->{workerCountR};
+	$self->{workerCount}  = $cnf->{workerCount};
 	foreach (1 .. $self->{workerCount} || 1) {
 		$self->createWorker;
 	}
@@ -332,10 +337,22 @@ sub createExecutor {
 sub createWorker {
 	my ($self, $jobs) = @_;
 	my $workerQueue = shared_clone($jobs || []);
-	my $workerStatus  = shared_clone({ action => "startup" });
+	my $workerStatus = shared_clone({ action => "startup" });
 	my $responseQueue = shared_clone([]);
-	my $t             = threads->create(
+
+	my $type;
+	my $reservedCount = scalar keys %{ $self->{reservedWorkerId} };
+	if ($reservedCount < $self->{workerCountU}) {
+		$type = "U";
+	} elsif ($reservedCount < $self->{workerCountU} + $self->{workerCountR}) {
+		$type = "R";
+	} else {
+		$type = "";
+	}
+
+	my $t = threads->create(
 		\&Eldhelm::Server::Worker::create,
+		workerType    => $type,
 		workerStatus  => $workerStatus,
 		workerQueue   => $workerQueue,
 		responseQueue => $responseQueue,
@@ -349,16 +366,8 @@ sub createWorker {
 	$self->{workerStats}{ $t->tid }{jobs} = 0;
 	$self->{responseQueue}{ $t->tid } = $responseQueue;
 
-	my $reservedCount = scalar keys %{ $self->{reservedWorkerId} };
-	if (!$reservedCount) {
-		$self->{workerStats}{ $t->tid }{type} = "U";
-		$self->{reservedWorkerId}{ $t->tid } = 1;
-	} elsif ($reservedCount <= 2) {
-		$self->{workerStats}{ $t->tid }{type} = "R";
-		$self->{reservedWorkerId}{ $t->tid } = 1;
-	} else {
-		$self->{workerStats}{ $t->tid }{type} = "";
-	}
+	$self->{workerStats}{ $t->tid }{type} = $type;
+	$self->{reservedWorkerId}{ $t->tid } = 1 if $type;
 
 	$self->{connectionWorkerLoad}{ $t->tid } = 0;
 	$t->detach();
