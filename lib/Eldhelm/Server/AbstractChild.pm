@@ -315,7 +315,7 @@ sub runExternalScriptAsync {
 		my $scriptFile = "$homePath/script/$name.pl";
 		die "Not found: $scriptFile" unless -f $scriptFile;
 
-		my $cmd = qq~perl  $scriptFile "$self->{configPath}" "$compiledArgs" &~;
+		my $cmd = qq~perl $scriptFile "$self->{configPath}" "$compiledArgs" &~;
 		system($cmd);
 		$self->access($cmd);
 
