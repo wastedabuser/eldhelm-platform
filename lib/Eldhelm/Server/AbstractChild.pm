@@ -11,6 +11,7 @@ use Eldhelm::Util::Factory;
 use Eldhelm::Server::Router;
 use Eldhelm::Util::Tool;
 use Eldhelm::Server::Shedule;
+use MIME::Base64 qw(encode_base64);
 
 my $instance;
 
@@ -297,6 +298,22 @@ sub removeShedule {
 	my $se = $self->{sheduledEvents};
 	lock($se);
 	delete $se->{$name};
+
+	return $self;
+}
+
+sub runExternalScriptAsync {
+	my ($self, $name, $args) = @_;
+	local $Data::Dumper::Terse = 1;
+
+	my $homePath = $self->worker->getConfig("server.serverHome");
+	my $compiledArgs = encode_base64(Dumper($args || []), "");
+	eval {
+		system(qq~perl $homePath/script/$name.pl "$self->{configPath}" "$compiledArgs" &~);
+		1;
+	} or do {
+		$self->worker->error("Unable to run async script: $@");
+	};
 
 	return $self;
 }

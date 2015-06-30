@@ -109,7 +109,7 @@ sub start {
 
 sub readConfig {
 	my ($self) = @_;
-	my $cfgPath = $self->{configPath} || "config.pl";
+	my $cfgPath = $self->{configPath} ||= "config.pl";
 	die "No configuration file!" unless -f $cfgPath;
 
 	print "Reading configuration from: $cfgPath\n";
@@ -357,7 +357,7 @@ sub createWorker {
 		workerQueue   => $workerQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections persists persistsByType persistLookup sheduledEvents stash)
+			qw(configPath config info logQueue connections persists persistsByType persistLookup sheduledEvents stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $workerQueue;
