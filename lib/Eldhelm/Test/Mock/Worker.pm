@@ -1,10 +1,12 @@
 package Eldhelm::Test::Mock::Worker;
 
 use strict;
+
 use threads;
 use threads::shared;
 use Data::Dumper;
 use Eldhelm::Test::Mock::Session;
+use Carp qw(confess longmess);
 
 use base qw(Eldhelm::Server::Child);
 
@@ -26,13 +28,41 @@ sub new {
 		$self->{persists}       = shared_clone({});
 		$self->{persistsByType} = shared_clone({});
 		$self->{persistLookup}  = shared_clone({});
+		$self->{log}            = [];
+		$self->{debug}          = [];
+		$self->{error}          = [];
+		$self->{access}         = [];
 	}
 	return $self;
 }
 
+sub log {
+	my ($self, $msg) = @_;
+	push @{ $self->{log} }, $msg;
+	warn "# general log: $msg";
+}
+
+sub debug {
+	my ($self, $msg) = @_;
+	push @{ $self->{debug} }, $msg;
+	warn "# debug log: $msg";
+}
+
 sub error {
 	my ($self, $msg) = @_;
-	warn "# $msg";
+	push @{ $self->{error} }, $msg;
+	warn "# error log: $msg";
+}
+
+sub access {
+	my ($self, $msg) = @_;
+	push @{ $self->{access} }, $msg;
+	warn "# access log: $msg";
+}
+
+sub getLastLogEntry {
+	my ($self, $code) = @_;
+	return pop @{ $self->{$code} };
 }
 
 sub createTestSession {

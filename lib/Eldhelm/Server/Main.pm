@@ -2,6 +2,7 @@ package Eldhelm::Server::Main;
 
 use strict;
 use warnings;
+
 use threads;
 use threads::shared;
 use Socket;
@@ -12,15 +13,15 @@ use IO::Select;
 # use IO::Socket::SSL qw(debug3);
 use IO::Socket::SSL;
 use IO::Socket::INET;
+use Data::Dumper;
+use Time::HiRes qw(time usleep);
+use Errno;
 use Eldhelm::Util::MachineInfo;
 use Eldhelm::Server::Worker;
 use Eldhelm::Server::Logger;
 use Eldhelm::Server::Executor;
-use Data::Dumper;
-use Time::HiRes qw(time usleep);
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::Factory;
-use Errno;
 
 use base qw(Eldhelm::Server::AbstractChild);
 
@@ -34,7 +35,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info => { version => "1.4.2" },
+			info => { version => "1.4.4" },
 			config => shared_clone($args{config} || {}),
 
 			endMainLoopCounter   => -1,
@@ -813,7 +814,7 @@ sub removeConnection {
 		my $eventsClone;
 		{
 			lock($event);
-			$eventsClone = Eldhelm::Util::Tool::cloneStructure($event);
+			$eventsClone = Eldhelm::Util::Tool->cloneStructure($event);
 		}
 		$self->registerConnectionEvent("disconnect", $eventsClone, $id);
 		return;

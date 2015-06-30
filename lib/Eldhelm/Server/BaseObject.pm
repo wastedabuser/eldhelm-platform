@@ -1,11 +1,12 @@
 package Eldhelm::Server::BaseObject;
 
+use strict;
+
+use threads;
+use threads::shared;
 use Eldhelm::Server::Child;
 use Eldhelm::Server::Main;
 use Eldhelm::Util::Factory;
-use strict;
-use threads;
-use threads::shared;
 use Eldhelm::Util::Tool;
 
 sub worker {

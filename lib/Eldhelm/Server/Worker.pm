@@ -1,14 +1,14 @@
 package Eldhelm::Server::Worker;
 
 use strict;
+
 use threads;
 use threads::shared;
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Handler::Factory;
 use Data::Dumper;
 use Time::HiRes qw(usleep time);
-use Carp;
-use Carp qw(longmess);
+use Carp qw(confess longmess);
 
 use base qw(Eldhelm::Server::Child);
 

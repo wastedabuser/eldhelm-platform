@@ -1,12 +1,12 @@
 package Eldhelm::Server::AbstractChild;
 
 use strict;
+
 use threads;
 use threads::shared;
 use Data::Dumper;
 use Time::HiRes;
-use Carp;
-use Carp qw(longmess);
+use Carp qw(confess longmess);
 use Eldhelm::Util::Factory;
 use Eldhelm::Server::Router;
 use Eldhelm::Util::Tool;
@@ -302,17 +302,26 @@ sub removeShedule {
 	return $self;
 }
 
+### UNIT TEST: 303_async_script.pl ###
+### UNIT TEST: 304_worker_async_script.pl ###
+
 sub runExternalScriptAsync {
 	my ($self, $name, $args) = @_;
 	local $Data::Dumper::Terse = 1;
 
-	my $homePath = $self->worker->getConfig("server.serverHome");
+	my $homePath = $self->getConfig("server.serverHome");
 	my $compiledArgs = encode_base64(Dumper($args || []), "");
 	eval {
-		system(qq~perl $homePath/script/$name.pl "$self->{configPath}" "$compiledArgs" &~);
+		my $scriptFile = "$homePath/script/$name.pl";
+		die "Not found: $scriptFile" unless -f $scriptFile;
+
+		my $cmd = qq~perl  $scriptFile "$self->{configPath}" "$compiledArgs" &~;
+		system($cmd);
+		$self->access($cmd);
+
 		1;
 	} or do {
-		$self->worker->error("Unable to run async script: $@");
+		$self->error("Unable to run async script: $@");
 	};
 
 	return $self;
