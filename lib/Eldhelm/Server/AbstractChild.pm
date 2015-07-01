@@ -7,11 +7,11 @@ use threads::shared;
 use Data::Dumper;
 use Time::HiRes;
 use Carp qw(confess longmess);
-use Eldhelm::Util::Factory;
 use Eldhelm::Server::Router;
-use Eldhelm::Util::Tool;
 use Eldhelm::Server::Shedule;
-use MIME::Base64 qw(encode_base64);
+use Eldhelm::Util::Factory;
+use Eldhelm::Util::Tool;
+use Eldhelm::Util::ExternalScript;
 
 my $instance;
 
@@ -302,23 +302,57 @@ sub removeShedule {
 	return $self;
 }
 
-### UNIT TEST: 303_async_script.pl ###
-### UNIT TEST: 304_worker_async_script.pl ###
+### UNIT TEST: 303_external_script.pl ###
+
+sub createExternalScriptCommand {
+	my ($self, $name, $args) = @_;
+
+	my $homePath   = $self->getConfig("server.serverHome");
+	my $scriptFile = "$homePath/script/$name.pl";
+	unless (-f $scriptFile) {
+		$self->error("Script not found: $scriptFile"); 
+		return ();
+	}
+	
+	my $compiledArgs = Eldhelm::Util::ExternalScript->encodeArg($args || []);
+	return (
+		$scriptFile,
+		qq~perl $scriptFile "$self->{configPath}" "$compiledArgs"~
+	);
+}
+
+### UNIT TEST: 304_worker_external_script.pl ###
+
+sub runExternalScript {
+	my ($self, $name, $args) = @_;
+
+	my ($scriptFile, $cmd) = $self->createExternalScriptCommand($name, $args);
+	return unless $scriptFile;
+	
+	my $result;
+	eval {
+		$self->access($cmd);
+		$result = Eldhelm::Util::ExternalScript->parseOutput(`$cmd`);
+		1;
+	} or do {
+		$self->error("Unable to run script: $@");
+	};
+
+	return $result;
+}
+
+### UNIT TEST: 305_worker_external_script_async.pl ###
 
 sub runExternalScriptAsync {
 	my ($self, $name, $args) = @_;
-	local $Data::Dumper::Terse = 1;
 
-	my $homePath = $self->getConfig("server.serverHome");
-	my $compiledArgs = encode_base64(Dumper($args || []), "");
+	my ($scriptFile, $cmd) = $self->createExternalScriptCommand($name, $args);
+	return unless $scriptFile;
+
+	$cmd .= " &";
 	eval {
-		my $scriptFile = "$homePath/script/$name.pl";
-		die "Not found: $scriptFile" unless -f $scriptFile;
-
-		my $cmd = qq~perl $scriptFile "$self->{configPath}" "$compiledArgs" &~;
-		system($cmd);
 		$self->access($cmd);
-
+		system($cmd);
 		1;
 	} or do {
 		$self->error("Unable to run async script: $@");
