@@ -15,7 +15,7 @@ sub new {
 		pass    => $args{pass},
 		dbs     => $args{dbs},
 		address => $args{address},
-		port    => $args{port} || "3306",
+		port    => $args{port} || '3306',
 	};
 	bless $self, $class;
 
@@ -35,7 +35,7 @@ sub connect {
 			PrintError => 0,
 		}
 	);
-	$self->{dbh}->do("SET NAMES UTF8");
+	$self->{dbh}->do('SET NAMES UTF8');
 	return $state;
 }
 
@@ -57,11 +57,19 @@ sub query {
 		if ($params[$i] =~ /^\d+\.?\d*$/) {
 			$opts = { TYPE => DBI::SQL_NUMERIC };
 		}
-		eval { $sth->bind_param($i + 1, $params[$i], $opts); };
-		confess "$query: $@\n".Dumper(\@params) if $@;
+		eval {
+			$sth->bind_param($i + 1, $params[$i], $opts);
+			1;
+		} or do {
+			confess "$query: $@\n".Dumper(\@params);
+		};
 	}
-	eval { $sth->execute(); };
-	confess "$query: $@\n".Dumper(\@params) if $@;
+	eval {
+		$sth->execute();
+		1;
+	} or do {
+		confess "$query: $@\n".Dumper(\@params);
+	};
 	return $sth;
 }
 
@@ -150,7 +158,7 @@ sub getColumnAndFkInfo {
 	my ($self, $table) = @_;
 	if (!$self->{colAndFkInfoCache}{$table}) {
 		my $dbh  = $self->dbh;
-		my $sth  = $dbh->column_info(undef, $self->{dbs}, $table, "%");
+		my $sth  = $dbh->column_info(undef, $self->{dbs}, $table, '%');
 		my $list = $sth->fetchall_arrayref({});
 		$sth = $dbh->foreign_key_info(undef, undef, undef, undef, $self->{dbs}, $table);
 		my $allKeys = $sth->fetchall_arrayref({});
@@ -169,7 +177,7 @@ sub getColumnAndFkInfo {
 sub parseDate {
 	my ($self, $str) = @_;
 	if ($str =~ /^\d+$/) {
-		return time2str("%Y-%m-%d %T", $str);
+		return time2str('%Y-%m-%d %T', $str);
 	}
 	return $str;
 }
@@ -180,11 +188,12 @@ sub prepareFields {
 	my (@flds, $val);
 	foreach (@$fields) {
 		my $col = $hcols->{$_};
-		if ($col->{Null} eq "YES" && $data->{$_} eq "") {
+		my $tp  = $col->{Type};
+		if ($col->{Null} eq 'YES' && $data->{$_} eq '') {
 			$val = undef;
-		} elsif ($col->{Type} eq "timestamp" && $col->{Default} eq "CURRENT_TIMESTAMP" && !$data->{$_}) {
+		} elsif ($tp eq 'timestamp' && $col->{Default} eq 'CURRENT_TIMESTAMP' && !$data->{$_}) {
 			next;
-		} elsif ($col->{Type} =~ /date|time/) {
+		} elsif (index($tp, 'date') >= 0 || index($tp, 'time') >= 0) {
 			$val = $self->parseDate($data->{$_});
 		} else {
 			$val = $data->{$_};
@@ -212,27 +221,27 @@ sub prepareWhere {
 sub updateFields {
 	my ($self, $table, $data) = @_;
 	my $hcols = $self->descHash($table);
-	my @fields = $self->prepareFields($table, [ grep { $_ ne "id" && $hcols->{$_} } keys %$data ], $data);
-	return (join(",", map { "`$_->[0]`=?" } @fields), [ map { $_->[1] } @fields ]);
+	my @fields = $self->prepareFields($table, [ grep { $_ ne 'id' && $hcols->{$_} } keys %$data ], $data);
+	return (join(',', map { "`$_->[0]`=?" } @fields), [ map { $_->[1] } @fields ]);
 }
 
 sub insertFields {
 	my ($self, $table, $data) = @_;
 	my $hcols = $self->descHash($table);
 	my @fields = $self->prepareFields($table, [ grep { $hcols->{$_} } keys %$data ], $data);
-	return (join(",", map { $_->[0] } @fields), join(",", map { "?" } @fields), [ map { $_->[1] } @fields ]);
+	return (join(',', map { $_->[0] } @fields), join(',', map { '?' } @fields), [ map { $_->[1] } @fields ]);
 }
 
 sub insertFieldsArray {
 	my ($self, $table, $data) = @_;
-	if (ref $data eq "ARRAY") {
+	if (ref $data eq 'ARRAY') {
 		return unless $data->[0];
 		my @fields = keys %{ $data->[0] };
 		my %rows;
 		foreach my $d (@$data) {
 			push @{ $rows{ $_->[0] } }, $_->[1] foreach $self->prepareFields($table, \@fields, $d);
 		}
-		return (join(",", @fields), join(",", map { "?" } @fields), [ map { $rows{$_} } @fields ]);
+		return (join(',', @fields), join(',', map { '?' } @fields), [ map { $rows{$_} } @fields ]);
 	}
 }
 
@@ -240,15 +249,15 @@ sub saveRow {
 	my ($self, $table, $data, $pkFields) = @_;
 	my ($fields, $values) = $self->updateFields($table, $data);
 	my $hcols = $self->descHash($table);
-	$pkFields ||= ["id"];
+	$pkFields ||= ['id'];
 	my $pk = $pkFields->[0];
 	my $query;
-	if (@$pkFields > 1 || ($hcols->{$pk} && $hcols->{$pk}{Extra} !~ /auto_increment/)) {
+	if (@$pkFields > 1 || ($hcols->{$pk} && index($hcols->{$pk}{Extra}, 'auto_increment') < 0)) {
 		$query = "INSERT `$table` SET $fields ON DUPLICATE KEY UPDATE $fields";
 		$self->query($query, @$values, @$values);
 	} else {
 		my $pkv = $data->{$pk};
-		$query = ($pkv ? "UPDATE" : "INSERT")." `$table` SET $fields".($pkv ? " WHERE $pk = ?" : "");
+		$query = ($pkv ? 'UPDATE' : 'INSERT')." `$table` SET $fields".($pkv ? " WHERE $pk = ?" : '');
 		$self->query($query, @$values, $pkv || ());
 		return $self->dbh->{mysql_insertid};
 	}
@@ -259,14 +268,14 @@ sub updateRow {
 	my ($self, $table, $data, $where) = @_;
 	my ($fields, $values) = $self->updateFields($table, $data);
 	my ($filter, $fValues) = $self->prepareWhere($where);
-	my $query = "UPDATE `$table` SET $fields WHERE ".join(" AND ", @$filter);
+	my $query = "UPDATE `$table` SET $fields WHERE ".join(' AND ', @$filter);
 	$self->query($query, @$values, @$fValues);
 }
 
 sub deleteRow {
 	my ($self, $table, $where) = @_;
 	my ($filter, $fValues) = $self->prepareWhere($where);
-	my $query = "DELETE FROM `$table` WHERE ".join(" AND ", @$filter);
+	my $query = "DELETE FROM `$table` WHERE ".join(' AND ', @$filter);
 	$self->query($query, @$fValues);
 }
 
@@ -276,7 +285,7 @@ sub insertRow {
 	my ($fields, $values, $valuesData) = $self->insertFields($table, $data);
 	return unless $fields;
 
-	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
+	my $query = ($options->{replace} ? 'REPLACE' : 'INSERT')." `$table` ($fields) VALUES ($values)";
 	$self->query($query, @$valuesData);
 
 	return $self->dbh->{mysql_insertid};
@@ -288,18 +297,22 @@ sub insertArray {
 	my ($fields, $values, $valuesData) = $self->insertFieldsArray($table, $data);
 	return unless $fields;
 
-	my $query = ($options->{replace} ? "REPLACE" : "INSERT")." `$table` ($fields) VALUES ($values)";
+	my $query = ($options->{replace} ? 'REPLACE' : 'INSERT')." `$table` ($fields) VALUES ($values)";
 
 	my $sth = $self->{dbh}->prepare($query);
-	eval { $sth->execute_array({}, @$valuesData); };
-	confess "$query: $@\n".Dumper($data) if $@;
+	eval {
+		$sth->execute_array({}, @$valuesData);
+		1;
+	} or do {
+		confess "$query: $@\n".Dumper($data);
+	};
 
 	return $self->dbh->{mysql_insertid};
 }
 
 sub createInPlaceholder {
 	my ($self, $field, $list) = @_;
-	return "$field IN (".join(",", map { "?" } @$list).")";
+	return "$field IN (".join(',', map { '?' } @$list).')';
 }
 
 sub transaction {
@@ -310,11 +323,16 @@ sub transaction {
 	eval {
 		$result = $_currentPackageCodeRef_->($_currentPackageSelfRef_, @_currentPackageArgs_);
 		$dbh->commit;
+		1;
+	} or do {
+		carp "Transaction aborted because: $@";
+		eval {
+			$dbh->rollback;
+			1;
+		} or do {
+			carp "Rallback failed: $@";
+		};
 	};
-	if ($@) {
-		warn "Transaction aborted because: $@";
-		eval { $dbh->rollback };
-	}
 	return $result;
 }
 
