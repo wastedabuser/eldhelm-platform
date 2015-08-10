@@ -30,7 +30,7 @@ sub router {
 
 sub setConnection {
 	my ($self, $conn) = @_;
-	$conn->set("composer", $self->{composer});
+	$conn->set('composer', $self->{composer});
 	$self->{connection} = $conn;
 }
 
@@ -61,7 +61,7 @@ sub createUnauthorizedResponse {
 }
 
 sub createErrorResponse {
-	my ($self, $controller) = @_;
+	my ($self, $controller, $message) = @_;
 	return;
 }
 
@@ -133,12 +133,12 @@ sub validatePath {
 
 sub getPathTmp {
 	my ($self, $url) = @_;
-	return $self->worker->getConfig("server.tmp")."/".$self->validatePath($url);
+	return $self->worker->getConfig('server.tmp').'/'.$self->validatePath($url);
 }
 
 sub getPathHome {
 	my ($self, $url) = @_;
-	return $self->worker->getConfig("server.home")."/".$self->validatePath($url);
+	return $self->worker->getConfig('server.home').'/'.$self->validatePath($url);
 }
 
 1;

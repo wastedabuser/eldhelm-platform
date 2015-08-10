@@ -37,18 +37,18 @@ sub config {
 
 sub actions {
 	my ($self) = @_;
-	return $self->{config}{actions} || $self->worker->getConfig("server.router.actions") || [];
+	return $self->{config}{actions} || $self->worker->getConfig('server.router.actions') || [];
 }
 
 sub defaultMethod {
 	my ($self) = @_;
-	return $self->{config}{defaultMethod} || $self->worker->getConfig("server.router.defaultMethod") || "index";
+	return $self->{config}{defaultMethod} || $self->worker->getConfig('server.router.defaultMethod') || 'index';
 }
 
 sub route {
 	my ($self, $headers, $data) = @_;
 
-	return if ref $data ne "HASH";
+	return if ref $data ne 'HASH';
 	$self->{requestHeaders} = $headers;
 
 	($data->{type}, $data->{command}) = $self->parseControllerName($data->{rpc})
@@ -66,7 +66,7 @@ sub parseControllerName {
 	return $self->parseAction($name) if $name =~ /:/;
 	my @list = split /\./, $name;
 	my $method = pop @list;
-	return join(".", @list), $method;
+	return join('.', @list), $method;
 }
 
 sub doAction {
@@ -81,8 +81,9 @@ sub doAction {
 		data           => $data,
 		requestHeaders => $self->{requestHeaders},
 	);
-	return ([], [ $self->handler->createErrorResponse($controller) ])
-		if ref $controller eq "Eldhelm::Basic::Controller";
+	return ([],
+		[ $self->handler->createErrorResponse($controller, "Can't call action $action on Eldhelm::Basic::Controller") ])
+		if ref $controller eq 'Eldhelm::Basic::Controller';
 
 	unless ($private || $controller->canCall($method)) {
 		$self->addError("Can not call action '$action'", $controller->callDump($method));
@@ -105,7 +106,6 @@ sub doAction {
 
 	my (@results, @headers, @contents);
 	eval {
-
 		foreach my $ex (@list) {
 			my $c = $ex->[0];
 			push @results,  $self->executeControllerMethod(@$ex);
@@ -113,11 +113,11 @@ sub doAction {
 			push @contents, $c->getResponseContent;
 			last if $c->{ended};
 		}
-	};
-	if ($@) {
+		1;
+	} or do {
 		$self->addError("Error while calling '$method'", Dumper($data)."\n".$self->smartTrace($@));
-		return ([], [ $self->handler->createErrorResponse($controller) ]);
-	}
+		return ([], [ $self->handler->createErrorResponse($controller, $@) ]);
+	};
 
 	return (\@headers, \@contents, \@results);
 }
@@ -141,7 +141,7 @@ sub getRelatedActions {
 
 sub executeControllerMethod {
 	my ($self, $controller, $method, @args) = @_;
-	$self->worker->log("Calling '$controller' '$method'", "access");
+	$self->worker->log("Calling '$controller' '$method'", 'access');
 	return $controller->call($method, @args);
 }
 
@@ -149,14 +149,18 @@ sub executeAction {
 	my ($self,  $name,   @args)   = @_;
 	my ($class, $method, $result) = $self->parseControllerName($name);
 	my $controller = $self->getInstance($class);
-	return ([], [ $self->handler->createErrorResponse($controller) ])
-		if ref $controller eq "Eldhelm::Basic::Controller";
+	return ([],
+		[ $self->handler->createErrorResponse($controller, "Can't call method $method on Eldhelm::Basic::Controller") ])
+		if ref $controller eq 'Eldhelm::Basic::Controller';
 
-	eval { $result = $self->executeControllerMethod($controller, $method, @args) };
-	if ($@) {
-		$self->worker->error("Error while calling '$name': ".Dumper(\@args).": ".$self->smartTrace($@));
-		return ($controller, $self->handler->createErrorResponse($controller));
-	}
+	eval {
+		$result = $self->executeControllerMethod($controller, $method, @args);
+		1;
+	} or do {
+		$self->worker->error("Error while calling '$name': ".Dumper(\@args).': '.$self->smartTrace($@));
+		return ($controller, $self->handler->createErrorResponse($controller, $@));
+	};
+
 	return ($controller, $result);
 }
 
@@ -165,20 +169,20 @@ sub getInstance {
 	my $inst;
 	eval {
 		$inst = Eldhelm::Util::Factory->instanceFromNotation(
-			"Eldhelm::Application::Controller",
+			'Eldhelm::Application::Controller',
 			$class, %args,
 			router => $self,
 			worker => $self->worker,
 		);
-	};
-	if ($@) {
+		1;
+	} or do {
 		$self->addError("Can not create controller '$class'", $@);
 		$inst = Eldhelm::Basic::Controller->new(
 			%args,
 			router => $self,
 			worker => $self->worker,
 		);
-	}
+	};
 	return $inst;
 }
 

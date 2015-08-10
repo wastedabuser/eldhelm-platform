@@ -32,11 +32,11 @@ sub new {
 
 sub call {
 	my ($self, $method, @args) = @_;
-	$self->callActions("before", "all",   @args);
-	$self->callActions("before", $method, @args);
+	$self->callActions('before', 'all',   @args);
+	$self->callActions('before', $method, @args);
 	my $result = $self->$method(@args);
-	$self->callActions("after", $method, @args);
-	$self->callActions("after", "all",   @args);
+	$self->callActions('after', $method, @args);
+	$self->callActions('after', 'all',   @args);
 	return $result;
 }
 
@@ -45,7 +45,7 @@ sub callActions {
 	my $ref = $self->{"${type}Actions"}{$method};
 	return if !$ref;
 	foreach (@$ref) {
-		if (ref $_ eq "CODE") {
+		if (ref $_ eq 'CODE') {
 			$_->($self, @args);
 		} else {
 			$self->$_(@args);
@@ -56,12 +56,12 @@ sub callActions {
 
 sub before {
 	my ($self, $names, $method) = @_;
-	return $self->action("before", $names, $method);
+	return $self->action('before', $names, $method);
 }
 
 sub after {
 	my ($self, $names, $method) = @_;
-	return $self->action("after", $names, $method);
+	return $self->action('after', $names, $method);
 }
 
 sub action {
@@ -209,11 +209,11 @@ sub getView {
 	my ($self, $view, $args, $standAlone) = @_;
 	$args ||= {};
 	my $inst;
-	if (ref $view eq "HASH") {
+	if (ref $view eq 'HASH') {
 		$inst = Eldhelm::Basic::View->new(%$view, data => $self->{data});
 	} elsif ($view) {
 		$inst =
-			Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::View", $view, %$args,
+			Eldhelm::Util::Factory->instanceFromNotation('Eldhelm::Application::View', $view, %$args,
 			data => $self->{data});
 	} else {
 		$inst = Eldhelm::Basic::View->new(%$args, data => $self->{data});
@@ -227,7 +227,7 @@ sub getModel {
 	return $self->{cachedModels}{$model} if $self->{cachedModels}{$model};
 
 	$args ||= {};
-	return Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::Model", $model, %$args);
+	return Eldhelm::Util::Factory->instanceFromNotation('Eldhelm::Application::Model', $model, %$args);
 }
 
 sub getScript {
@@ -255,7 +255,7 @@ sub rpcRespond {
 	my $rpcId = $self->rpcId;
 
 	unless ($rpcId) {
-		$self->worker->error("The current request is not RPC: ".Dumper($self->{requestHeaders})."\n".Dumper($response));
+		$self->worker->error('The current request is not RPC: '.Dumper($self->{requestHeaders})."\n".Dumper($response));
 		return;
 	}
 

@@ -33,7 +33,7 @@ sub parse {
 	(my $url = $2) =~ s|\.+/||g;
 	my @parts = split /\?/, $url;
 	$parsed{url}         = shift @parts;
-	$parsed{queryString} = join "?", @parts;
+	$parsed{queryString} = join '?', @parts;
 	$parsed{version}     = $3;
 
 	my $cf;
@@ -51,10 +51,10 @@ sub parse {
 	}
 	$parsed{headerContent} .= "\r\n";
 
-	my $ln = $parsed{len} = $parsed{headers}{"Content-Length"} || -1;
+	my $ln = $parsed{len} = $parsed{headers}{'Content-Length'} || -1;
 	$parsed{len} -= length $parsed{content} if $ln > 0;
 
-	return (\%parsed, "");
+	return (\%parsed, '');
 }
 
 sub proxyPossible {
@@ -90,7 +90,7 @@ sub init {
 	$host =~ s/^www\.//;
 	$self->{host} = $host;
 
-	my $httpConfig = $self->worker->getConfig("server.http");
+	my $httpConfig = $self->worker->getConfig('server.http');
 	my $hostConfig = $httpConfig->{host}{ $self->{host} };
 
 	foreach (qw(documentRoot directoryIndex rewriteUrl rewriteUrlCache statusHandlers)) {
@@ -100,9 +100,9 @@ sub init {
 			next;
 		}
 		my $hostProp = $hostConfig->{$_};
-		if (ref $prop eq "HASH") {
+		if (ref $prop eq 'HASH') {
 			$self->{$_} = Eldhelm::Util::Tool->merge({}, $prop, $hostProp);
-		} elsif (ref $prop eq "ARRAY" && $hostProp) {
+		} elsif (ref $prop eq 'ARRAY' && $hostProp) {
 			$self->{$_} = [ @$hostProp, @$prop ];
 		} else {
 			$self->{$_} = $hostProp || $prop;
@@ -115,16 +115,16 @@ sub init {
 sub parseContent {
 	my ($self, $content) = @_;
 	my $ct = $self->{headers}{'Content-Type'};
-	if (index($ct, "application/x-www-form-urlencoded") >= 0) {
+	if (index($ct, 'application/x-www-form-urlencoded') >= 0) {
 		$self->parsePostUrlencoded($content);
-	} elsif (index($ct, "application/json") >= 0) {
+	} elsif (index($ct, 'application/json') >= 0) {
 		$self->parsePostJson($content);
 	}
 	$self->parseGet($self->{queryString});
 	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
-	
-	$self->worker->status("task", $self->{url});
-	$self->worker->log("$self->{method} $self->{url}", "access");
+
+	$self->worker->status('task', $self->{url});
+	$self->worker->log("$self->{method} $self->{url}", 'access');
 }
 
 sub parseGet {
@@ -141,8 +141,12 @@ sub parsePostUrlencoded {
 
 sub parsePostJson {
 	my ($self, $str) = @_;
-	eval { $self->{json} = Eldhelm::Server::Parser::Json->parse($str); };
-	$self->worker->log("Unable to parse json: $@ Headers: ".Dumper($self->{headers})."Content: $str", "error") if $@;
+	eval {
+		$self->{json} = Eldhelm::Server::Parser::Json->parse($str);
+		1;
+	} or do {
+		$self->worker->log("Unable to parse json: $@ Headers: ".Dumper($self->{headers})."Content: $str", 'error');
+	};
 	return $self;
 }
 
@@ -153,11 +157,11 @@ sub parseCookies {
 		my ($name, $value) = split /\=/, $_;
 		if (!$value && $_ !~ /\=/) {
 			$value = $name;
-			$name  = "";
+			$name  = '';
 		}
 
 		# $value =~ tr/+/ /;
-		# $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+		# $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack('C', hex($1))/eg;
 		if ($name) {
 			$params{$name} = $value;
 		} else {
@@ -175,7 +179,7 @@ sub parseParams {
 	foreach (split /\&/, $data) {
 		my ($name, $value) = split /\=/, $_;
 		$value =~ tr/+/ /;
-		$value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+		$value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack('C', hex($1))/eg;
 		$params{$name} = $value;
 	}
 	return \%params;
@@ -195,27 +199,27 @@ sub respond {
 
 		($headers, $contents) = $self->routeAction($self->{routedAction} = $m[0]);
 		return if $self->{stopped};
-		
-		$cont = join "", @$contents;
+
+		$cont = join '', @$contents;
 
 		$self->addHeaders(@$headers) unless $router->hasErrors;
-		$self->{contentType} ||= "text/html; charset=UTF-8";
+		$self->{contentType} ||= 'text/html; charset=UTF-8';
 		$self->worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
 	my $path = $self->getPathFromUrl($url);
-	$path .= ($path =~ m|/$| ? "" : "/")."$self->{directoryIndex}" if -d $path;
+	$path .= ($path =~ m|/$| ? '' : '/')."$self->{directoryIndex}" if -d $path;
 	unless (-f $path) {
 		$cont = $self->createStatusResponse(404, $path);
-		$self->{contentType} ||= "text/html; charset=UTF-8";
+		$self->{contentType} ||= 'text/html; charset=UTF-8';
 		$self->worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
 	$self->{contentType} = Eldhelm::Util::Mime->getMime($path);
-	my $ln = -s $path;
-	my $cref = "";
+	my $ln   = -s $path;
+	my $cref = '';
 	return $self->worker->sendFile($self->createHttpResponse(\$cref, $ln), $path, $ln);
 }
 
@@ -272,7 +276,7 @@ sub createStatusResponse {
 			next if $code !~ m/$_->[0]/;
 			my $contentParts;
 			($headers, $contentParts) = $self->routeAction(@$_[ 1 .. 2 ], @args);
-			$content = join "", @$contentParts;
+			$content = join '', @$contentParts;
 			last;
 		}
 	}
@@ -288,7 +292,7 @@ sub createUnauthorizedResponse {
 }
 
 sub createErrorResponse {
-	my ($self, $controller) = @_;
+	my ($self, $controller, $message) = @_;
 	return $self->createStatusResponse(500, $self->router->getErrors);
 }
 
@@ -301,7 +305,7 @@ sub redirect {
 
 sub redirectNoCache {
 	my ($self, $url) = @_;
-	return $self->redirect($url)->addHeaders("Cache-Control: no-cache, must-revalidate");
+	return $self->redirect($url)->addHeaders('Cache-Control: no-cache, must-revalidate');
 }
 
 sub addHeaders {
@@ -316,14 +320,14 @@ sub setCookie {
 
 	my @chunks = ("$name=$value");
 	if ($args) {
-		push @chunks, "expires=".time2str("%a, %d %b %Y %T GMT", time + $args->{expires})
+		push @chunks, 'expires='.time2str('%a, %d %b %Y %T GMT', time + $args->{expires})
 			if $args->{expires};
 		push @chunks, "domain=$args->{domain}" if $args->{domain};
 		push @chunks, "path=$args->{path}"     if $args->{path};
-		push @chunks, "secure"                 if $args->{secure};
+		push @chunks, 'secure'                 if $args->{secure};
 	}
 
-	my $cookie = join "; ", @chunks;
+	my $cookie = join '; ', @chunks;
 	return $self unless $cookie;
 
 	$self->addHeaders("Set-Cookie: $cookie");
@@ -344,7 +348,7 @@ sub createHttpResponse {
 		$self->{contentType} ? "Content-Type: $self->{contentType}" : (),
 		@{ $self->{responseHeaders} }, "\r\n",
 	);
-	return join("\r\n", @headers).($self->{method} ne "HEAD" ? $$cont : "");
+	return join("\r\n", @headers).($self->{method} ne 'HEAD' ? $$cont : '');
 }
 
 sub getCookie {
@@ -357,12 +361,12 @@ sub finish {
 	my ($self) = @_;
 	$self->worker->endTask unless $self->{stopped};
 
-	# if !$self->{headers}{Connection} eq "keep-alive";
+	# if !$self->{headers}{Connection} eq 'keep-alive';
 }
 
 sub respondContentAndFinish {
 	my ($self, $content) = @_;
-	$self->{contentType} ||= "text/html; charset=UTF-8";
+	$self->{contentType} ||= 'text/html; charset=UTF-8';
 	$self->worker->sendData($self->createHttpResponse(\$content));
 	$self->finish;
 	return;
@@ -380,7 +384,7 @@ sub _default404Response {
 
 sub _default500Response {
 	my ($self, @data) = @_;
-	return "<pre>".Dumper(@data)."</pre>";
+	return '<pre>'.Dumper(@data).'</pre>';
 }
 
 # ============================
@@ -390,7 +394,7 @@ sub _default500Response {
 sub getPathFromUrl {
 	my ($self, $url) = @_;
 	return Eldhelm::Util::Factory->getAbsoluteClassPath($self->validatePath($url),
-		"/Eldhelm/Application/www", $self->{documentRoot});
+		'/Eldhelm/Application/www', $self->{documentRoot});
 }
 
 sub readDocumentUrl {
