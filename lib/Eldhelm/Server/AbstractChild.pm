@@ -315,7 +315,7 @@ sub createExternalScriptCommand {
 	}
 
 	my $compiledArgs = Eldhelm::Util::ExternalScript->encodeArg($args || []);
-	return ($scriptFile, qq~perl $scriptFile "$self->{configPath}' '$compiledArgs"~);
+	return ($scriptFile, qq~perl $scriptFile "$self->{configPath}" "$compiledArgs"~);
 }
 
 ### UNIT TEST: 304_worker_external_script.pl ###
