@@ -34,7 +34,7 @@ sub config {
 
 	lock($self->{config});
 	return $self->{configObject} =
-		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{config});
+		Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::BaseObject', $self->{config});
 }
 
 sub getConfig {
@@ -53,14 +53,14 @@ sub stash {
 
 	lock($self->{stash});
 	return $self->{stashObject} =
-		Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::BaseObject", $self->{stash});
+		Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::BaseObject', $self->{stash});
 }
 
 sub registerPersist {
 	my ($self, $args) = @_;
 
-	confess "Can not register presistent object without id" if !$args->{id};
-	confess "Can not register presistent object without id" if !$args->{persistType};
+	confess 'Can not register presistent object without id' unless $args->{id};
+	confess 'Can not register presistent object without persistType' unless $args->{persistType};
 	my $persistData = shared_clone($args);
 
 	{
@@ -84,8 +84,8 @@ sub registerPersist {
 sub unregisterPersist {
 	my ($self, $persist) = @_;
 
-	confess "A persist object should be supplied" if !ref $persist;
-	my ($id, $type) = $persist->getList("id", "persistType");
+	confess 'A persist object must be supplied' unless ref $persist;
+	my ($id, $type) = $persist->getList('id', 'persistType');
 
 	{
 		my $per = $self->{persists};
@@ -107,7 +107,7 @@ sub unregisterPersist {
 
 sub getPersist {
 	my ($self, $id) = @_;
-	return if !$id;
+	return unless $id;
 
 	my $persistData;
 	{
@@ -115,11 +115,11 @@ sub getPersist {
 		lock($per);
 		$persistData = $per->{$id};
 	}
-	return if !$persistData;
+	return unless $persistData;
 	lock($persistData);
 
-	confess "The persist object does not contain the persistType property"
-		if !$persistData->{persistType};
+	confess 'The persist object does not contain the persistType property'
+		unless $persistData->{persistType};
 	$persistData->{updatedon} = time;
 	return Eldhelm::Util::Factory->instanceFromScalar($persistData->{persistType}, $persistData);
 }
@@ -220,7 +220,7 @@ sub registerPersistLookup {
 	my $plkp = $self->{persistLookup};
 	lock($plkp);
 
-	my $key = join "-", @vars;
+	my $key = join '-', @vars;
 	$plkp->{$key} = $id;
 
 	return $key;
@@ -231,7 +231,7 @@ sub unregisterPersistLookup {
 	my $plkp = $self->{persistLookup};
 	lock($plkp);
 
-	my $key = join "-", @vars;
+	my $key = join '-', @vars;
 	delete $plkp->{$key};
 
 	return $key;
@@ -244,13 +244,13 @@ sub doJob {
 		return;
 	}
 
-	return push @{ $self->{jobQueue} }, shared_clone({ %$job, proto => "System" });
+	return push @{ $self->{jobQueue} }, shared_clone({ %$job, proto => 'System' });
 }
 
 sub doAction {
 	my ($self, $action, $data) = @_;
 	return $self->doJob(
-		{   job    => "handleAction",
+		{   job    => 'handleAction',
 			action => $action,
 			data   => $data,
 		}
@@ -266,7 +266,7 @@ sub getShedule {
 		$s = $se->{$name};
 	}
 	return unless $s;
-	return Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Shedule", $s);
+	return Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::Shedule', $s);
 }
 
 sub setShedule {
@@ -307,18 +307,15 @@ sub removeShedule {
 sub createExternalScriptCommand {
 	my ($self, $name, $args) = @_;
 
-	my $homePath   = $self->getConfig("server.serverHome");
+	my $homePath   = $self->getConfig('server.serverHome');
 	my $scriptFile = "$homePath/script/$name.pl";
 	unless (-f $scriptFile) {
-		$self->error("Script not found: $scriptFile"); 
+		$self->error("Script not found: $scriptFile");
 		return ();
 	}
-	
+
 	my $compiledArgs = Eldhelm::Util::ExternalScript->encodeArg($args || []);
-	return (
-		$scriptFile,
-		qq~perl $scriptFile "$self->{configPath}" "$compiledArgs"~
-	);
+	return ($scriptFile, qq~perl $scriptFile "$self->{configPath}' '$compiledArgs"~);
 }
 
 ### UNIT TEST: 304_worker_external_script.pl ###
@@ -328,7 +325,7 @@ sub runExternalScript {
 
 	my ($scriptFile, $cmd) = $self->createExternalScriptCommand($name, $args);
 	return unless $scriptFile;
-	
+
 	my $result;
 	eval {
 		$self->access($cmd);
@@ -349,7 +346,7 @@ sub runExternalScriptAsync {
 	my ($scriptFile, $cmd) = $self->createExternalScriptCommand($name, $args);
 	return unless $scriptFile;
 
-	$cmd .= " &";
+	$cmd .= ' &';
 	eval {
 		$self->access($cmd);
 		system($cmd);
@@ -367,10 +364,10 @@ sub runExternalScriptAsync {
 
 sub log {
 	my ($self, $msg, $type) = @_;
-	$type ||= "general";
+	$type ||= 'general';
 	my $queue = $self->{logQueue}{$type};
-	return if !$queue;
-	$msg = $$msg if ref $msg eq "SCALAR";
+	return unless $queue;
+	$msg = $$msg if ref $msg eq 'SCALAR';
 
 	lock($queue);
 	my $tm = Time::HiRes::time;
@@ -380,22 +377,22 @@ sub log {
 
 sub debug {
 	my ($self, $msg) = @_;
-	$self->log($msg, "debug");
+	$self->log($msg, 'debug');
 }
 
 sub access {
 	my ($self, $msg) = @_;
-	$self->log($msg, "access");
+	$self->log($msg, 'access');
 }
 
 sub error {
 	my ($self, $msg) = @_;
-	$self->log($msg, "error");
+	$self->log($msg, 'error');
 }
 
 sub message {
 	my ($self, $msg) = @_;
-	$self->log($msg, "message");
+	$self->log($msg, 'message');
 }
 
 1;

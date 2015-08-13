@@ -18,10 +18,19 @@ my $instanceIndex = 0;
 
 sub new {
 	my ($class, %args) = @_;
+
+	my $id = $args{id};
+	unless ($id) {
+		$id = createId();
+		while ($class->worker->hasPersist($id)) {
+			$id = createId();
+		}
+	}
+
 	my %data = (
 		%args,
-		id => $args{id} || createId(),
-		timeout                   => $class->worker->getConfig("server.garbageCollect.persists"),
+		id                        => $id,
+		timeout                   => $class->worker->getConfig('server.garbageCollect.persists'),
 		createdon                 => time,
 		updatedon                 => time,
 		__events                  => shared_clone({}),
@@ -43,18 +52,18 @@ sub router {
 sub getModel {
 	my ($self, $model, $args) = @_;
 	$args ||= {};
-	return Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Application::Model", $model, %$args);
+	return Eldhelm::Util::Factory->instanceFromNotation('Eldhelm::Application::Model', $model, %$args);
 }
 
 sub createId {
 	$instanceIndex++;
-	return Digest::MD5->new->add(time."i".$instanceIndex)->hexdigest;
+	return Digest::MD5->new->add(time.'r'.rand().'i'.$instanceIndex)->hexdigest;
 }
 
 sub register {
 	my ($self) = @_;
 
-	my @props = $self->getPureList("lookupProperties");
+	my @props = $self->getPureList('lookupProperties');
 	$self->registerLookupProperty($_) foreach @props;
 
 	return $self;
@@ -84,7 +93,7 @@ sub unregisterLookupProperty {
 sub unregister {
 	my ($self) = @_;
 
-	$self->worker->unregisterPersistLookup($_) foreach $self->getHashrefKeys("__persistLookupProperties");
+	$self->worker->unregisterPersistLookup($_) foreach $self->getHashrefKeys('__persistLookupProperties');
 	$self->worker->unregisterPersist($self);
 
 	return $self;
@@ -92,7 +101,7 @@ sub unregister {
 
 sub id {
 	my ($self) = @_;
-	return $self->get("id");
+	return $self->get('id');
 }
 
 sub call {
@@ -126,7 +135,7 @@ sub addEvent {
 		$id = ++$self->{__lastEventId};
 	}
 
-	my $events = $self->get("__events");
+	my $events = $self->get('__events');
 	lock($events);
 
 	$events->{$type} = shared_clone({}) if !$events->{$type};
@@ -143,7 +152,7 @@ sub addEvent {
 
 sub unbind {
 	my ($self, $type, $id) = @_;
-	my $events = $self->get("__events");
+	my $events = $self->get('__events');
 
 	if ($id =~ /^\d+$/) {
 		my $tpEvents;
@@ -179,7 +188,7 @@ sub unbind {
 
 sub trigger {
 	my ($self, $type, $options) = @_;
-	my $events = $self->get("__events");
+	my $events = $self->get('__events');
 	return $self unless $events;
 
 	my $tpEvents;
@@ -192,10 +201,9 @@ sub trigger {
 	my @events;
 	{
 		lock($tpEvents);
-		my ($ev, $id);
 		my @ids = keys %$tpEvents;
-		foreach $id (@ids) {
-			$ev = $tpEvents->{$id};
+		foreach my $id (@ids) {
+			my $ev = $tpEvents->{$id};
 			push @events, Eldhelm::Util::Tool::cloneStructure($ev);
 			delete $tpEvents->{$id} if $ev->{one};
 		}
@@ -236,7 +244,7 @@ sub beforeSaveState {
 sub dispose {
 	my ($self) = @_;
 	$self->unregister;
-	$self->trigger("dispose", {});
+	$self->trigger('dispose', {});
 	return;
 }
 
