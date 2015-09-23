@@ -9,9 +9,9 @@ sub new {
 	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
-	$self->addTemplate($args{headerTpl},  $args{headerTplArgs},  "header")  if $args{headerTpl};
-	$self->addTemplate($args{contentTpl}, $args{contentTplArgs}, "content") if $args{contentTpl};
-	$self->addTemplate($args{footerTpl},  $args{footerTplArgs},  "footer")  if $args{footerTpl};
+	$self->addTemplate($args{headerTpl},  $args{headerTplArgs},  'header')  if $args{headerTpl};
+	$self->addTemplate($args{contentTpl}, $args{contentTplArgs}, 'content') if $args{contentTpl};
+	$self->addTemplate($args{footerTpl},  $args{footerTplArgs},  'footer')  if $args{footerTpl};
 
 	$self->{tpls}    ||= {};
 	$self->{tplArgs} ||= {};
@@ -22,7 +22,7 @@ sub new {
 
 sub addContent {
 	my ($self, $content, $ns) = @_;
-	$ns ||= "content";
+	$ns ||= 'content';
 	$self->{tpls}{$ns} ||= [];
 	push @{ $self->{tpls}{$ns} }, [ undef, $content ];
 }
@@ -30,7 +30,7 @@ sub addContent {
 sub addTemplate {
 	my ($self, $tpl, $args, $ns) = @_;
 	$args              ||= {};
-	$ns                ||= "content";
+	$ns                ||= 'content';
 	$self->{tpls}{$ns} ||= [];
 	push @{ $self->{tpls}{$ns} }, [ $tpl, $args ];
 }

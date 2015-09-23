@@ -15,6 +15,7 @@ sub new {
 		var      => {},
 		function => {},
 		block    => {},
+		foreach  => {}
 	};
 	bless $self, $class;
 
@@ -25,7 +26,7 @@ sub new {
 
 sub getPath {
 	my ($self, $name) = @_;
-	my $relPath = "Eldhelm/Application/Template/".join("/", split(/\./, $name)).".tpl";
+	my $relPath = 'Eldhelm/Application/Template/'.join('/', split(/\./, $name)).'.tpl';
 	return $self->{rootPath}.$relPath if $self->{rootPath};
 	return Eldhelm::Util::Factory->getAbsoluteClassPath($relPath) || $relPath;
 }
@@ -54,9 +55,8 @@ sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
 
-	my $blocks = $self->{block};
 	$source =~
-		s/\{block\s+(.+?)\s*\}(.*?)\{block\}/$blocks->{$1} = $self->parseSource($2); ";;~~eldhelm~template~placeholder~block~block~$1~~;;"/gsei;
+		s/\{(block|foreach)\s+(.+?)\s*\}(.*?)\{\1\}/$self->{$1}{$2} = $self->parseSource($3); ";;~~eldhelm~template~placeholder~$1~$1~$2~~;;"/gsei;
 
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
@@ -148,6 +148,13 @@ sub _interpolate_block {
 	return $self->compileStream($content);
 }
 
+sub _interpolate_foreach {
+	my ($self, $fnm, $name, $content) = @_;
+	my $list = $self->reachNode($name, $self->{compileParams});
+	my $v = $self->{compileParams};
+	return join '', map { $v->{foreach} = $_; $self->compileStream($content) } @$list;
+}
+
 sub _format_json {
 	my ($self, $value, $format, $name) = @_;
 	confess "Please provide an object for json formatting of var $name instead of '$value'" unless ref $value;
@@ -157,7 +164,7 @@ sub _format_json {
 sub _format_css {
 	my ($self, $value, $format, $name) = @_;
 	return $value unless ref $value;
-	return join " ", map { "$_: $value->{$_};" } keys %$value;
+	return join ' ', map { "$_: $value->{$_};" } keys %$value;
 }
 
 sub _format_html {
@@ -174,7 +181,7 @@ sub _format_html {
 
 sub _format_boolean {
 	my ($self, $value, $format, $name) = @_;
-	return $value ? "true" : "false";
+	return $value ? 'true' : 'false';
 }
 
 sub _function_include {
@@ -202,7 +209,7 @@ sub reachNode {
 	my @path = split /\./, $path;
 	my $ref = $args;
 	foreach (@path) {
-		confess "Path '$path' is not accessible via ".ref($ref)." in:\n".Dumper($args) if ref $ref ne "HASH";
+		confess "Path '$path' is not accessible via ".ref($ref)." in:\n".Dumper($args) if ref $ref ne 'HASH';
 		$ref = $ref->{$_};
 	}
 	return $ref;
