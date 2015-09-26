@@ -2,6 +2,7 @@ package Eldhelm::Mail::Reader;
 
 use strict;
 use Net::IMAP::Client;
+use Email::MIME;
 use Data::Dumper;
 
 our $| = 1;
@@ -9,10 +10,12 @@ our $| = 1;
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
-		config    => $args{config},
-		debug     => $args{debug},
-		callbacks => $args{callbacks} || {},
-		filter    => $args{filter} || [],
+		config            => $args{config},
+		debug             => $args{debug},
+		callbacks         => $args{callbacks} || {},
+		filter            => $args{filter} || [],
+		expungeAfterCount => $args{expungeAfterCount} || 10,
+		mailConfigNs      => $args{mailConfigNs} || 'imap',
 	};
 	bless $self, $class;
 
@@ -21,49 +24,75 @@ sub new {
 
 sub getConfig {
 	my ($self) = @_;
-	return $self->{config}{mail} || Eldhelm::Server::Child->instance->getConfig("mail");
+	return $self->{config}{mail} || Eldhelm::Server::Child->instance->getConfig('mail');
 }
 
 sub read {
 	my ($self) = @_;
-	my $cfg = $self->getConfig;
-
+	$self->debug('Connecting ...');
+	my $imapCfg = $self->getConfig->{ $self->{'mailConfigNs'} };
 	my $imap = $self->{imap} = Net::IMAP::Client->new(
-		server => $cfg->{imap}{host},
-		user   => $cfg->{imap}{user},
-		pass   => $cfg->{imap}{pass},
+		server => $imapCfg->{host},
+		user   => $imapCfg->{user},
+		pass   => $imapCfg->{pass},
 		ssl    => 1,
-		port   => $cfg->{imap}{port} || 993,
-	) or die "Could not connect to IMAP server";
+		port   => $imapCfg->{port} || 993,
+	) or die 'Could not connect to IMAP server: '.Dumper($imapCfg);
 
+	$self->debug("Logging in $imapCfg->{user}");
 	$imap->login or die('Login failed: '.$imap->last_error);
 	$imap->select('INBOX');
+	$self->debug('Loged in!');
 
 	my $filter = $self->{filter};
+	my $ei     = 0;
 	if (@$filter) {
 
-		my @messages;
-		foreach (@$filter) {
-			push @messages, @{ $imap->search($_) } if ref $_ eq "HASH";
+		$self->debug('Searching ...');
+		my %messages;
+		foreach my $f (@$filter) {
+			$self->debug('Running filter: '.Dumper($f));
+			if (ref $f eq 'HASH') {
+				$messages{$_} = 1 foreach @{ $imap->search($f) };
+			}
 		}
+		my @msgs = keys %messages;
+		$self->debug('Found '.scalar(@msgs).' messages');
 
-		foreach (@messages) {
+		foreach (@msgs) {
+			$self->debug("Parsing message $_");
 			my $data = $imap->get_rfc822_body($self->{current_msg_id} = $_);
-			my $parsed = $self->triggerCallback("onParseMail", $$data);
+			my $parsed = $self->triggerCallback('onParseMail', $$data, Email::MIME->new($$data));
 			next unless $parsed;
-			$self->triggerCallback("onProcessMail", $parsed);
+
+			$self->debug("Processing message $_");
+			$self->triggerCallback('onProcessMail', $parsed);
+
+			$ei++;
+
+			if ($ei >= $self->{expungeAfterCount}) {
+				$self->debug('Expunge!');
+				$imap->expunge;
+				$ei = 0;
+			}
 		}
 	}
 
-	$imap->expunge;
+	if ($ei > 0) {
+		$self->debug('Expunge!');
+		$imap->expunge;
+	}
 
 }
 
 sub deleteCurrentMessage {
 	my ($self) = @_;
 	my ($imap, $id) = ($self->{imap}, $self->{current_msg_id});
-	$imap->copy([$id], 'Trash');
-	$imap->add_flags([$id], '\\Deleted');
+
+	# $imap->copy([$id], 'Trash');
+	# $imap->add_flags([$id], '\\Deleted');
+	$imap->delete_message($id);
+	$self->debug("Deleted $id");
 	return;
 }
 
@@ -84,7 +113,7 @@ sub printProgress {
 
 sub debug {
 	my ($self, $msg) = @_;
-
+	return unless $self->{debug};
 	print "$msg\n";
 	return;
 }

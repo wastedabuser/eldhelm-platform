@@ -11,6 +11,7 @@ sub new {
 	my $self = {
 		to        => $args{to},
 		from      => $args{from},
+		replyto   => $args{replyto},
 		subject   => $args{subject},
 		content   => $args{content},
 		tpl       => $args{tpl},
@@ -41,8 +42,8 @@ sub send {
 	}
 
 	my $mail = Eldhelm::Mail::TLS->new(
-		From => $cfg->{from},
-		$self->{from} ? ('Reply-to' => $self->{from}) : (),
+		From => $self->{from} || $cfg->{from},
+		$self->{replyto} ? ('Reply-to' => $self->{replyto}) : (),
 		To => $self->{to} || $cfg->{adminMail},
 		Subject  => sprintf($cfg->{subject}, $self->{subject}),
 		Encoding => "quoted-printable",
