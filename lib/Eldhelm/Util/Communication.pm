@@ -4,6 +4,7 @@ use strict;
 
 use Data::Dumper;
 use LWP::UserAgent;
+use HTTP::Request;
 use Eldhelm::Util::Url;
 use Eldhelm::Server::Parser::Json;
 use Digest::MD5 qw(md5_hex);
@@ -22,14 +23,14 @@ sub simpleHttpRequest {
 		}
 		if $method eq "get";
 
-	return loadUrl($url, {}, $method, undef, $headers);
+	return loadUrl($url, {}, $method, $headers);
 }
 
 ### UNIT TEST: 300_communication.pl ###
 
 sub loadUrl {
 	shift @_ if $_[0] eq __PACKAGE__;
-	my ($url, $args, $method, $content, $headers) = @_;
+	my ($url, $args, $method, $headers) = @_;
 	$method ||= "get";
 
 	$url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args) if $args;
@@ -40,6 +41,30 @@ sub loadUrl {
 	}
 
 	my $response = $ua->$method($url);
+	if ($response->is_success) {
+		return $response->content;
+	} else {
+		die $response->status_line.": $url";
+	}
+}
+
+sub submitToUrl {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($url, $args, $method, $content, $headers) = @_;
+	$method ||= "get";
+
+	$url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args) if $args;
+
+	my $req = HTTP::Request->new($method, $url);
+	if ($headers) {
+		$req->header(%$headers);
+	}
+	if ($content) {
+		$req->content($content);
+	}
+
+	my $ua       = LWP::UserAgent->new;
+	my $response = $ua->request($req);
 	if ($response->is_success) {
 		return $response->content;
 	} else {
