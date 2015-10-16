@@ -118,7 +118,7 @@ sub sendSignOut {
 	$conn ||= $self->getConnection;
 
 	$self->worker->log("Sending signOut");
-	$conn->sendSignOut if $conn;
+	$conn->sendSignOut({ reason => 'logout' }) if $conn;
 
 	return;
 }
@@ -169,7 +169,7 @@ sub close {
 	$self->set("closed", 1);
 	$self->remove("connected");
 	my $conn = $self->getConnection;
-	$conn->sendSignOut if $conn;
+	$conn->sendSignOut({ reason => $self->get("closeSessionReason") }) if $conn;
 	return;
 }
 

@@ -1017,12 +1017,12 @@ sub selectWorker {
 	return unless @{ $self->{workers} };
 
 	my @list;
-	foreach my $t (@{ $self->{workers} }) {
+	SLLP: foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
 		my ($pendingJob, $status, $queueLn);
 		{
 			my $tStatus = $self->{workerStatus}{$tid};
-			next unless $tStatus;
+			next SLLP unless $tStatus;
 
 			lock $tStatus;
 			$status     = $tStatus->{action};
@@ -1030,7 +1030,7 @@ sub selectWorker {
 		}
 		{
 			my $tQueue = $self->{workerQueue}{$tid};
-			next unless $tQueue;
+			next SLLP unless $tQueue;
 
 			lock $tQueue;
 			$queueLn = scalar @$tQueue;

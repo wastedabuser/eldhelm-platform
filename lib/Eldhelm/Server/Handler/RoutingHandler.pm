@@ -175,7 +175,7 @@ sub renewSessionCommand {
 	if ($session && !$session->closed) {
 		$session->setConnection($conn);
 	} else {
-		$conn->sendSignOut;
+		$conn->sendSignOut({ reason => 'renew' });
 	}
 
 	return;

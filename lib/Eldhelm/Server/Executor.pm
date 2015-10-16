@@ -161,15 +161,19 @@ sub checkTimeout {
 	}
 	return unless @persists;
 
-	foreach my $p (@persists) {
-		lock($p);
+	CHLP: foreach my $p (@persists) {
+		my ($id, $type);
+		{
+			lock($p);
 
-		my $hasTo = ($tm >= $p->{updatedon} + $p->{timeout}) || $p->{_forceDispose_};
-		next unless $hasTo;
+			my $hasTo = ($tm >= $p->{updatedon} + $p->{timeout}) || $p->{_forceDispose_};
+			next CHLP unless $hasTo;
 
-		my $id = $p->{id};
-		if ($p->{persistType} eq "Eldhelm::Server::Session") {
-			$self->cleanUp($id) unless $p->{connected};
+			($id, $type) = ($p->{id}, $p->{persistType});
+		}
+
+		if ($type eq "Eldhelm::Server::Session") {
+			$self->cleanUpSession($id);
 		} else {
 			$self->cleanUp($id);
 		}
@@ -183,8 +187,22 @@ sub cleanUp {
 		$self->error("Unable to cleanup persist '$id'");
 		return;
 	}
-	$self->log("Timeout for '$id' - ".ref $persist);
+	$self->log("Timeout for persist '$id' - ".ref $persist);
 	$persist->dispose;
+	return 1;
+}
+
+sub cleanUpSession {
+	my ($self, $id) = @_;
+	my $sess = $self->getPersist($id);
+	unless ($sess) {
+		$self->error("Unable to cleanup session '$id'");
+		return;
+	}
+	return if $sess->connected;
+
+	$self->log("Timeout for session '$id' - ".ref $sess);
+	$sess->disposeWithReason('timeout');
 	return 1;
 }
 
