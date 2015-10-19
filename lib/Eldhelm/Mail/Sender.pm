@@ -4,6 +4,7 @@ use strict;
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::Template;
 use Eldhelm::Mail::TLS;
+use MIME::Lite;
 use Data::Dumper;
 
 sub new {
@@ -41,7 +42,8 @@ sub send {
 		$data = $self->{content};
 	}
 
-	my $mail = Eldhelm::Mail::TLS->new(
+	my $cls = $cfg->{smtp}{tls} ? 'Eldhelm::Mail::TLS' : 'MIME::Lite';
+	my $mail = $cls->new(
 		From => $self->{from} || $cfg->{from},
 		$self->{replyto} ? ('Reply-to' => $self->{replyto}) : (),
 		To => $self->{to} || $cfg->{adminMail},
@@ -54,7 +56,7 @@ sub send {
 
 	if ($cfg->{smtp}) {
 		$mail->send(
-			'smtp_tls', $cfg->{smtp}{host},
+			($cfg->{smtp}{tls} ? 'smtp_tls' : 'smtp'), $cfg->{smtp}{host},
 			AuthUser => $cfg->{smtp}{user},
 			AuthPass => $cfg->{smtp}{pass},
 			Port     => $cfg->{smtp}{port} || 25
