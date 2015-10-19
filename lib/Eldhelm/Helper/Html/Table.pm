@@ -23,6 +23,7 @@ sub new {
 		pkFields      => $args{pkFields} || ["id"],
 		page          => $args{page} || 1,
 		pageSize      => $args{pageSize} || 100,
+		urlUtil       => Eldhelm::Util::Url->new
 	};
 	bless $self, $class;
 
@@ -202,12 +203,19 @@ sub createControlLinks {
 
 sub createField {
 	my ($self, $col, $data) = @_;
-	my $url   = $self->applyTpl($col->{urlTpl},   $data);
+	my $url = $self->applyUrlTpl($col->{urlTpl}, $data);
 	my $label = $self->applyTpl($col->{labelTpl}, $data);
 	my $target = $col->{target} || "_self";
 	$url   ||= $col->{url};
 	$label ||= $col->{label};
 	return qq~[<a href="$url" target="$target">$label</a>]~;
+}
+
+sub applyUrlTpl {
+	my ($self, $tpl, $args) = @_;
+	return if !$tpl;
+	$tpl =~ s/\{(.+?)\}/$self->{urlUtil}->urlencode($args->{$1})/ge;
+	return $tpl;
 }
 
 sub applyTpl {

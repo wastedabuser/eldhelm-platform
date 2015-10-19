@@ -47,7 +47,6 @@ sub compile {
 
 sub urlencode {
 	my ($self, $str) = @_;
-	$str =~ s/ /+/g;
 	$str =~ s/([^A-Za-z0-9\-])/sprintf("%%%02X", ord($1))/seg;
 	return $str;
 }
