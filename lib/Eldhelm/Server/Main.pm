@@ -35,7 +35,7 @@ sub new {
 	if (!defined $instance) {
 		$instance = {
 			%args,
-			info => { version => "1.4.4" },
+			info => { version => "1.4.5" },
 			config => shared_clone($args{config} || {}),
 
 			endMainLoopCounter   => -1,

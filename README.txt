@@ -1,4 +1,6 @@
-Eldhelm platform is the application server running the entire back-end of the fantasy card collecting game Battlegrounds of Eldhelm (http://eldhelm.essenceworks.com)
+Please, check http://eldhelmplatform.org for more details about this project.
+
+Eldhelm platform is the application server running the entire back-end of the fantasy, card collecting game - Battlegrounds of Eldhelm (http://eldhelm.essenceworks.com)
 
 Eldhelm platform features:
 

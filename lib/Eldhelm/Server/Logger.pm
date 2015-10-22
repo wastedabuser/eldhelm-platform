@@ -33,6 +33,14 @@ sub init {
 	my ($self) = @_;
 	$self->{$_} = $self->getConfig("server.logger.$_") foreach qw(interval logs);
 	$self->{interval} = 1000 * ($self->{interval} || 250);
+	foreach my $type (keys %{ $self->{logs} }) {
+		foreach my $path (@{ $self->{logs}{$type} }) {
+			if ($path ne 'stderr' && $path ne 'stdout' && !-f $path) {
+				open FW, '>', $path or confess "Can not write log file $path: $!";
+				close FW;
+			}
+		}
+	}
 	{
 		my $lq = $self->{logQueue};
 		lock($lq);
