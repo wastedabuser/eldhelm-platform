@@ -3,9 +3,9 @@
 	# remove if you do not plan to use mysql
 	mysql => {
 		_default => {
-			user    => "",
-			pass    => "",
-			dbs     => "",
+			user    => "<mysql user>",
+			pass    => "<mysqul pass>",
+			dbs     => "<mysql database>",
 			address => "127.0.0.1",
 		}
 	},
@@ -22,6 +22,7 @@
 			user => '<smtp user>',
 			pass => '<smtp pass>',
 			port => 587,
+			tls  => 1,
 		},
 		imap => {
 			host => '<imap host>',
@@ -43,6 +44,7 @@
 		serverHome => "<path to server start script dir>",
 
 		host   => "auto",
+		# host   => "auto:eth0", on linux
 		port   => 80,
 		listen => [
 		

@@ -2,7 +2,7 @@
 	server => {
 		name   => "eldhelm",
 		host   => "127.0.0.1",
-		port   => 8000,
+		port   => 80,
 		logger => {
 			logs => {
 				access  => ["stdout"],
