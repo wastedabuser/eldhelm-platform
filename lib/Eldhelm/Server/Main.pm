@@ -77,6 +77,7 @@ sub new {
 
 			workerCountU => 1,
 			workerCountR => 2,
+			workerCount  => 5
 		};
 		bless $instance, $class;
 
@@ -289,8 +290,8 @@ sub init {
 	# start workers
 	$self->{workerCountU} = $cnf->{workerCountU} if $cnf->{workerCountU};
 	$self->{workerCountR} = $cnf->{workerCountR} if $cnf->{workerCountR};
-	$self->{workerCount}  = $cnf->{workerCount};
-	foreach (1 .. $self->{workerCount} || 1) {
+	$self->{workerCount}  = $cnf->{workerCount}  if $cnf->{workerCount};
+	foreach (1 .. $self->{workerCount}) {
 		$self->createWorker;
 	}
 
@@ -1017,7 +1018,7 @@ sub selectWorker {
 	return unless @{ $self->{workers} };
 
 	my @list;
-	SLLP: foreach my $t (@{ $self->{workers} }) {
+SLLP: foreach my $t (@{ $self->{workers} }) {
 		my $tid = $t->tid;
 		my ($pendingJob, $status, $queueLn);
 		{

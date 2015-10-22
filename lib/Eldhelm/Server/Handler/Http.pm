@@ -188,6 +188,7 @@ sub parseParams {
 sub respond {
 	my ($self) = @_;
 	my $url = $self->rewriteUrl($self->{url});
+	$url = $self->{directoryIndex} if $self->{directoryIndex} && !$url;
 	my ($headers, $contents, $cont);
 
 	if (my @m = $url =~ /^controller:(.+)$/) {
@@ -209,7 +210,7 @@ sub respond {
 	}
 
 	my $path = $self->getPathFromUrl($url);
-	$path .= ($path =~ m|/$| ? '' : '/')."$self->{directoryIndex}" if -d $path;
+	$path .= ($path =~ m|/$| ? '' : '/').$self->{directoryIndex} if $self->{directoryIndex} && -d $path;
 	unless (-f $path) {
 		$cont = $self->createStatusResponse(404, $path);
 		$self->{contentType} ||= 'text/html; charset=UTF-8';
