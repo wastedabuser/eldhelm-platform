@@ -33,20 +33,26 @@ sub usage {
 	my ($self) = @_;
 
 	my $opts = join "\n\t", map {
-		join(" ", map { "-$_" } split(/ /, $_->[0]))." - ".join("; ", $_->[ 0 .. $#$_ ])
+		join(" ", map { "-$_" } split(/ /, $_->[0]))." - ".join("; ", @{$_}[ 1 .. $#$_ ])
 	} @{ $self->{options} };
 
-	my $args;
-	if ($opts) {
-		$args = "[Options] ";
-	}
+	my $args = "";
 	if ($self->{items}) {
 		my $items = join("|", @{ $self->{items} });
 		$args .= "[$items] ";
 	}
+	if ($opts) {
+		$args .= "[Options] ";
+	}
 
 	my $usage = "Usage:\n\tperl $0 $args\n";
 	$usage .= "\nOptions:\n\t$opts\n" if $opts;
+
+	if ($self->{examples}) {
+		my $examples = join("\n", map { "\t".$_ } @{ $self->{examples} });
+		$usage .= "\nExamples:\n$examples\n";
+	}
+
 	return $usage;
 }
 

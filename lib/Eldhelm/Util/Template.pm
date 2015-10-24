@@ -15,7 +15,8 @@ sub new {
 		var      => {},
 		function => {},
 		block    => {},
-		foreach  => {}
+		foreach  => {},
+		cdata    => {}
 	};
 	bless $self, $class;
 
@@ -54,9 +55,14 @@ sub parse {
 sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
+	return $source unless $source =~ /\{[a-z].*?\}/;
 
 	$source =~
 		s/\{(block|foreach)\s+(.+?)\s*\}(.*?)\{\1\}/$self->{$1}{$2} = $self->parseSource($3); ";;~~eldhelm~template~placeholder~$1~$1~$2~~;;"/gsei;
+
+	my $z = -1;
+	$source =~
+		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
 
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
@@ -153,6 +159,11 @@ sub _interpolate_foreach {
 	my $list = $self->reachNode($name, $self->{compileParams});
 	my $v = $self->{compileParams};
 	return join '', map { $v->{foreach} = $_; $self->compileStream($content) } @$list;
+}
+
+sub _interpolate_cdata {
+	my ($self, $fnm, $name, $content) = @_;
+	return $content;
 }
 
 sub _format_json {

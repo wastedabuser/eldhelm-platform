@@ -120,6 +120,11 @@ sub getHandler {
 	return $self->{worker}{handler};
 }
 
+sub data {
+	my ($self) = @_;
+	return $self->{data};
+}
+
 sub canCall {
 	my ($self, $fn) = @_;
 

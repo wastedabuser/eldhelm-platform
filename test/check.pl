@@ -11,24 +11,34 @@ use Perl::Critic;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
+	items => [
+		"source file",
+		"source directory",
+		"dotted notation"
+	],
 	options => [
+		[ "h help",   "see this help" ],
 		[ "all",      "checks all code" ],
 		[ "platform", "check platform code only" ],
 		[ "util",     "check platform utils code only" ],
 		[ "product",  "check product code only" ],
 		[ "dump",     "show verbose output" ],
 		[ "syntax",   "check syntax" ],
-		[ "static",   "run static anlysis using perl::crytic" ],
-		[ "unittest", "run unit tests refernced in the source" ],
+		[ "static",   "run static anlysis using Perl::Critic" ],
+		[ "unittest", "run unit tests referenced in the source" ],
+	],
+	examples => [
+		"perl check.pl -all -syntax -static -unittest",
+		"perl check.pl /home/me/myproject/Eldhelm/Application/Controller/Test.pm -syntax",
+		"perl check.pl myNamespace.myController -syntax",
 	]
 );
 
-if (!@ARGV) {
+my %ops = $cmd->arguments;
+if (!@ARGV || $ops{h} || $ops{help}) {
 	print $cmd->usage;
 	exit;
 }
-
-my %ops = $cmd->arguments;
 
 my @libPaths = ("../lib", "../../platform-utils/lib", "../../");
 
