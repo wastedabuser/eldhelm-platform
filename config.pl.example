@@ -153,13 +153,13 @@
 		shedule => {
 			action => [
 				# sheduled events
-				# [ "12:00", "currency:syncRates" ],
-				# [ "6h", "currency:syncRates" ],
-				# [ "5m", "currency:syncRates" ],
+				# [ "12:00", "myController:myMethod" ],
+				# [ "6h", "myController:myMethod" ],
+				# [ "5m", "myController:myMethod" ],
 			],
 			namedAction => {
 				# named sheduled events - manipulate them at runtime
-				# slayTheBeast => [ "15m", "currency:syncRates" ] 
+				# myName => [ "15m", "myController:myMethod" ] 
 			}
 		},
 		
