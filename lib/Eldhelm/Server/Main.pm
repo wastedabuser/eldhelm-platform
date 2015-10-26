@@ -1486,4 +1486,83 @@ sub getFileContent {
 	return $content;
 }
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Main - An application server called The Eldhelm Platform.
+
+=head1 SYNOPSIS
+
+use strict;
+use Eldhelm::Server::Main;
+
+# with a config.pl
+Eldhelm::Server::Main->new->start;
+
+# you can try this for a quick start
+Eldhelm::Server::Main->new(
+	configPath => 'quickstart-config.pl'
+)->start;
+
+# or with your custom configuration
+Eldhelm::Server::Main->new(
+	configPath => 'myCustomConfig.pl'
+)->start;
+
+=head1 DESCRIPTION
+
+A flexible, production ready server which can do advanced stuff right out of the box.
+
+The server traps some signals:
+
+=over
+
+=item HUP
+
+When you C<kill -HUP> the server, it reloads the configuration file.
+Pelase note that the server will not recreate any threads or sockets.
+For all changes to apply you need to restart the server!
+
+=item INT
+
+When you C<kill -INT> the server will gracefully shut down.
+It will attempt to save it's state (if configured to do so).
+
+=item TERM
+
+Same as INT.
+
+=item PIPE
+
+Will nag about a broken pipe and attempt to continue normal operation.
+
+=back
+
+=head1 METHODS
+
+=over
+
+=item new(%args)
+
+Constructs the server object.
+
+=item start()
+
+Starts the server.
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
+
 1;

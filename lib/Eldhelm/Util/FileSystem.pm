@@ -6,7 +6,7 @@ use Carp;
 sub readFoldersList {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($path) = @_;
-	$path ||= "./";
+	$path ||= './';
 	opendir DIR, $path or confess "Can not open dir '$path': $@";
 	my @dirs = map { join "/", $path || (), $_ } grep { $_ !~ /^\./ && -d join("/", $path || (), $_) } readdir DIR;
 	closedir DIR;
@@ -16,7 +16,7 @@ sub readFoldersList {
 sub readFileList {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($path) = @_;
-	$path ||= "./";
+	$path ||= './';
 	opendir DIR, $path or confess "Can not open dir '$path': $@";
 	my @list = map { join "/", $path || (), $_ } grep { $_ !~ /^\./ } readdir DIR;
 	my @files = grep { -f $_ } @list;
@@ -29,9 +29,18 @@ sub getFileContents {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($path) = @_;
 	open FR, $path or confess "Can not open file '$path': $@";
-	my $content = join "", <FR>;
+	my $content = join '', <FR>;
 	close FR;
 	return $content;
+}
+
+sub writeFileContents {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($path, $content) = @_;
+	open FW, '>', $path or confess "Can not open file '$path': $@";
+	print FW $content;
+	close FW;
+	return;
 }
 
 1;

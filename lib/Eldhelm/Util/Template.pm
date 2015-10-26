@@ -58,12 +58,13 @@ sub parseSource {
 	return $source unless $source =~ /\{[a-z].*?\}/;
 
 	$source =~
-		s/\{(block|foreach)\s+(.+?)\s*\}(.*?)\{\1\}/$self->{$1}{$2} = $self->parseSource($3); ";;~~eldhelm~template~placeholder~$1~$1~$2~~;;"/gsei;
+		s/\{(block|foreach)\s+(.+?)\s*\}(.*?)\{\1\}/my($a,$b)=($1,$2); $self->{$a}{$b}=$self->parseSource($3); ";;~~eldhelm~template~placeholder~$a~$a~$b~~;;"/gsei;
 
 	my $z = -1;
 	$source =~
 		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
 
+		
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
@@ -181,10 +182,12 @@ sub _format_css {
 sub _format_html {
 	my ($self, $value, $format, $name) = @_;
 	if (!ref $value) {
-		$value =~ s/&/&amp;/sg;
-		$value =~ s/</&lt;/sg;
-		$value =~ s/>/&gt;/sg;
-		$value =~ s/"/&quot;/sg;
+		$value =~ s/&/&amp;/g;
+		$value =~ s/</&lt;/g;
+		$value =~ s/>/&gt;/g;
+		$value =~ s/"/&quot;/g;
+		$value =~ s~(\n\r|\r\n|\n)~<br/>~g;
+		$value =~ s~(https?://[a-z0-9_%&+:/\-\.\?]+)~<a href="\1">\1</a>~i;
 		return $value;
 	}
 	confess "Can not format $value at $name to html. Encoding to html from a reference is not yet implemented";
@@ -213,6 +216,11 @@ sub _function_include {
 sub _function_extends {
 	my ($self, $name) = @_;
 	return "";
+}
+
+sub _function_instruct {
+	my ($self, $name) = @_;
+	return "{$name}";
 }
 
 sub reachNode {

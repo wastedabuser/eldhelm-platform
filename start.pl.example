@@ -4,10 +4,11 @@ use Eldhelm::Server::Main;
 use Eldhelm::Util::CommandLine;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
-	argv => \@ARGV,
-	items => [qw[opt kur bate]],
-	options =>
-		[ [ "h help", "this help text" ], [ "configPath", "a path to the configuration file config.pl by default" ], ]
+	argv    => \@ARGV,
+	options => [
+		[ 'h help', 'this help text' ],
+		[ 'configPath', 'A path to the configuration file', '/config.pl by default' ],
+	]
 );
 
 my %args = $cmd->arguments;

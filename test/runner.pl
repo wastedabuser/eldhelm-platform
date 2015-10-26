@@ -1,5 +1,7 @@
-use strict;
 use lib "../lib";
+
+use strict;
+
 use TAP::Harness;
 use Data::Dumper;
 use Eldhelm::Util::CommandLine;
@@ -8,15 +10,15 @@ use Eldhelm::Util::FileSystem;
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
 	items => [
-		"unit test file",
-		"directory"
+		"Unit test file",
+		"Directory"
 	],
 	options => [
-		[ "h help",   "see this help" ],
-		[ "all",      "runs all avaialbale tests" ],
-		[ "platform", "runs platform test only" ],
-		[ "product",  "runs product test only" ],
-		[ "dump",     "dumps the test results" ],
+		[ "h help",   "See this help" ],
+		[ "all",      "Runs all avaialbale tests" ],
+		[ "platform", "Runs platform test only" ],
+		[ "product",  "Runs product test only" ],
+		[ "dump",     "Dumps the test results" ],
 	]
 );
 

@@ -12,9 +12,9 @@ use Perl::Critic;
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
 	items => [
-		"source file",
-		"source directory",
-		"dotted notation"
+		"Source file",
+		"Source directory",
+		"Dotted notation of a class"
 	],
 	options => [
 		[ "h help",   "see this help" ],
