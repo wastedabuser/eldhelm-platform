@@ -1,5 +1,46 @@
 package Eldhelm::Util::CommandLine;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::CommandLine - A utility class for parsing script arguments.
+
+=head1 SYNOPSIS
+
+	use strict;
+	use Eldhelm::Util::CommandLine;
+	
+	my $cmd = Eldhelm::Util::CommandLine->new(
+		argv    => \@ARGV,
+		items   => [ 'exmplain what should be listed here' ],
+		options => [
+			[ 'h help', 'this help text' ],
+			[ 'o', 'other example option']
+		]
+	);
+	
+	my %args = $cmd->arguments;
+	
+	if ($args{h} || $args{help}) {
+		print $cmd->usage;
+		exit;
+	}
+	
+	# something useful here ...
+
+This script can be called this way then:
+C<perl myscript.pl item1 item2 item3 -o something>
+
+To see the help you type:
+C<perl myscript.pl -h> or C<perl myscript.pl -help>
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 sub parseArgv {
@@ -23,11 +64,23 @@ sub parseArgv {
 	return %opt;
 }
 
+=item new(%args)
+
+Constructs a new object.
+
+=cut
+
 sub new {
 	my ($class, %args) = @_;
 	my $self = {%args};
 	return bless $self, $class;
 }
+
+=item usage() String
+
+Returns a stream of the help text ready to be printed in the terminal.
+
+=cut
 
 sub usage {
 	my ($self) = @_;
@@ -56,9 +109,29 @@ sub usage {
 	return $usage;
 }
 
+=item arguments() Hash
+
+Returns a Hash of parsed arguments.
+
+=cut
+
 sub arguments {
 	my ($self) = @_;
 	return Eldhelm::Util::CommandLine->parseArgv(@{ $self->{argv} });
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

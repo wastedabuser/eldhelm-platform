@@ -1,8 +1,41 @@
 package Eldhelm::Basic::Script;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Basic::Script - A basic external script loader.
+
+=head1 SYNOPSIS
+
+You should not construct an object directly. You should use:
+
+	Eldhelm::Basic::Controller->getScript
+
+=head1 DESCRIPTION
+
+This class provides a standartization of the naming and location of external scripts.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Carp;
+
+=item new(%args)
+
+Constructs a new object.
+
+C<%args> Hash - Contructor argumets;
+
+C<file> String - A path to file;
+C<stream> String - A perl script as stream;
+
+=cut
 
 sub new {
 	my ($class, %args) = @_;
@@ -67,5 +100,19 @@ sub stream {
 	$self->load_stream($str);
 	return $self;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

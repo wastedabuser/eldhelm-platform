@@ -1,5 +1,21 @@
 package Eldhelm::Util::Tool;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::Tool - A utility class for working with perl structures.
+
+=head1 SYNOPSIS
+
+This is a static class.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Encode qw();
 use Math::Random::MT qw(rand);
@@ -195,5 +211,19 @@ sub cloneStructure {
 	}
 	return $nRef;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

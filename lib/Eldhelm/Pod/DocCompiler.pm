@@ -35,6 +35,7 @@ sub parse {
 			push @files, Eldhelm::Util::FileSystem->readFileList($p);
 		}
 	}
+	@files = sort { $a cmp $b } @files;
 
 	my @parsed;
 	foreach my $f (@files) {
@@ -52,7 +53,7 @@ sub compile {
 	my ($self, $tpl) = @_;
 	my @compiled;
 	foreach my $p (@{ $self->{parsed} }) {
-		next unless $p->data;
+		next unless $p->hasDoc;
 		push @compiled, [ $p, $self->compileParsed($tpl, $p) ];
 	}
 	return $self->{compiled} = \@compiled;

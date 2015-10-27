@@ -8,7 +8,7 @@ use Eldhelm::Util::CommandLine;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
-	items   => [ [ 'files', 'folders' ], ],
+	items   => [ 'files', 'folders' ],
 	options => [
 		[ 'h help', 'this help text' ],
 		[ 'tpl',    'Template in dotted notation' ],

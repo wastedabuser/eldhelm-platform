@@ -1494,25 +1494,25 @@ Eldhelm::Server::Main - An application server called The Eldhelm Platform.
 
 =head1 SYNOPSIS
 
-use strict;
-use Eldhelm::Server::Main;
-
-# with a config.pl
-Eldhelm::Server::Main->new->start;
-
-# you can try this for a quick start
-Eldhelm::Server::Main->new(
-	configPath => 'quickstart-config.pl'
-)->start;
-
-# or with your custom configuration
-Eldhelm::Server::Main->new(
-	configPath => 'myCustomConfig.pl'
-)->start;
+	use strict;
+	use Eldhelm::Server::Main;
+	
+	# with a config.pl
+	Eldhelm::Server::Main->new->start;
+	
+	# you can try this for a quick start
+	Eldhelm::Server::Main->new(
+		configPath => 'quickstart-config.pl'
+	)->start;
+	
+	# or with your custom configuration
+	Eldhelm::Server::Main->new(
+		configPath => 'myCustomConfig.pl'
+	)->start;
 
 =head1 DESCRIPTION
 
-A flexible, production ready server which can do advanced stuff right out of the box.
+A flexible, production ready, application server which can do advanced stuff (WOW).
 
 The server traps some signals:
 
@@ -1546,6 +1546,10 @@ Will nag about a broken pipe and attempt to continue normal operation.
 =item new(%args)
 
 Constructs the server object.
+
+C<%args> Hash - Contructor argumets;
+
+C<configPath> - specifies a configuration file. Defaults to C<config.pl>;
 
 =item start()
 

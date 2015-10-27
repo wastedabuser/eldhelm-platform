@@ -6,38 +6,37 @@ use Net::SMTP::TLS;
 
 use parent 'MIME::Lite';
 
-
 =head1 NAME
 
 Eldhelm::Mail::TLS - adds send by SMTP+TLS to MIME::Lite
 
 =head1 SYNOPSIS
 
-# Create a multipart message (i.e., one with attachments) and send it
-# via SMTP+TLS
+Create a multipart message (i.e., one with attachments) and send it
+via SMTP+TLS
 
-### Create a new multipart message:
-$msg = Eldhelm::Mail::TLS->new(
-	From    => 'me@myhost.com',
-	To      => 'you@yourhost.com',
-	Cc      => 'some@other.com, some@more.com',
-	Subject => 'A message with 2 parts...',
-	Type    => 'multipart/mixed'
-);
-
-### Add parts (each "attach" has same arguments as "new"):
-$msg->attach(
-	Type     => 'TEXT',
-	Data     => "Here's the GIF file you wanted"
-);
-$msg->attach(
-	Type     => 'image/gif',
-	Path     => 'aaa000123.gif',
-	Filename => 'logo.gif',
-	Disposition => 'attachment'
-);
-### use Net:SMTP to do the sending
-$msg->send('smtp_tls','smtp.gmail.com', User => 'example@gmail.com', Password => 'yupi' );
+	### Create a new multipart message:
+	$msg = Eldhelm::Mail::TLS->new(
+		From    => 'me@myhost.com',
+		To      => 'you@yourhost.com',
+		Cc      => 'some@other.com, some@more.com',
+		Subject => 'A message with 2 parts...',
+		Type    => 'multipart/mixed'
+	);
+	
+	### Add parts (each "attach" has same arguments as "new"):
+	$msg->attach(
+		Type     => 'TEXT',
+		Data     => "Here's the GIF file you wanted"
+	);
+	$msg->attach(
+		Type     => 'image/gif',
+		Path     => 'aaa000123.gif',
+		Filename => 'logo.gif',
+		Disposition => 'attachment'
+	);
+	### use Net:SMTP to do the sending
+	$msg->send('smtp_tls','smtp.gmail.com', User => 'example@gmail.com', Password => 'yupi' );
 
 
 =head1 DESCRIPTION

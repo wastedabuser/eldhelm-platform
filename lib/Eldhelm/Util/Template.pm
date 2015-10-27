@@ -14,8 +14,6 @@ sub new {
 		params   => $args{params} || {},
 		var      => {},
 		function => {},
-		block    => {},
-		foreach  => {},
 		cdata    => {}
 	};
 	bless $self, $class;
@@ -58,13 +56,12 @@ sub parseSource {
 	return $source unless $source =~ /\{[a-z].*?\}/;
 
 	$source =~
-		s/\{(block|foreach)\s+(.+?)\s*\}(.*?)\{\1\}/my($a,$b)=($1,$2); $self->{$a}{$b}=$self->parseSource($3); ";;~~eldhelm~template~placeholder~$a~$a~$b~~;;"/gsei;
+		s/\{(block|template|foreach|join|separator)\s+(.+?)\s*\}(.*?)\{\1\}/my($a,$b)=($1,$2); $self->{$a} ||= {}; $self->{$a}{$b}=$self->parseSource($3); ";;~~eldhelm~template~placeholder~$a~$a~$b~~;;"/gsei;
 
 	my $z = -1;
 	$source =~
 		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
 
-		
 	my $vars = $self->{var};
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
 	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
@@ -122,15 +119,23 @@ sub _interpolate_var {
 	if ($name =~ /\./) {
 		my $ref = $self->{compileParams};
 		foreach (split /\./, $name) {
-			confess "The var '$name' can not be traversed. There is a value '$ref' at '$_' instead of HASH\n"
-				unless ref $ref;
+			my $rfn = ref $ref;
+			confess "The var '$name' can not be traversed. There is a value '$ref' at '$_' instead of HASH or ARRAY!\n"
+				unless $rfn;
 			unless ($ref->{$_}) {
-				$ref = "";
+				$ref = '';
 				last;
 			}
-			$ref = $ref->{$_};
+			if ($rfn eq 'HASH') {
+				$ref = $ref->{$_};
+			} elsif ($rfn eq 'ARRAY') {
+				$ref = $ref->[$_];
+			} else {
+				confess "The var '$name' can not be traversed. There is a '$rfn' at '$_' instead of HASH or ARRAY!\n";
+			}
 		}
-		confess "The traversed value for the template var '$name' is a ".ref($ref)."\n" if ref $ref;
+		confess "The traversed value for the var '$name' is a ".ref($ref)." instead of SCALAR!\n"
+			if ref($ref) && $format ne 'template';
 		$value = $ref;
 	} else {
 		$value = $self->{compileParams}{$name};
@@ -162,6 +167,23 @@ sub _interpolate_foreach {
 	return join '', map { $v->{foreach} = $_; $self->compileStream($content) } @$list;
 }
 
+sub _interpolate_join {
+	my ($self, $fnm, $name, $content) = @_;
+	my $list = $self->reachNode($name, $self->{compileParams});
+	my $v = $self->{compileParams};
+	return join $self->{separator}{$name} || ' ', map { $v->{join} = $_; $self->compileStream($content) } @$list;
+}
+
+sub _interpolate_template {
+	my ($self, $fnm, $name, $content) = @_;
+	return '';
+}
+
+sub _interpolate_separator {
+	my ($self, $fnm, $name, $content) = @_;
+	return '';
+}
+
 sub _interpolate_cdata {
 	my ($self, $fnm, $name, $content) = @_;
 	return $content;
@@ -187,6 +209,7 @@ sub _format_html {
 		$value =~ s/>/&gt;/g;
 		$value =~ s/"/&quot;/g;
 		$value =~ s~(\n\r|\r\n|\n)~<br/>~g;
+		$value =~ s/\t/&nbsp;&nbsp;&nbsp;&nbsp;/g;
 		$value =~ s~(https?://[a-z0-9_%&+:/\-\.\?]+)~<a href="\1">\1</a>~i;
 		return $value;
 	}
@@ -196,6 +219,12 @@ sub _format_html {
 sub _format_boolean {
 	my ($self, $value, $format, $name) = @_;
 	return $value ? 'true' : 'false';
+}
+
+sub _format_template {
+	my ($self, $value, $format, $name) = @_;
+	my $v = $self->{compileParams};
+	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{ $_->[0] }) } @$value;
 }
 
 sub _function_include {

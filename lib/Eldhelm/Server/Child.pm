@@ -1,5 +1,21 @@
 package Eldhelm::Server::Child;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::AbstractChild - A base class for a thread wrapper object that responds to messages.
+
+=head1 SYNOPSIS
+
+This class should not be constructed directly.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use threads;
 use threads::shared;
@@ -156,6 +172,17 @@ sub doActionInBackground {
 	);
 }
 
+=item delay($interval, $handle, $args, $persistId) String
+
+Registers a task to be executed after a delay in seconds. Returns the id of the delayed taks.
+
+C<$interval> Number - The delay interval in seconds;
+C<$handle> - The controller action which will handle the task;
+C<$args> - Context data to be send to the delayed task;
+C<$persistId> - Optional; A persistant object to be used as a context;
+
+=cut
+
 sub delay {
 	my ($self, $interval, $handle, $args, $persistId) = @_;
 	return unless $handle;
@@ -177,6 +204,14 @@ sub delay {
 
 	return $id;
 }
+
+=item cancelDelay($delayId) 
+
+Cancels a delay by it's id.
+
+C<$delayId> String - the id of the delay;
+
+=cut
 
 sub cancelDelay {
 	my ($self, $delayId) = @_;

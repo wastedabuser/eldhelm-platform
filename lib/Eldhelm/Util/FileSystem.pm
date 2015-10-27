@@ -1,7 +1,31 @@
 package Eldhelm::Util::FileSystem;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::FileSystem - A utility class for file system interaction.
+
+=head1 SYNOPSIS
+
+This is a static class.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Carp;
+
+=item readFoldersList($path)
+
+Returns the list of folders from the folder specified.
+
+C<$path> String - The path to the folder to be examined
+
+=cut
 
 sub readFoldersList {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -12,6 +36,14 @@ sub readFoldersList {
 	closedir DIR;
 	return @dirs;
 }
+
+=item readFileList($path) Array
+
+Returns the list of files recursively from the folder specified.
+
+C<$path> String - The path to the folder to be examined
+
+=cut
 
 sub readFileList {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -25,6 +57,14 @@ sub readFileList {
 	return @files, map { readFileList($_) } @dirs;
 }
 
+=item getFileContents($path) String
+
+Reads a file and returns its contents.
+
+C<$path> String - The file to be read.
+
+=cut
+
 sub getFileContents {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($path) = @_;
@@ -34,6 +74,15 @@ sub getFileContents {
 	return $content;
 }
 
+=item writeFileContents($path)
+
+Writes data to a file.
+
+C<$path> String - The file to be written.
+C<$contents> String - The data to be written.
+
+=cut
+
 sub writeFileContents {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($path, $content) = @_;
@@ -42,5 +91,19 @@ sub writeFileContents {
 	close FW;
 	return;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

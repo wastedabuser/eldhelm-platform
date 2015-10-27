@@ -1,5 +1,52 @@
 package Eldhelm::Server::Shedule;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Shedule - An object controlling the schedule execution.
+
+=head1 SYNOPSIS
+
+You should not create this object directly. Instead do:
+
+	$self->worker->setShedule(
+		'mySchedule',
+		'15m',
+		'myController:myAction',
+		{ a => 1 }
+	);
+
+Please see L<Eldhelm::Server::AbstractChild>->setShedule and the other shedule methods:
+
+=head1 DESCRIPTION
+
+This class has the following properties that should be accessed like this:
+
+	my $time = $self->get('time');
+
+=over
+
+=item time Number
+
+A unix timestamp indicating the next execution.
+
+=item remain Number
+
+Seconds remaining to the next execution.
+
+=item interval ArrayRef
+
+The execution interval in chunks as needed by L<Date::Calc>
+
+=back
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Carp;
 use Carp qw(longmess);
@@ -118,5 +165,19 @@ sub dispose {
 	$self->set("disposed", 1);
 	return $self;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

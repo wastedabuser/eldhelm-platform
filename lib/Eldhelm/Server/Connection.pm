@@ -1,5 +1,25 @@
 package Eldhelm::Server::Connection;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Connection - An object representing a server connection.
+
+=head1 SYNOPSIS
+
+Connection classes are created by the server you should be able to get them like this:
+
+	Eldhelm::Basic::Controller->connection;
+	
+See L<Eldhelm::Basic::Controller> for more details.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Carp;
 use Eldhelm::Util::Factory;
@@ -7,25 +27,55 @@ use Data::Dumper;
 
 use base qw(Eldhelm::Server::BaseObject);
 
+=item fno() Number
+
+Returns a file handle number represnting the current connection.
+
+=cut
+
 sub fno {
 	my ($self) = @_;
 	return $self->get("fno");
 }
+
+=item host() String
+
+Returns the client host(ip).
+
+=cut
 
 sub host {
 	my ($self) = @_;
 	return $self->get("peerhost");
 }
 
+=item port() String
+
+Returns the client port.
+
+=cut
+
 sub port {
 	my ($self) = @_;
 	return $self->get("peerport");
 }
 
+=item connected() 1 or 0
+
+Returns the connection status.
+
+=cut
+
 sub connected {
 	my ($self) = @_;
 	return $self->get("connected");
 }
+
+=item close()
+
+Closes the connection
+
+=cut
 
 sub close {
 	my ($self, $event) = @_;
@@ -42,6 +92,12 @@ sub setSessionId {
 	return $self;
 }
 
+=item getSessionId() String
+
+Returns the id of the associated session.
+
+=cut
+
 sub getSessionId {
 	my ($self) = @_;
 	return $self->get("sessionId") || $self->worker->getPersistId("fno", $self->fno);
@@ -53,10 +109,22 @@ sub removeSession {
 	return $self;
 }
 
+=item hasSession() 1 or undef
+
+Returns whether the connection has session or if it does whether it is still alive.
+
+=cut
+
 sub hasSession {
 	my ($self) = @_;
 	return $self->worker->hasPersist($self->getSessionId);
 }
+
+=item getSession() Eldhelm::Server::Session
+
+Returns the L<Eldhelm::Server::Session> object associated with this connection.
+
+=cut
 
 sub getSession {
 	my ($self) = @_;
@@ -81,6 +149,15 @@ sub sendHeader {
 	my ($self, $data) = @_;
 	return $self->sendData(undef, $data);
 }
+
+=item say($data, $headers) self
+
+Sends a message along the connection. The message encoding depends on the message protocol associated with this connection.
+
+C<$data> HashRef - The data to be sent.
+C<$headers> HashRef - Headers to be sent.
+
+=cut
 
 sub say {
 	my ($self, $data, $headers) = @_;
@@ -107,5 +184,19 @@ sub sendDeny {
 	$self->sendData($data, { type => "deny" });
 	return;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

@@ -1,5 +1,21 @@
 package Eldhelm::Server::AbstractChild;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::AbstractChild - A base class for a thread wrapper object.
+
+=head1 SYNOPSIS
+
+This class should not be constructed directly.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 use threads;
@@ -28,6 +44,12 @@ sub addInstance {
 # Persist
 # =================================
 
+=item config() Eldhelm::Server::BaseObject
+
+Returns an interface object (L<Eldhelm::Server::BaseObject>) to access the current server configuration. It is accessible for both read and write.
+
+=cut
+
 sub config {
 	my ($self) = @_;
 	return $self->{configObject} if $self->{configObject};
@@ -37,15 +59,43 @@ sub config {
 		Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::BaseObject', $self->{config});
 }
 
+=item getConfig($property) Mixed
+
+Returns a clone of a node in the configuration file descrubed by a dotted notaion.
+
+C<$property> String - dotted notation;
+
+	my $name = $self->getConfig('server.name');
+
+=cut
+
 sub getConfig {
 	my ($self, $property) = @_;
 	return $self->config->clone($property);
 }
 
+=item getConfigList(@list) Mixed
+
+Returns a list of nodes from the configuration file descrubed by a dotted notaions.
+
+C<@List> Array - a list of dotted notations;
+
+	my ($name, $host) = 
+		$self->getConfigList('server.name', 'server.host');
+
+=cut
+
 sub getConfigList {
 	my ($self, @list) = @_;
 	return $self->config->getList(@list);
 }
+
+=item stash() Eldhelm::Server::BaseObject
+
+This is a general purpose storage. Something like a local storage or a static persistant storage.
+It is accessed via L<Eldhelm::Server::BaseObject> so it works like any other persistant object.
+
+=cut
 
 sub stash {
 	my ($self) = @_;
@@ -105,6 +155,14 @@ sub unregisterPersist {
 	return $self;
 }
 
+=item getPersist($id) Eldhelm::Basic::Persist
+
+Finds a persistant object by id.
+
+C<$id> String - the id of the persistant object;
+
+=cut
+
 sub getPersist {
 	my ($self, $id) = @_;
 	return unless $id;
@@ -130,6 +188,14 @@ sub getPersistFromRef {
 
 	return Eldhelm::Util::Factory->instanceFromScalar($persistData->{persistType}, $persistData);
 }
+
+=item hasPersist($id) 1 or undef
+
+Checks whether a persistant object exists.
+
+C<$id> String - the id of the persistant object;
+
+=cut
 
 sub hasPersist {
 	my ($self, $id) = @_;
@@ -158,11 +224,47 @@ sub findPersist {
 	return @list > 1 ? @list : $list[0] || ();
 }
 
+=item findAndFilterPersist($var, $values, $filter) Array
+
+Finds objects by property matching a list of values. The optionally filters them.
+
+C<$var> String - A property name;
+C<$values> ArrayRef - A list of property values;
+C<$filter> HashRef - Optional; Properties to be matched on the persistant objects;
+
+	$self->findAndFilterPersist(
+		'playerId',
+		[1, 2, 3],
+		{
+			connected => 1
+		}
+	);
+
+=cut
+
 sub findAndFilterPersist {
 	my ($self, $var, $values, $filter) = @_;
 	my @list = $self->getPersistId($var, @$values);
 	return $self->filterPersist($filter, \@list);
 }
+
+=item filterPersist($filter, $ids) Array
+
+Checks whether a persistant object exists.
+
+C<$filter> HashRef - Properties to be matched on the persistant objects;
+C<$ids> ArrayRef - optional; A ist of ids. If ommited all persistant objects are filtered;
+
+	$self->filterPersist({
+		connected => 1
+	});
+	
+	# or filter a specific set
+	$self->filterPersist({
+		connected => 1
+	}, [1, 2, 3, 4])
+
+=cut
 
 sub filterPersist {
 	my ($self, $filter, $ids) = @_;
@@ -197,6 +299,22 @@ sub filterPersist {
 	}
 	return map { $self->getPersist($_) || () } @result;
 }
+
+=item getPersistsByType($type, $filter) Array
+
+Gets all persistant objects by type and then optionally filters them.
+
+C<$type> String - The type of the objects as a package name;
+C<$fitler> $filter - Optional; Properties to be matched on the persistant objects;
+
+	$self->getPersistsByType(
+		'Eldhelm::Server::Session',
+		{
+			connected => 1
+		}
+	);
+
+=cut
 
 sub getPersistsByType {
 	my ($self, $type, $filter) = @_;
@@ -247,6 +365,15 @@ sub doJob {
 	return push @{ $self->{jobQueue} }, shared_clone({ %$job, proto => 'System' });
 }
 
+=item doAction($action, $data)
+
+Appends and action to be executed by the server task queue.
+
+C<$action> String - Dotted notation of a controller action;
+C<$data> HashRef -  Context data to be used when executing the controller;
+
+=cut
+
 sub doAction {
 	my ($self, $action, $data) = @_;
 	return $self->doJob(
@@ -256,6 +383,14 @@ sub doAction {
 		}
 	);
 }
+
+=item getShedule($name) Eldhelm::Server::Shedule
+
+Returns a L<Eldhelm::Server::Shedule> object by name. This object coordinates the execution of a scheduled task;
+
+C<$name> String - The name of the scheduled task;
+
+=cut
 
 sub getShedule {
 	my ($self, $name) = @_;
@@ -268,6 +403,17 @@ sub getShedule {
 	return unless $s;
 	return Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::Shedule', $s);
 }
+
+=item getShedule($name, $schedule, $action, $data) self
+
+Registers a new scheduled task.
+
+C<$name> String - A string indicating the sheduled task;
+C<$schedule> String - A string indicating when the task should be executed;
+C<$action> String - The controller action to be called;
+C<$data> HashRef - The context data when the action is called;
+
+=cut
 
 sub setShedule {
 	my ($self, $name, $shedule, $action, $data) = @_;
@@ -288,6 +434,14 @@ sub setShedule {
 
 	return $self;
 }
+
+=item removeShedule($name) self
+
+Removes a scheduled task by name;
+
+C<$name> String - The name of the scheduled task;
+
+=cut
 
 sub removeShedule {
 	my ($self, $name) = @_;
@@ -362,6 +516,12 @@ sub runExternalScriptAsync {
 # Utility
 # =================================
 
+=item log($message, $logName)
+
+Prints a message in a log specified by name. Defaults to C<general>.
+
+=cut
+
 sub log {
 	my ($self, $msg, $type) = @_;
 	$type ||= 'general';
@@ -375,15 +535,33 @@ sub log {
 	return $self;
 }
 
+=item debug($message)
+
+Prints a message in the debug log.
+
+=cut
+
 sub debug {
 	my ($self, $msg) = @_;
 	$self->log($msg, 'debug');
 }
 
+=item access($message)
+
+Prints a message in the access log.
+
+=cut
+
 sub access {
 	my ($self, $msg) = @_;
 	$self->log($msg, 'access');
 }
+
+=item error($message)
+
+Prints a message in the error log.
+
+=cut
 
 sub error {
 	my ($self, $msg) = @_;
@@ -394,5 +572,19 @@ sub message {
 	my ($self, $msg) = @_;
 	$self->log($msg, 'message');
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

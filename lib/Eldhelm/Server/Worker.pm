@@ -1,5 +1,26 @@
 package Eldhelm::Server::Worker;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Worker - A wrapper class for a wroker thread.
+
+=head1 SYNOPSIS
+
+This class should not be constructed directly. It is accessed via the C<worker> getter in various contexts.
+
+	Eldhelm::Basic::Controler->worker;
+	Eldhelm::Basic::Model->worker;
+	Eldhelm::Basic::Persist->worker;
+	# etc.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 use threads;
@@ -154,5 +175,19 @@ sub reconfig {
 	print "Reconfiguring worker ".threads->tid()." ... \n";
 	$self->init;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

@@ -1,5 +1,23 @@
 package Eldhelm::Server::Session;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Session - A persistant object representing a session.
+
+=head1 SYNOPSIS
+
+	Eldhelm::Server::Session->new(
+		myProperty => 'value'
+	);
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Carp;
 use Data::Dumper;
@@ -7,6 +25,14 @@ use Data::Dumper;
 use base qw(Eldhelm::Basic::Persist);
 
 my @conProps = qw(fno eventFno);
+
+=item new(%args)
+
+Constructs a new object.
+
+C<%args> Hash - Contructor argumets;
+
+=cut
 
 sub new {
 	my ($class, %args) = @_;
@@ -24,6 +50,14 @@ sub new {
 
 	return $self;
 }
+
+=item setConnection($connection) self
+
+Connects the session with a client connection.
+
+C<$connection> L<Eldhelm::Server::Connection> - The server connection to bond the session to.
+
+=cut
 
 sub setConnection {
 	my ($self, $conn) = @_;
@@ -65,7 +99,13 @@ sub onDisconnect {
 # connection methods
 # ================================================
 
-sub getConnection {
+=item setConnection() Eldhelm::Server::Connection
+
+Returns the connection the session is bond to.
+
+=cut
+
+sub setConnection {
 	my ($self) = @_;
 	my $fno = $self->get("fno");
 	return $self->worker->getConnection($fno) if $fno;
@@ -74,10 +114,25 @@ sub getConnection {
 	return;
 }
 
+=item connected() 1 or 0 or undef
+
+Indicates whether the session's connection is connected. 
+
+=cut
+
 sub connected {
 	my ($self) = @_;
 	return $self->get("connected");
 }
+
+=item say($data, $headers)
+
+Sends a message along the connection. The message encoding depends on the message protocol associated with the connection.
+
+C<$data> HashRef - The data to be sent.
+C<$headers> HashRef - Headers to be sent.
+
+=cut
 
 sub say {
 	my ($self, $data, $headers) = @_;
@@ -159,10 +214,24 @@ sub resetSession {
 # closing the session
 # ================================================
 
+
+=item close()
+
+Indicates whether the connection was closed
+
+=cut
+
 sub closed {
 	my ($self) = @_;
 	return $self->get("closed");
 }
+
+
+=item close()
+
+Closes the connection
+
+=cut
 
 sub close {
 	my ($self) = @_;
@@ -172,6 +241,15 @@ sub close {
 	$conn->sendSignOut({ reason => $self->get("closeSessionReason") }) if $conn;
 	return;
 }
+
+
+=item disposeWithReason($reason)
+
+Same as C<dispose> but sends a reason message to the client.
+
+C<$reason> String - A word to indicate the reason for connection closing.
+
+=cut
 
 sub disposeWithReason {
 	my ($self, $reason) = @_;
@@ -202,5 +280,19 @@ sub dispose {
 	$self->SUPER::dispose;
 	return;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;
