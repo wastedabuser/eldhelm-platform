@@ -1,5 +1,21 @@
 package Eldhelm::Util::Mime;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::Mime - A utility for MIME types.
+
+=head1 SYNOPSIS
+
+This is a static class.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 my %mimes = (
@@ -652,11 +668,33 @@ my %mimes = (
 	zsh     => 'text/x-script.zsh',
 );
 
+=item getMime($file) String
+
+Retrieves a mime type from file name it's extension.
+
+C<$file> String - File name.
+
+=cut
+
 sub getMime {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($file) = @_;
 	$file =~ /\.(.+?)$/;
 	return $mimes{$1};
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

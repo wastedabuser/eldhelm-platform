@@ -1,5 +1,21 @@
 package Eldhelm::Util::LangParser;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::LangParser - A special JSON parser.
+
+=head1 SYNOPSIS
+
+
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Carp;
@@ -577,5 +593,19 @@ sub outputWarning {
 	my ($self, $str) = @_;
 	warn $str;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

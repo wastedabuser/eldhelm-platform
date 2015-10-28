@@ -232,7 +232,7 @@ sub getConnection {
 =item handler() Eldhelm::Server::Handler
 
 Return the current handler. This is the class handling the current protocol. 
-This is a class in the Eldhelm::Server::Handler namespace.
+This is a class based on the L<Eldhelm::Server::Handler> object.
 
 =cut
 

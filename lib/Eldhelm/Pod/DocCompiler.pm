@@ -1,5 +1,21 @@
 package Eldhelm::Pod::DocCompiler;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Pod::DocCompiler - A utility for compiling a documentation library.
+
+=head1 SYNOPSIS
+
+
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 use Eldhelm::Util::FileSystem;
@@ -83,8 +99,7 @@ sub writeOutput {
 sub outputName {
 	my ($self, $name) = @_;
 	if ($self->{fileNameFormat} eq 'dashes') {
-		$name =~ s/::/-/g;
-		return lc($name).'.'.$self->{fileNameExtension};
+		return join('-', map { lcfirst($_) } split /::/, $name).'.'.$self->{fileNameExtension};
 	}
 	return $name.'.'.$self->{fileNameExtension};
 }
@@ -107,5 +122,19 @@ sub writeContents {
 
 	Eldhelm::Util::FileSystem->writeFileContents($path, $self->{contents});
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

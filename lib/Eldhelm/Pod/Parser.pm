@@ -1,5 +1,21 @@
 package Eldhelm::Pod::Parser;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Pod::Parser - A light parser for PODs.
+
+=head1 SYNOPSIS
+
+
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 
 use Eldhelm::Util::FileSystem;
@@ -54,7 +70,7 @@ sub parseInheritance {
 		eval {
 			$parser->parse($parser->load($libRoot.$eFile.'.pm'));
 			$data->{inheritance} = [ $parser->inheritance, $name ];
-			$data->{methodsItems} = [ $parser->inheritedMethods ];
+			$data->{inheritedMethods} = [ sort { $a->{name} cmp $b->{name} } $parser->inheritedMethods ];
 		} or do {
 			warn $@;
 			$data->{inheritance} = [ $data->{extends}[0], $name ];
@@ -75,7 +91,7 @@ sub parse {
 	$self->{docCount} = scalar @chunks;
 	return unless $self->hasDoc;
 
-	my ($pname, $pindex, $name, $lcName, $mode);
+	my ($pname, $pindex, $lcName, $mode);
 	foreach my $pn (@chunks) {
 		next unless $pn;
 
@@ -122,25 +138,25 @@ sub parse {
 		}
 
 	}
-	
+
 	my $methods = $data->{methodsItems};
 	my ($constructor) = grep { $_->{name} =~ /\s*new\s*\(/ } @$methods;
 	@$methods = grep { $_->{name} !~ /\s*new\s*\(/ } @$methods;
 	@$methods = sort { $a->{name} cmp $b->{name} } @$methods;
 	unshift @$methods, $constructor if $constructor;
+	push @$methods, @{ $data->{inheritedMethods} } if $data->{inheritedMethods};
+
+	# warn Dumper $data;
 }
 
 sub parseText {
 	my ($self, $text) = @_;
 
 	$text =~ s/\r//g;
-	my @lines = split /\n/, $text;
 	my @chunks;
-	foreach (@lines) {
-		$_ .= "\n";
-		push @chunks, grep { $_ } split /([BIUCL]<.+?>|[BIUCL]<{2,}\s.+?\s>{2,})/;
+	foreach (split /(\n)/, $text) {
+		push @chunks, grep { $_ } split /([BIUCL]<{2,}\s.+?\s>{2,}|[BIUCL]<.+?>)/;
 	}
-	$lines[-1] =~ s/\n//;
 
 	my @parts;
 	my $mode    = 'text';
@@ -151,24 +167,29 @@ sub parseText {
 		if ($l =~ /^\t(.*)/s) {
 			$str     = $1;
 			$newMode = 'code-block';
-		} elsif ($l =~ /^([BIUCL])<+\s?(.*?)\s?>+$/s) {
-			$str     = $2;
-			$newMode = 'code' if $1 eq 'C';
-			$newMode = 'bold' if $1 eq 'B';
-			$newMode = 'italic' if $1 eq 'I';
+		} elsif ($l =~ /^([BIUCL])(?:\<{2,}\s(.*?)\s>{2,}|<(.*?)>)$/s) {
+			$str = $2 || $3;
+			$newMode = 'code'      if $1 eq 'C';
+			$newMode = 'bold'      if $1 eq 'B';
+			$newMode = 'italic'    if $1 eq 'I';
 			$newMode = 'underline' if $1 eq 'U';
-			$newMode = 'link' if $1 eq 'L';
+			$newMode = 'link'      if $1 eq 'L';
+		} elsif ($l eq "\n" && ($mode eq 'code-block' || $mode eq 'text')) {
+			$str = $l;
 		} else {
 			$str     = $l;
 			$newMode = 'text';
 		}
 		if ($mode ne $newMode) {
-			$partStr =~ s/\n// if $newMode eq 'code-block';
+			$partStr =~ s/[\n\t]+$// if $newMode eq 'code-block';
 			push @parts, [ $mode, $partStr ];
 			$partStr = '';
-			$mode    = $newMode;
+			$partStr .= $str;
+			$partStr =~ s/^[\n\t\s]+// if $mode eq 'code-block';
+			$mode = $newMode;
+		} else {
+			$partStr .= $str;
 		}
-		$partStr .= $str;
 	}
 	push @parts, [ $newMode, $partStr ];
 
@@ -215,5 +236,19 @@ sub libFileNameWin {
 	$p =~ s|::|\\\\|g;
 	return $p.'.pm';
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

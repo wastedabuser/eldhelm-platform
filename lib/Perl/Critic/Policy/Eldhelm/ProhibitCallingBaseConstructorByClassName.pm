@@ -1,5 +1,21 @@
 package Perl::Critic::Policy::Eldhelm::ProhibitCallingBaseConstructorByClassName;
 
+=pod
+
+=head1 NAME
+
+Perl::Critic::Policy::Eldhelm::ProhibitCallingBaseConstructorByClassName
+
+=head1 DESCRIPTION
+
+A perl critic policy which nags when you call the parent constructor like this MyParentPackage::MyParentName->new() instead of SUPER::new().
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use 5.006001;
 use strict;
 use warnings;
@@ -40,5 +56,19 @@ sub violates {
 
 	return;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

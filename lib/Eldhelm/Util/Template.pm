@@ -1,10 +1,122 @@
 package Eldhelm::Util::Template;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::Template - A light template engine.
+
+=head1 SYNOPSIS
+
+	my $t = Eldhelm::Util::Template->new(
+		rootPath => 
+			'/home/projects/myProject/Eldhelm/Application/Template',
+		name => 'pages.page1',
+		params => {
+			a => 1,
+			b => 2
+		}
+	);
+	
+	$t->comple({
+		c => 3
+	});
+
+=head1 DESCRIPTION
+
+Parses template files with the C<.tpl> extension. Contained inside a folder and referenced via names in dotted notation.
+Please see C<new> method for more details.
+
+Supports the following features:
+
+=over
+
+=item {var} - variables
+
+Varibales are values directly interpolated into the template.
+The C<{var}> will be directly replaced with the value of C<< $self->{params}{var} >>.
+
+=item {var|format} - foratted variables
+
+C<boolean> - formats value as boolean. Writes either C<true> or C<false>.
+
+C<json> - JSON encodes the value.
+
+C<css> - Formats the value as CSS key pairs.
+
+C<html> - HTML encodes some special symbols, converts new lines to <br> and links to <a>
+
+C<htmlTemplateEncoded> - Extends the html format by html encoding the { and } symbols.
+
+C<template> - Formats the values as a predefined template, see the C<template> section bellow.
+
+=item {function arguments} - functions
+
+C<extends> - Inherits another template. You can redefine the C<block> elements to override them with new content.
+
+C<include> - Includes another template.
+
+C<instruct> - Instructs the template engine to generate a template instruction. Useful when you are using templates to generate templates.
+
+=item {block name-or-argument}{block} - blocks and constructs
+
+C<block> - These are named blocks. Their usage is to label a region. Then when other template extends the current one he is able to override these blocks.
+
+C<foreach> - Duplicates the content of the foreach block according to the value.
+C<< {foreach var}<div>{join.}</div>{foreach} >> if C<var> is C<< [1,2,3] >> and produces C<< <div>1</div><div>2</div><div>3</div> >>
+C<< {foreach var}<div>{join.a}</div>{foreach} >> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<< <div>1</div><div>2</div> >>
+
+C<join> - Joins the values provided.
+C<{join var}{join.}{join}> if C<var> is C<< [1,2,3] >> and produces C<123>
+C<{join var}{join.a}{join}> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<12>
+
+C<separator> Defines a separator to be used for join
+C<{separator var},{separator}> Defines a separator as comma.
+
+=item {template name}{template} - Defines a template to be used when a template format is selected
+
+C<< {var|template} >>
+C<< {template text}<p>{template.}</p>{template} >>
+C<< {template block}<div>{template.a}</div>{template} >>
+
+Let's imagine C<var> is:
+
+	[
+		[ 'text', 'My text here' ],
+		[ 'block', { a => 'My block here' }]
+	]
+
+This will produce the output: C<< <p>My text here</p><div>My block here</div> >>.
+
+=item {cdata-open}{cdata-close} - CDATA. Everything in this block is outputed as is without beeing parsed.
+
+=back
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Eldhelm::Server::Parser::Json;
 use Eldhelm::Util::Factory;
 use Carp;
+
+=item new(%args)
+
+Constructs a new object.
+
+C<%args> Hash - Constructor arguments;
+
+C<rootPath> - Template storage location;
+C<name> - Template file name in dotted notation;
+C<params> HashRef - Compile params;
+
+The C<name> should describe the template location relative to the C<rootPath> supplied.
+
+=cut
 
 sub new {
 	my ($class, %args) = @_;
@@ -30,6 +142,14 @@ sub getPath {
 	return Eldhelm::Util::Factory->getAbsoluteClassPath($relPath) || $relPath;
 }
 
+=item load($name) self
+
+Loads a template from a file.
+
+C<$name> String - The file path.
+
+=cut
+
 sub load {
 	my ($self, $name) = @_;
 	my $path = $self->getPath($name || $self->{name});
@@ -38,6 +158,14 @@ sub load {
 	close FR;
 	return $src;
 }
+
+=item parse($stream) self
+
+Parses a teplate from a string.
+
+C<$stream> String - The template to be parsed;
+
+=cut
 
 sub parse {
 	my ($self, $stream) = @_;
@@ -63,8 +191,8 @@ sub parseSource {
 		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
 
 	my $vars = $self->{var};
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~var~$1~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~$2~~;;"/gei;
+	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~none~~;;"/gei;
 
 	my $fns = $self->{function};
 	my $i   = "";
@@ -95,6 +223,14 @@ sub extend {
 	return $self;
 }
 
+=item compile($args) String
+
+Compiles the template to a stream.
+
+C<$args> HashRef - Optional; Additional compile arguments;
+
+=cut
+
 sub compile {
 	my ($self, $args) = @_;
 	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
@@ -114,7 +250,7 @@ sub interpolate {
 }
 
 sub _interpolate_var {
-	my ($self, $fnm, $name, $format) = @_;
+	my ($self, $name, $format) = @_;
 	my $value;
 	if ($name =~ /\./) {
 		my $ref = $self->{compileParams};
@@ -140,7 +276,7 @@ sub _interpolate_var {
 	} else {
 		$value = $self->{compileParams}{$name};
 	}
-	return $value unless $format;
+	return $value if !$format || $format eq 'none';
 
 	my $method = "_format_$format";
 	return sprintf($value, $format) if $format =~ /%/;
@@ -163,6 +299,8 @@ sub _interpolate_block {
 sub _interpolate_foreach {
 	my ($self, $fnm, $name, $content) = @_;
 	my $list = $self->reachNode($name, $self->{compileParams});
+	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+	
 	my $v = $self->{compileParams};
 	return join '', map { $v->{foreach} = $_; $self->compileStream($content) } @$list;
 }
@@ -170,6 +308,8 @@ sub _interpolate_foreach {
 sub _interpolate_join {
 	my ($self, $fnm, $name, $content) = @_;
 	my $list = $self->reachNode($name, $self->{compileParams});
+	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+	
 	my $v = $self->{compileParams};
 	return join $self->{separator}{$name} || ' ', map { $v->{join} = $_; $self->compileStream($content) } @$list;
 }
@@ -208,12 +348,21 @@ sub _format_html {
 		$value =~ s/</&lt;/g;
 		$value =~ s/>/&gt;/g;
 		$value =~ s/"/&quot;/g;
-		$value =~ s~(\n\r|\r\n|\n)~<br/>~g;
+		$value =~ s/\r//sg;
+		$value =~ s/\n/<br>\n/sg;
 		$value =~ s/\t/&nbsp;&nbsp;&nbsp;&nbsp;/g;
 		$value =~ s~(https?://[a-z0-9_%&+:/\-\.\?]+)~<a href="\1">\1</a>~i;
 		return $value;
 	}
 	confess "Can not format $value at $name to html. Encoding to html from a reference is not yet implemented";
+}
+
+sub _format_htmlTemplateEncoded {
+	my ($self, $value, $format, $name) = @_;
+	$value = $self->_format_html($value, $format, $name);
+	$value =~ s/\{/&#123;/g;
+	$value =~ s/\}/&#125;/g;
+	return $value;
 }
 
 sub _format_boolean {
@@ -223,8 +372,10 @@ sub _format_boolean {
 
 sub _format_template {
 	my ($self, $value, $format, $name) = @_;
+	return '' if !$value || ref($value) ne "ARRAY" || !@$value;
+	
 	my $v = $self->{compileParams};
-	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{ $_->[0] }) } @$value;
+	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{$_->[0]}) } @$value;
 }
 
 sub _function_include {
@@ -262,5 +413,19 @@ sub reachNode {
 	}
 	return $ref;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

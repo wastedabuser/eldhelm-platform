@@ -4,7 +4,7 @@ package Eldhelm::Util::Tool;
 
 =head1 NAME
 
-Eldhelm::Util::Tool - A utility class for working with perl structures.
+Eldhelm::Util::Tool - A utility class for working with structures.
 
 =head1 SYNOPSIS
 
@@ -26,6 +26,15 @@ our @EXPORT_OK = qw(merge isIn isNotIn toList);
 
 ### UNIT TEST: 302_tool.pl ###
 
+=item merge($ref, @list) Hash
+
+Copies hashref key pairs from one or more hasref to other hasref. Returns the HashRef supplied via C<$ref>.
+
+C<$ref> HashRef - The HashRef to be copied into
+C<@list> Array - The list of Hashrefs to be copied.
+
+=cut
+
 sub merge {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($ref, @list) = @_;
@@ -37,6 +46,15 @@ sub merge {
 	return $ref;
 }
 
+=item isIn($val, @list) 1 or undef
+
+Checks whether C<$val> exists into the C<@list>.
+
+C<$val> String - Value to be searched for
+C<@list> Array - The list to be searched in.
+
+=cut
+
 sub isIn {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($val, @values) = @_;
@@ -46,9 +64,26 @@ sub isIn {
 	return;
 }
 
+=item isIn($val, @list) 1 or undef
+
+Same as C<isIn> but inverted.
+
+C<$val> String - Value to be searched for
+C<@list> Array - The list to be searched in.
+
+=cut
+
 sub isNotIn {
 	return !isIn(@_);
 }
+
+=item toList($var) Array
+
+The C<$var> could be a Scalar or an ArrayRef. The function will always return Array.
+
+C<$var> Mixed - the valued to be represented as Array.
+
+=cut
 
 sub toList {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -57,7 +92,14 @@ sub toList {
 	return ref $var eq "ARRAY" ? @$var : ($var);
 }
 
-# fisher_yates_shuffle
+=item arrayShuffle($array)
+
+Suffles an ArrayRef in-place using Fisher Yates algorithm.
+
+C<$array> ArrayRef - The list to be shuffled.
+
+=cut
+
 sub arrayShuffle {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array) = @_;
@@ -69,6 +111,59 @@ sub arrayShuffle {
 		@$array[ $i, $j ] = @$array[ $j, $i ];
 	}
 }
+
+=item assocArray($array, $key) HashRef
+
+Converts an ArrayRef containing HashRefs into HashRef.
+
+C<$array> ArrayRef - The structure to be converted.
+C<$key> ArrayRef or String - The property (or properties) to be used as key.
+
+	Eldhelm::Util::Tool->assocArray([
+		{ a => 1, b => 2 },
+		{ a => 3, b => 4 },
+		{ a => 1, b => 5 },
+	], 'a');
+
+Will return this:
+
+	{
+		'1' => [
+			{ a => 1, b => 2 },
+			{ a => 1, b => 5 },
+		],
+		'3'	=> [
+			{ a => 3, b => 4 },
+		],
+	}
+
+You can do this also:
+
+	Eldhelm::Util::Tool->assocArray([
+		{ a => 1, b => 2 },
+		{ a => 3, b => 4 },
+		{ a => 1, b => 5 },
+	], ['a', 'b']);
+
+Will return this:
+
+	{
+		'1' => {
+			'2' => [
+				{ a => 1, b => 2 },
+			# ],
+			'5' => [
+				{ a => 1, b => 5 },
+			# ],
+		}
+		'3' => {
+			'4' => [
+				{ a => 3, b => 4 },
+			# ]
+		}
+	}
+
+=cut
 
 sub assocArray {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -85,6 +180,48 @@ sub assocArray {
 	return \%result;
 }
 
+=item assocHash($array, $key) HashRef
+
+Converts an ArrayRef containing HashRefs into HashRef.
+
+C<$array> ArrayRef - The structure to be converted.
+C<$key> ArrayRef or String - The property (or properties) to be used as key.
+
+	Eldhelm::Util::Tool->assocHash([
+		{ a => 1, b => 2 },
+		{ a => 3, b => 4 },
+		{ a => 1, b => 5 },
+	], 'a');
+
+Will return this:
+
+	{
+		'1' => { a => 1, b => 5 },
+		'3' => { a => 3, b => 4 },
+	}
+
+You can do this also:
+
+	Eldhelm::Util::Tool->assocHash([
+		{ a => 1, b => 2 },
+		{ a => 3, b => 4 },
+		{ a => 1, b => 5 },
+	], ['a', 'b']);
+
+Will return this:
+
+	{
+		'1' => {
+			'2' => { a => 1, b => 2 },
+			'5' => { a => 1, b => 5 },
+		}
+		'3' => {
+			'4' => { a => 3, b => 4 },
+		}
+	}
+
+=cut
+
 sub assocHash {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
@@ -99,6 +236,48 @@ sub assocHash {
 	}
 	return \%result;
 }
+
+=item assocKeyValue($array, $key) HashRef
+
+Converts an ArrayRef containing HashRefs into HashRef.
+
+C<$array> ArrayRef - The structure to be converted.
+C<$key> ArrayRef or String - The property (or properties) to be used as key.
+
+	Eldhelm::Util::Tool->assocKeyValue([
+		{ a => 1, b => 2, c => 6 },
+		{ a => 3, b => 4, c => 7 },
+		{ a => 1, b => 5, c => 8 },
+	], ['a', 'b']);
+
+Will return this:
+
+	{
+		'1' => 5,
+		'3' => 4,
+	}
+
+You can do this also:
+	
+	Eldhelm::Util::Tool->assocKeyValue([
+		{ a => 1, b => 2, c => 6 },
+		{ a => 3, b => 4, c => 7 },
+		{ a => 1, b => 5, c => 8 },
+	], ['a', 'b', 'c']);
+
+Will return this:
+
+	{
+		'1' => {
+			'2' => 6,
+			'5' => 8,
+		}
+		'3' => {
+			'4' => 7,
+		}
+	}
+
+=cut
 
 sub assocKeyValue {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -116,6 +295,48 @@ sub assocKeyValue {
 	return \%result;
 }
 
+=item assocColumn($array, $key) HashRef
+
+Converts an ArrayRef containing HashRefs into HashRef.
+
+C<$array> ArrayRef - The structure to be converted.
+C<$key> ArrayRef or String - The property (or properties) to be used as key.
+
+	Eldhelm::Util::Tool->assocColumn([
+		{ a => 1, b => 2, c => 6 },
+		{ a => 3, b => 4, c => 7 },
+		{ a => 1, b => 5, c => 8 },
+	], ['a', 'b']);
+
+Will return this:
+
+	{
+		'1' => [2, 5],
+		'3' => [4],
+	}
+
+You can do this also:
+
+	Eldhelm::Util::Tool->assocColumn([
+		{ a => 1, b => 2, c => 6 },
+		{ a => 3, b => 4, c => 7 },
+		{ a => 1, b => 5, c => 8 },
+	], ['a', 'b', 'c']);
+
+Will return this:
+
+	{
+		'1' => {
+			'2' => [6],
+			'5' => [8],
+		}
+		'3' => {
+			'4' => [7],
+		}
+	}
+
+=cut
+
 sub assocColumn {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($array, $key) = @_;
@@ -132,19 +353,13 @@ sub assocColumn {
 	return \%result;
 }
 
-sub mapArray {
-	shift @_ if $_[0] eq __PACKAGE__;
-	my ($array, $key) = @_;
-	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
-	my $lk = pop @keys;
-	my %result;
-	foreach my $it (@$array) {
-		my $ret = \%result;
-		$ret = $ret->{ $it->{$_} } ||= {} foreach @keys;
-		$ret->{ $it->{$lk} } = $it;
-	}
-	return \%result;
-}
+=item jsonEncode($data) String
+
+Encodes structure into JSON recursively. This is a simple function implemented in Perl.
+
+C<$data> Mixed - The data to be encoded to JSON.
+
+=cut
 
 sub jsonEncode {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -170,6 +385,15 @@ sub jsonEncode {
 		return '"'.$data.'"';
 	}
 }
+
+=item utfFlagDeep($data, $state) Mixed
+
+Clones a structure recursively and applies C<Encode::_utf8_on> or C<Encode::_utf8_off> on every element in the structure.
+
+C<$data> Mixed - The structure to be cloned.
+C<$state> 1 or 0 or undef - Whether to use C<_utf8_on> or C<_utf8_off>.
+
+=cut
 
 sub utfFlagDeep {
 	shift @_ if $_[0] eq __PACKAGE__;
@@ -197,6 +421,14 @@ sub utfFlagDeep {
 	}
 	return $ret;
 }
+
+=item cloneStructure($ref) Mixed
+
+Clones a structure recursively.
+
+C<$ref> Mixed - The structure to be cloned
+
+=cut
 
 sub cloneStructure {
 	shift @_ if $_[0] eq __PACKAGE__;

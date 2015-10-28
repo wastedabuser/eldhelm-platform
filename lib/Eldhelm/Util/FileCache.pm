@@ -1,5 +1,21 @@
 package Eldhelm::Util::FileCache;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::FileCache - A utility for caching content into temp or other files.
+
+=head1 SYNOPSIS
+
+
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Carp;
@@ -46,5 +62,19 @@ sub content {
 
 	return $self->{content};
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

@@ -1,5 +1,21 @@
 package Eldhelm::Util::ExternalScript;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Util::ExternalScript - A utility for writing for parsing machine generated external script arguments.
+
+=head1 SYNOPSIS
+
+
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use MIME::Base64 qw(encode_base64 decode_base64);
@@ -50,5 +66,19 @@ sub parseOutput {
 	}
 	return $arg;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;
