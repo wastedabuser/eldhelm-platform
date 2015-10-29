@@ -1,5 +1,33 @@
 package Eldhelm::Server::Handler::Json;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Handler::Json.
+
+=head1 DESCRIPTION
+
+This class handles the Eldhelm Platform JSON protocol. 
+This protocol uses JSON encoded messages over tcp connection.
+
+A message is constructed of two parts: header and content. For example:
+
+	["eldhelm-json-1.1",{"len":6}]{"a":1}
+
+C<["eldhelm-json-1.1",{"len":6}]> is the header;
+C<{"a":1}> is the message.
+
+In the header:
+C<eldhelm-json-1.1> is the protocol id and version;
+C<len> indicates the message length in bytes. There might be other header properties along with C<len>;
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Eldhelm::Server::Parser::Json;
 use Eldhelm::Util::Tool;
@@ -63,5 +91,19 @@ sub new {
 
 	return $self;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

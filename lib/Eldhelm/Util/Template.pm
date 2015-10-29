@@ -36,7 +36,7 @@ Supports the following features:
 Varibales are values directly interpolated into the template.
 The C<{var}> will be directly replaced with the value of C<< $self->{params}{var} >>.
 
-=item {var|format} - foratted variables
+=item {var|format} - formatted variables
 
 C<boolean> - formats value as boolean. Writes either C<true> or C<false>.
 
@@ -63,12 +63,14 @@ C<instruct> - Instructs the template engine to generate a template instruction. 
 C<block> - These are named blocks. Their usage is to label a region. Then when other template extends the current one he is able to override these blocks.
 
 C<foreach> - Duplicates the content of the foreach block according to the value.
-C<< {foreach var}<div>{join.}</div>{foreach} >> if C<var> is C<< [1,2,3] >> and produces C<< <div>1</div><div>2</div><div>3</div> >>
-C<< {foreach var}<div>{join.a}</div>{foreach} >> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<< <div>1</div><div>2</div> >>
+C<< {foreach var}<div>{foreach.}</div>{foreach} >> if C<var> is C<< [1,2,3] >> and produces C<< <div>1</div><div>2</div><div>3</div> >>;
+C<< {foreach var}<div>{foreach.a}</div>{foreach} >> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<< <div>1</div><div>2</div> >>;
+C<< {foreach var}<div>{_i}.{foreach.a}</div>{foreach} >> if C<var> is C<< [{a=>'a'},{b=>'b'}] >> and produces C<< <div>0.a</div><div>1.b</div> >>;
 
 C<join> - Joins the values provided.
-C<{join var}{join.}{join}> if C<var> is C<< [1,2,3] >> and produces C<123>
-C<{join var}{join.a}{join}> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<12>
+C<{join var}{join.}{join}> if C<var> is C<< [1,2,3] >> and produces C<123>;
+C<{join var}{join.a}{join}> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<12>;
+C<<{_i>> is also available, see C<foreach>;
 
 C<separator> Defines a separator to be used for join
 C<{separator var},{separator}> Defines a separator as comma.
@@ -181,7 +183,7 @@ sub parse {
 sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
-	return $source unless $source =~ /\{[a-z].*?\}/;
+	return $source unless $source =~ /\{[a-z_].*?\}/;
 
 	$source =~
 		s/\{(block|template|foreach|join|separator)\s+(.+?)\s*\}(.*?)\{\1\}/my($a,$b)=($1,$2); $self->{$a} ||= {}; $self->{$a}{$b}=$self->parseSource($3); ";;~~eldhelm~template~placeholder~$a~$a~$b~~;;"/gsei;
@@ -191,8 +193,8 @@ sub parseSource {
 		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
 
 	my $vars = $self->{var};
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~$2~~;;"/gei;
-	$source =~ s/\{([a-z][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~none~~;;"/gei;
+	$source =~ s/\{([a-z_][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~$2~~;;"/gei;
+	$source =~ s/\{([a-z_][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~none~~;;"/gei;
 
 	my $fns = $self->{function};
 	my $i   = "";
@@ -302,7 +304,8 @@ sub _interpolate_foreach {
 	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
 	
 	my $v = $self->{compileParams};
-	return join '', map { $v->{foreach} = $_; $self->compileStream($content) } @$list;
+	my $i = 0;
+	return join '', map { $v->{foreach} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
 }
 
 sub _interpolate_join {
@@ -311,7 +314,8 @@ sub _interpolate_join {
 	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
 	
 	my $v = $self->{compileParams};
-	return join $self->{separator}{$name} || ' ', map { $v->{join} = $_; $self->compileStream($content) } @$list;
+	my $i = 0;
+	return join $self->{separator}{$name} || ' ', map { $v->{join} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
 }
 
 sub _interpolate_template {

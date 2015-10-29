@@ -8,7 +8,24 @@ Eldhelm::Util::LangParser - A special JSON parser.
 
 =head1 SYNOPSIS
 
+	my $a = Eldhelm::Util::LangParser->new(
+		stream => '{"a":"value1"}'
+	);
+	my $b = Eldhelm::Util::LangParser->new(
+		stream => '{"b":"value2"}'
+	);
+	my $c = $a->merge($b);
 
+=head1 DESCRIPTION
+
+A special JSON parser supporting node order and JavaScript comments.
+
+This JSON parser is designed to compare and merge JSON files by preserving the nodes order.
+It does this by merging based on a model.
+
+It is called a Language Parser, because in Eldhelm Platform it is used to parse JSON files containing translations.
+
+In general it is a complete JSON parser. It is for sure far slower than the JSON::XS alternative for general purpose tasks.
 
 =head1 METHODS
 
@@ -62,6 +79,17 @@ sub traverseKey {
 	return $parsed;
 }
 
+=item new(%args)
+
+Cosntructs a new object.
+
+C<%args> Hash - Constructor arguments;
+
+C<path> String - Will parse a file;
+C<stream> String - Will parse a stream;
+
+=cut
+
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
@@ -82,6 +110,14 @@ sub new {
 	return $self;
 }
 
+=item readStream($stream)
+
+Loads a file into the object. Does not do any parsing.
+
+C<$path> String - The path to file;
+
+=cut
+
 sub readFile {
 	my ($self, $path) = @_;
 	open FR, $path or confess $!;
@@ -94,12 +130,26 @@ sub readFile {
 	return;
 }
 
+=item readStream($stream)
+
+Loads a stream into the object. Does not do any parsing.
+
+C<$stream> String - The content to be parsed;
+
+=cut
+
 sub readStream {
 	my ($self, $stream) = @_;
 	Encode::_utf8_on($stream) if $self->{utf8};
 	$self->{lines} = [ split /(?:\r\n|\n\r|\n)/, $stream ];
 	return;
 }
+
+=item parse()
+
+Inititates the parsing of the loaded data.
+
+=cut
 
 sub parse {
 	my ($self) = @_;
@@ -282,6 +332,14 @@ sub indent {
 	return "\t" x $level;
 }
 
+=item deparse($callback) String
+
+Converts the internal parsed structure to JSON stream.
+
+C<$callback> FunctionRef - Optional; Applies the callback when compiling every node;
+
+=cut
+
 sub deparse {
 	my ($self, $callback) = @_;
 	$self->{characterCount} = 0;
@@ -364,6 +422,14 @@ sub _deparse_pair {
 	return (qq~"$data->[1]": $ch0~, @chunks);
 }
 
+=item deparseToFile($path)
+
+Same as L<< $self->deparse >>, but writes the output to a file.
+
+C<$path> String - Path to file;
+
+=cut
+
 sub deparseToFile {
 	my ($self, $path) = @_;
 	$self->deparse;
@@ -379,6 +445,14 @@ sub writeFile {
 	close FW;
 	return;
 }
+
+=item compare($parser) Eldhelm::Util::LangParser
+
+Compares the parsed structure inside to another C<Eldhelm::Util::LangParser> and returns a new C<Eldhelm::Util::LangParser> containing the diferences.
+
+C<$parser> Eldhelm::Util::LangParser - The structure to be compared with;
+
+=cut
 
 sub compare {
 	my ($self, $parser) = @_;
@@ -445,11 +519,28 @@ sub _compare_string {
 	return [];
 }
 
+=item mergeDiff($set)
+
+Merges another C<Eldhelm::Util::LangParser> deeply directly into the parsed structure inside.
+
+C<$set> Eldhelm::Util::LangParser - The structure to be merged;
+
+=cut 
+
 sub merge {
 	my ($self, $set) = @_;
 	$self->mergeSubset(Eldhelm::Util::Tool->cloneStructure($self->{syntax}), $self->{syntax}, $set->{syntax});
 	return;
 }
+
+=item mergeDiff($model, $diffSet)
+
+Merges the contents of C<$diffSet> deeply to the parsed structure inside, based on the C<$model>
+
+C<$model> Eldhelm::Util::LangParser - The structure acting as a model;
+C<$diffSet> Eldhelm::Util::LangParser - The structure to be merged;
+
+=cut
 
 sub mergeDiff {
 	my ($self, $model, $diffSet) = @_;

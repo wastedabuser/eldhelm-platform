@@ -1,5 +1,28 @@
 package Eldhelm::Server::Handler;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Handler - A base class for all protocol parsers/handlers.
+
+=head1 SYNOPSIS
+
+Handler classes are created by the server, you should not instantiate them yourself.
+
+Displays the usage inside a controller action, please see L<Eldhelm::Basic::Controller>:
+
+	# Example 
+	# accesing the object
+	# and using a method 
+	$self->handler->getPathTmp('/file.temp');
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Eldhelm::Util::Factory;
@@ -131,14 +154,48 @@ sub validatePath {
 	return $url;
 }
 
+=item getPathTmp($url) String
+
+Returns a path to the tmp folder.
+
+C<$url> The relative path in the tmp folder.
+
+The tmp folder is configured in the server configuration under C<server.tmp>.
+
+=cut
+
 sub getPathTmp {
 	my ($self, $url) = @_;
 	return $self->worker->getConfig('server.tmp').'/'.$self->validatePath($url);
 }
 
+=item getPathHome($url) String
+
+Returns a path to the home folder of the server.
+
+C<$url> The relative path in the home folder.
+
+The tmp folder is configured in the server configuration under C<server.home>.
+
+=cut
+
 sub getPathHome {
 	my ($self, $url) = @_;
 	return $self->worker->getConfig('server.home').'/'.$self->validatePath($url);
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

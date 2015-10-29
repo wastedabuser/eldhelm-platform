@@ -11,6 +11,8 @@ Eldhelm::Basic::Model - The base of all model classes.
 This class should not be used directly, please see it's child classes.
 Inheriting this class makes sense only if you are creating a completly new model type.
 
+Please see: L<< Eldhelm::Basic::Controller->getModel >>
+
 =head1 DESCRIPTION
 
 This class provides the basic functionallity need for all models.

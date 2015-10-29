@@ -421,9 +421,12 @@ sub getModel {
 
 =item getScript($script) Eldhelm::Basic::Script
 
-Creates a script context object for executing external script files.
+Loads a script stream from file. This stream should be most likely evaled.
+You can use this utility to load configurations, data structures, etc.
 
-C<$script> String - a dotted notation poiting to file in the C<Eldhelm::Application::Template> namespace;
+C<$script> String - a dotted notation poiting to a file in the C<Eldhelm::Application::Template> namespace;
+
+For more into, please see: L<Eldhelm::Basic::Script>
 
 =cut
 

@@ -1,5 +1,24 @@
 package Eldhelm::Server::Handler::System;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Handler::System
+
+=head1 DESCRIPTION
+
+This class parses C<ping> and C<echo> commands sent by a client.
+They usually work with the L<Eldhelm::Server::Handler::Json> handler.
+
+This class also handles internal server messaging for delays and events.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Data::Dumper;
 use Carp;
@@ -89,5 +108,19 @@ sub evaluateCode {
 	eval $self->{code};
 	confess $@ if $@;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

@@ -13,6 +13,8 @@ You should not construct an object directly. You should instead use:
 	Eldhelm::Basic::Controller->getView(undef, {
 		# args
 	});
+	
+Please see: L<< Eldhelm::Basic::Controller->getView >>
 
 =head1 DESCRIPTION
 

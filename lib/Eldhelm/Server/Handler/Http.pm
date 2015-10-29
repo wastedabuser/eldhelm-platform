@@ -1,5 +1,17 @@
 package Eldhelm::Server::Handler::Http;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Handler::Http - A responsible for the handling of the HTTP protocol.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Eldhelm::Util::Mime;
 use Eldhelm::Util::HttpStatus;
@@ -297,12 +309,28 @@ sub createErrorResponse {
 	return $self->createStatusResponse(500, $self->router->getErrors);
 }
 
+=item redirect($url) self
+
+Sends a C<Location> header.
+
+C<$url> String - The url to be redirected to;
+
+=cut
+
 sub redirect {
 	my ($self, $url) = @_;
 	$self->{status} = Eldhelm::Util::HttpStatus->getStatus(301);
 	$self->addHeaders("Location: $url");
 	return $self;
 }
+
+=item redirectNoCache($url) self
+
+Sends a C<Location> and C<Cache-Control: no-cache, must-revalidate> headers.
+
+C<$url> String - The url to be redirected to;
+
+=cut
 
 sub redirectNoCache {
 	my ($self, $url) = @_;
@@ -315,6 +343,22 @@ sub addHeaders {
 		if @headers;
 	return $self;
 }
+
+=item setCookie($name, $value, $args) self
+
+Adds a cookie to the headers.
+
+C<$name> String - The name of the cookie;
+C<$value> - The value of the cookie;
+C<$args> HashRef - Cookie attributes;
+
+Attributes:
+C<expires> Number - Time in secods;
+C<domain> String - A domain name;
+C<path> String - A path;
+C<secure> 1 or 0 or undef - Whether it is secure;
+
+=cut
 
 sub setCookie {
 	my ($self, $name, $value, $args) = @_;
@@ -351,6 +395,14 @@ sub createHttpResponse {
 	);
 	return join("\r\n", @headers).($self->{method} ne 'HEAD' ? $$cont : '');
 }
+
+=item getCookie($name) HashRef
+
+Returns a parsed cookie.
+
+C<$name> String - The cookie name;
+
+=cut
 
 sub getCookie {
 	my ($self, $name) = @_;
@@ -392,15 +444,45 @@ sub _default500Response {
 # File access api
 # ============================
 
+=item getPathFromUrl($url) String
+
+Converts url resource path to a file system path.
+
+C<$url> String - Url to a resource;
+
+=cut
+
 sub getPathFromUrl {
 	my ($self, $url) = @_;
 	return Eldhelm::Util::Factory->getAbsoluteClassPath($self->validatePath($url),
 		'/Eldhelm/Application/www', $self->{documentRoot});
 }
 
+=item readDocumentUrl($url) String
+
+Returns contents of a resource from url.
+
+C<$url> String - Url to a resource;
+
+=cut
+
 sub readDocumentUrl {
 	my ($self, $url) = @_;
 	return $self->readDocument($self->getPathFromUrl($url));
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

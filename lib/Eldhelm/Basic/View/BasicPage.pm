@@ -29,11 +29,7 @@ use base qw(Eldhelm::Basic::View);
 
 =item new(%args)
 
-Constructs a new object.
-
-C<%args> Hash - Contructor argumets;
-
-Adds some more constructor arguments:
+C<Eldhelm::Basic::View::BasicPage> provides additional constructor arguments:
 C<headerTpl> String - dotted notation of a template template file in the Eldhelm::Application::Template namespace;
 C<headerTplArgs> HashRef - compile arguments;
 C<contentTpl> String - dotted notation of a template template file in the Eldhelm::Application::Template namespace;

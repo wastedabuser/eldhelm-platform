@@ -8,8 +8,11 @@ Eldhelm::Basic::Persist::Process - A persistant object with a session context.
 
 =head1 SYNOPSIS
 
-In general you should inherit this class and cerate your own persistant object.
-You can still use it as a general purpose object, but it is not advised.
+	$self->sessionContext;
+
+=head1 DESCRIPTION
+
+This class provides a session context to L<Eldhelm::Basic::Persist>. 
 
 =head1 METHODS
 

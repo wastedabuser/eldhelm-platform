@@ -4,17 +4,22 @@ package Eldhelm::Basic::Script;
 
 =head1 NAME
 
-Eldhelm::Basic::Script - A basic external script loader.
+Eldhelm::Basic::Script - A basic external script stream loader.
 
 =head1 SYNOPSIS
 
 You should not construct an object directly. You should use:
 
-	Eldhelm::Basic::Controller->getScript
+	Eldhelm::Basic::Controller->getScript();
+	
+Please see: L<< Eldhelm::Basic::Controller->getScript >>
 
 =head1 DESCRIPTION
 
-This class provides a standartization of the naming and location of external scripts.
+This class provides a loader for external scripts via dotted notation. It loads them as a stream. You should decide what to do with the stream after it is loaded.
+You may want to eval the stream or parse it in some way. This utility is useful for loading external configurations, structures, data and code from a named location.
+
+For running external scripts (Perl code) please see: C<Eldhelm::Util::ExternalScript>.
 
 =head1 METHODS
 

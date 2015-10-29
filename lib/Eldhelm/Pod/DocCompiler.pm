@@ -8,7 +8,17 @@ Eldhelm::Pod::DocCompiler - A utility for compiling a documentation library.
 
 =head1 SYNOPSIS
 
-
+	Eldhelm::Pod::DocCompiler->new(
+		files => [
+			'< path to a pm file >'
+		],
+		tpl => 'templates.myDocTemplate',
+		contentsTpl => 'templates.myContentsTemplate',
+		outputFolder => '< where to put the files generated >'
+		contentsOutputFile => 'contents',
+		fileNameFormat => 'dashed',
+		fileNameExtension => 'html'
+	);
 
 =head1 METHODS
 
@@ -24,6 +34,25 @@ use Eldhelm::Util::Template;
 use Data::Dumper;
 use Carp;
 
+=item new(%args)
+
+Cosntructs a new object.
+
+C<%args> Hash - Constructor arguments;
+
+C<files> ArrayRef - Files to be processed;
+C<tpl> String - The teplate of the documentation page.
+C<rootPath> String - The path where templates are located;
+C<contentsTpl> String - The template of the contents page.
+C<outputFolder> String - The folder to write the documentation files;
+C<contentsOutputFile> String - The name of the outputed contents file;
+C<fileNameFormat> String - File naming format currently cuports only C<dashed> keyword;
+C<fileNameExtension> String- The extension of the outputed files;
+C<skipFilesWithExtension> String - The extension of the files to skipped; Defaults to C<bak|tmp>;
+C<debug> 1 or 0 or undef - Whether to print debug info;
+
+=cut
+
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
@@ -31,6 +60,8 @@ sub new {
 		%args
 	};
 	bless $self, $class;
+
+	$self->{skipFilesWithExtension} ||= 'bak|tmp';
 
 	$self->parse($self->{files})                      if $self->{files};
 	$self->compile($self->{tpl})                      if $self->{tpl};
@@ -43,6 +74,7 @@ sub new {
 
 sub parse {
 	my ($self, $paths) = @_;
+
 	my @files;
 	foreach my $p (@$paths) {
 		if (-f $p) {
@@ -53,9 +85,15 @@ sub parse {
 	}
 	@files = sort { $a cmp $b } @files;
 
+	my $ex = $self->{skipFilesWithExtension};
+	warn "Will skip $ex" if $ex && $self->{debug};
 	my @parsed;
 	foreach my $f (@files) {
-		warn "Parsing $f;" if $self->{debug};
+		warn "Parsing $f" if $self->{debug};
+		if ($f =~ /(?:$ex)$/) {
+			warn "Skiped!" if $self->{debug};
+			next;
+		}
 		push @parsed,
 			Eldhelm::Pod::Parser->new(
 			debug => $self->{debug},
@@ -90,7 +128,7 @@ sub writeOutput {
 	foreach (@{ $self->{compiled} }) {
 		my ($p, $c) = @$_;
 		my $path = $output.'/'.$self->outputName($p->name);
-		warn "Writing $path;" if $self->{debug};
+		warn "Writing $path" if $self->{debug};
 
 		Eldhelm::Util::FileSystem->writeFileContents($path, $c);
 	}

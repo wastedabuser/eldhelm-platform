@@ -10,6 +10,10 @@ Eldhelm::Server::AbstractChild - A base class for a thread wrapper object.
 
 This class should not be constructed directly.
 
+=head1 DESCRIPTION
+
+A thread wrapper class.
+
 =head1 METHODS
 
 =over
@@ -472,6 +476,20 @@ sub createExternalScriptCommand {
 	return ($scriptFile, qq~perl $scriptFile "$self->{configPath}" "$compiledArgs"~);
 }
 
+
+=item runExternalScript($name, $args) Mixed
+
+Runs a task in an external script and captures the result.
+
+C<$name> String - The script name
+C<$args> HashRef or ArrayRef - The script arguments
+
+Sometimes you have to run non-thread safe code or a non-thread safe library.
+This can do this using this utility. It provides a easy to use interface to run external scripts.
+Please, see L<Eldhelm::Util::ExternalScript> for more information of how to write your scripts.
+
+=cut
+
 ### UNIT TEST: 304_worker_external_script.pl ###
 
 sub runExternalScript {
@@ -491,6 +509,15 @@ sub runExternalScript {
 
 	return $result;
 }
+
+=item runExternalScriptAsync($name, $args) self
+
+Same as L<< $self->runExternalScript >>, but the worker does not wait the script to finish and the result is not captured.
+
+C<$name> String - The script name
+C<$args> HashRef or ArrayRef - The script arguments
+
+=cut
 
 ### UNIT TEST: 305_worker_external_script_async.pl ###
 

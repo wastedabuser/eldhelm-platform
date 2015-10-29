@@ -1,5 +1,22 @@
 package Eldhelm::Server::Handler::Base64;
 
+=pod
+
+=head1 NAME
+
+Eldhelm::Server::Handler::Base64
+
+=head1 DESCRIPTION
+
+Basicly the same as L<Eldhelm::Server::Handler::Json>.
+The only difference is that messages are Base64 encoded.
+
+=head1 METHODS
+
+=over
+
+=cut
+
 use strict;
 use Eldhelm::Server::Parser::Base64;
 use Eldhelm::Util::Tool;
@@ -61,5 +78,19 @@ sub new {
 
 	return $self;
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;
