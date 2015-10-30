@@ -74,7 +74,7 @@ sub new {
 
 sub parse {
 	my ($self, $paths) = @_;
-
+	$self->debug("Parsing...") if $self->{debug};
 	my @files;
 	foreach my $p (@$paths) {
 		if (-f $p) {
@@ -86,14 +86,14 @@ sub parse {
 	@files = sort { $a cmp $b } @files;
 
 	my $ex = $self->{skipFilesWithExtension};
-	warn "Will skip $ex" if $ex && $self->{debug};
+	$self->debug("Will skip $ex") if $ex && $self->{debug};
 	my @parsed;
 	foreach my $f (@files) {
-		warn "Parsing $f" if $self->{debug};
 		if ($f =~ /(?:$ex)$/) {
-			warn "Skiped!" if $self->{debug};
+			$self->debug(" > Skip $f") if $self->{debug};
 			next;
 		}
+		$self->debug(" > Parsing $f") if $self->{debug};
 		push @parsed,
 			Eldhelm::Pod::Parser->new(
 			debug => $self->{debug},
@@ -105,6 +105,8 @@ sub parse {
 
 sub compile {
 	my ($self, $tpl) = @_;
+	$self->debug("Compiling...") if $self->{debug};
+	
 	my @compiled;
 	foreach my $p (@{ $self->{parsed} }) {
 		next unless $p->hasDoc;
@@ -124,12 +126,17 @@ sub compileParsed {
 
 sub writeOutput {
 	my ($self, $output) = @_;
-
+	$self->debug("Writing...") if $self->{debug};
+	
 	foreach (@{ $self->{compiled} }) {
 		my ($p, $c) = @$_;
 		my $path = $output.'/'.$self->outputName($p->name);
-		warn "Writing $path" if $self->{debug};
-
+		my $oldC = Eldhelm::Util::FileSystem->getFileContents($path);
+		if ($c eq $oldC) {
+			$self->debug(" > Skip $path") if $self->{debug};
+			next;
+		}
+		$self->debug(" > Writing $path") if $self->{debug};
 		Eldhelm::Util::FileSystem->writeFileContents($path, $c);
 	}
 }
@@ -144,7 +151,8 @@ sub outputName {
 
 sub compileContents {
 	my ($self, $tpl) = @_;
-
+	$self->debug("Compiling contents...") if $self->{debug};
+	
 	$self->{contents} = Eldhelm::Util::Template->new(
 		name     => $tpl,
 		params   => { classes => [ map { { name => $_->[0]->name } } @{ $self->{compiled} } ], },
@@ -155,10 +163,20 @@ sub compileContents {
 
 sub writeContents {
 	my ($self, $output) = @_;
+	$self->debug("Writing contents...") if $self->{debug};
 	my $path = "$self->{outputFolder}/$output";
-	warn "Writing $path;" if $self->{debug};
-
+	my $oldC = Eldhelm::Util::FileSystem->getFileContents($path);
+	if ($oldC eq $self->{contents}) {
+		$self->debug(" > Skip $path") if $self->{debug};
+		return;
+	}
+	$self->debug(" > Writing $path") if $self->{debug};
 	Eldhelm::Util::FileSystem->writeFileContents($path, $self->{contents});
+}
+
+sub debug {
+	my ($self, $msg) = @_;
+	print "$msg\n";
 }
 
 =back

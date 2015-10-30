@@ -185,16 +185,32 @@ sub parseSource {
 	return unless $source;
 	return $source unless $source =~ /\{[a-z_].*?\}/;
 
-	$source =~
-		s/\{(block|template|foreach|join|separator)\s+(.+?)\s*\}(.*?)\{\1\}/my($a,$b)=($1,$2); $self->{$a} ||= {}; $self->{$a}{$b}=$self->parseSource($3); ";;~~eldhelm~template~placeholder~$a~$a~$b~~;;"/gsei;
+	$source =~ s/\{(block|template|separator)\s+(.+?)\s*\}(.*?)\{\1\}/
+			my($a,$b)=($1,$2);
+			$self->{$a} ||= {};
+			$self->{$a}{$b}=$self->parseSource($3);
+			";;~~eldhelm~placeholder~$a~$a~$b~~;;"
+		/gsei;
 
 	my $z = -1;
-	$source =~
-		s/\{cdata-open\}(.*?)\{cdata-close\}/$z++; $self->{cdata}{$z} = $1; ";;~~eldhelm~template~placeholder~cdata~cdata~$z~~;;";/gsei;
+	$source =~ s/\{(foreach|join)\s+(.+?)\s*\}(.*?)\{\1\}/
+			my($a,$b)=($1,$2);
+			$self->{$a} ||= {};
+			$z++;
+			$self->{$a}{$z}=$self->parseSource($3);
+			";;~~eldhelm~placeholder~$a~$z~$b~~;;"
+		/gsei;
+
+	$z = -1;
+	$source =~ s/\{cdata-open\}(.*?)\{cdata-close\}/
+			$z++;
+			$self->{cdata}{$z} = $1;
+			";;~~eldhelm~placeholder~cdata~cdata~$z~~;;"
+		/gsei;
 
 	my $vars = $self->{var};
-	$source =~ s/\{([a-z_][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~template~placeholder~var~$1~$2~~;;"/gei;
-	$source =~ s/\{([a-z_][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~template~placeholder~var~$1~none~~;;"/gei;
+	$source =~ s/\{([a-z_][a-z0-9_\.]*)\|(.+?)\}/$vars->{$1} = $2; ";;~~eldhelm~placeholder~var~$1~$2~~;;"/gei;
+	$source =~ s/\{([a-z_][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~placeholder~var~$1~none~~;;"/gei;
 
 	my $fns = $self->{function};
 	my $i   = "";
@@ -204,7 +220,7 @@ sub parseSource {
 		$i++;
 		(my $args = $3) =~ s|[\n\r\t]||g;
 		$fns->{$nm} = $args;
-		";;~~eldhelm~template~placeholder~function~$fn~$nm~~;;"
+		";;~~eldhelm~placeholder~function~$fn~$nm~~;;"
 	/geis;
 
 	return $source;
@@ -225,6 +241,17 @@ sub extend {
 	return $self;
 }
 
+sub reachNode {
+	my ($self, $path, $args) = @_;
+	my @path = split /\./, $path;
+	my $ref = $args;
+	foreach (@path) {
+		confess "Path '$path' is not accessible via ".ref($ref)." in:\n".Dumper($args) if ref $ref ne 'HASH';
+		$ref = $ref->{$_};
+	}
+	return $ref;
+}
+
 =item compile($args) String
 
 Compiles the template to a stream.
@@ -241,15 +268,19 @@ sub compile {
 
 sub compileStream {
 	my ($self, $source) = @_;
-	$source =~ s/;;~~eldhelm~template~placeholder~(.+?)~(.+?)~(.+?)~~;;/$self->interpolate($1, $2, $3)/gei;
+	$source =~ s/;;~~eldhelm~placeholder~(.+?)~(.+?)~(.+?)~~;;/$self->interpolate($1, $2, $3)/gei;
 	return $source;
 }
 
 sub interpolate {
-	my ($self, $tp, $fnm, $nm) = @_;
-	my $fn = "_interpolate_$tp";
-	return $self->$fn($fnm, $nm, $self->{$tp}{$nm});
+	my ($self, $type, $fnm, $name) = @_;
+	my $fn = "_interpolate_$type";
+	return $self->$fn($fnm, $name);
 }
+
+# ===============================================
+# vars and formats
+# ===============================================
 
 sub _interpolate_var {
 	my ($self, $name, $format) = @_;
@@ -284,53 +315,6 @@ sub _interpolate_var {
 	return sprintf($value, $format) if $format =~ /%/;
 	confess "Format '$format' is unrecognized:\n".Dumper($value) if !$self->can($method);
 	return $self->$method($value, $format, $name);
-}
-
-sub _interpolate_function {
-	my ($self, $fnm, $name, $query) = @_;
-	$name = "_function_$fnm";
-	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
-	return $self->$name(%params ? \%params : $query);
-}
-
-sub _interpolate_block {
-	my ($self, $fnm, $name, $content) = @_;
-	return $self->compileStream($content);
-}
-
-sub _interpolate_foreach {
-	my ($self, $fnm, $name, $content) = @_;
-	my $list = $self->reachNode($name, $self->{compileParams});
-	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
-	
-	my $v = $self->{compileParams};
-	my $i = 0;
-	return join '', map { $v->{foreach} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
-}
-
-sub _interpolate_join {
-	my ($self, $fnm, $name, $content) = @_;
-	my $list = $self->reachNode($name, $self->{compileParams});
-	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
-	
-	my $v = $self->{compileParams};
-	my $i = 0;
-	return join $self->{separator}{$name} || ' ', map { $v->{join} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
-}
-
-sub _interpolate_template {
-	my ($self, $fnm, $name, $content) = @_;
-	return '';
-}
-
-sub _interpolate_separator {
-	my ($self, $fnm, $name, $content) = @_;
-	return '';
-}
-
-sub _interpolate_cdata {
-	my ($self, $fnm, $name, $content) = @_;
-	return $content;
 }
 
 sub _format_json {
@@ -377,9 +361,21 @@ sub _format_boolean {
 sub _format_template {
 	my ($self, $value, $format, $name) = @_;
 	return '' if !$value || ref($value) ne "ARRAY" || !@$value;
-	
+
 	my $v = $self->{compileParams};
-	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{$_->[0]}) } @$value;
+	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{ $_->[0] }) } @$value;
+}
+
+# ===============================================
+# functions
+# ===============================================
+
+sub _interpolate_function {
+	my ($self, $fnm, $name) = @_;
+	my $query = $self->{function}{$name};
+	$name = "_function_$fnm";
+	my %params = $query =~ m/([a-z0-9]+):[\s\t]*(.+?)(?:;|$)/gsi;
+	return $self->$name(%params ? \%params : $query);
 }
 
 sub _function_include {
@@ -407,15 +403,51 @@ sub _function_instruct {
 	return "{$name}";
 }
 
-sub reachNode {
-	my ($self, $path, $args) = @_;
-	my @path = split /\./, $path;
-	my $ref = $args;
-	foreach (@path) {
-		confess "Path '$path' is not accessible via ".ref($ref)." in:\n".Dumper($args) if ref $ref ne 'HASH';
-		$ref = $ref->{$_};
-	}
-	return $ref;
+# ===============================================
+# blocks
+# ===============================================
+
+sub _interpolate_block {
+	my ($self, $fnm, $name) = @_;
+	return $self->compileStream($self->{block}{$name});
+}
+
+sub _interpolate_template {
+	my ($self, $fnm, $name) = @_;
+	return '';
+}
+
+sub _interpolate_foreach {
+	my ($self, $fnm, $name) = @_;
+	my $content = $self->{foreach}{$fnm};
+	my $list = $self->reachNode($name, $self->{compileParams});
+	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+
+	my $v = $self->{compileParams};
+	my $i = 0;
+	return join '', map { $v->{foreach} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
+}
+
+sub _interpolate_join {
+	my ($self, $fnm, $name) = @_;
+	my $content = $self->{join}{$fnm};
+	my $list = $self->reachNode($name, $self->{compileParams});
+	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+
+	my $v = $self->{compileParams};
+	my $i = 0;
+	return join $self->{separator}{$name} || ' ',
+		map { $v->{join} = $_; $v->{_i} = $i++; $self->compileStream($content) } @$list;
+}
+
+sub _interpolate_separator {
+	my ($self, $fnm, $name) = @_;
+	return '';
+}
+
+sub _interpolate_cdata {
+	my ($self, $fnm, $name) = @_;
+	return $self->{cdata}{$name};
 }
 
 =back
