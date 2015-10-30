@@ -51,6 +51,16 @@ sub new {
 	return $self;
 }
 
+sub onDisconnect {
+	my ($self, $args, $options) = @_;
+	$self->set("connected", 0);
+	return;
+}
+
+# ================================================
+# connection methods
+# ================================================
+
 =item setConnection($connection) self
 
 Connects the session with a client connection.
@@ -89,23 +99,13 @@ sub setConnection {
 	return $self;
 }
 
-sub onDisconnect {
-	my ($self, $args, $options) = @_;
-	$self->set("connected", 0);
-	return;
-}
-
-# ================================================
-# connection methods
-# ================================================
-
-=item setConnection() Eldhelm::Server::Connection
+=item getConnection() Eldhelm::Server::Connection
 
 Returns the connection the session is bond to.
 
 =cut
 
-sub setConnection {
+sub getConnection {
 	my ($self) = @_;
 	my $fno = $self->get("fno");
 	return $self->worker->getConnection($fno) if $fno;
