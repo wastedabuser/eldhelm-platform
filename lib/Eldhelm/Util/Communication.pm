@@ -21,9 +21,10 @@ use strict;
 use Data::Dumper;
 use LWP::UserAgent;
 use HTTP::Request;
-use Eldhelm::Util::Url;
-use Eldhelm::Server::Parser::Json;
 use Digest::MD5 qw(md5_hex);
+use Eldhelm::Server::Parser::Json;
+use Eldhelm::Util::Url;
+use Eldhelm::Util::ExternalScript;
 
 =item simpleHttpRequest($url, $method) String
 
@@ -39,16 +40,16 @@ C<$method> String - Optional; The request method; Defaults to get;
 sub simpleHttpRequest {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $method) = @_;
-	$method ||= "get";
+	$method ||= 'get';
 
 	my $headers;
 	$headers = {
-		"Accept-Language" => "en-us,en;q=0.5",
-		"Accept-Charset"  => "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
-		"User-Agent"      => "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20100101 Firefox/6.0",
-		"Accept"          => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+		'Accept-Language' => 'en-us,en;q=0.5',
+		'Accept-Charset'  => 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+		'User-Agent'      => 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20100101 Firefox/6.0',
+		'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
 		}
-		if $method eq "get";
+		if $method eq 'get';
 
 	return loadUrl($url, {}, $method, $headers);
 }
@@ -70,7 +71,7 @@ C<$headers> Hashref - Optional; Additional headers to be added;
 sub loadUrl {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $args, $method, $headers) = @_;
-	$method ||= "get";
+	$method ||= 'get';
 
 	$url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args) if $args;
 
@@ -103,11 +104,11 @@ C<$headers> Hashref - Optional; Additional headers to be added;
 sub submitToUrl {
 	shift @_ if $_[0] eq __PACKAGE__;
 	my ($url, $args, $method, $content, $headers) = @_;
-	$method ||= "post";
+	$method ||= 'post';
 
 	$url = Eldhelm::Util::Url->new(uri => $url)->compileWithParams($args) if $args;
 
-	my $req = HTTP::Request->new($method, $url);
+	my $req = HTTP::Request->new(uc($method), $url);
 	if ($headers) {
 		$req->header(%$headers);
 	}
@@ -142,7 +143,7 @@ sub loadJson {
 
 =item httpGetWithChecksum($host, $params, $secret) String
 
-Sends a and http request via get. Adds and md5 checksum parameter compiled of the properties in C<$params>.
+Sends an http request via get. Adds an md5 checksum parameter compiled of the properties in C<$params>.
 Dies on error.
 
 C<$host> String - The host url;
@@ -156,7 +157,7 @@ sub httpGetWithChecksum {
 	my ($host, $params, $secret) = @_;
 
 	my @keys = keys %$params;
-	$params->{checksum} = md5_hex(join "", $secret, map { $params->{$_} } @keys);
+	$params->{checksum} = md5_hex(join '', $secret, map { $params->{$_} } @keys);
 	$params->{checkprops} = join ",", @keys;
 
 	my $url      = Eldhelm::Util::Url->new(uri => $host);
@@ -187,10 +188,56 @@ sub acceptGetWithChecksum {
 
 	my @keys = split /,/, $params->{checkprops};
 
-	die "Invalid checksum: ".Dumper($params)
-		if $params->{checksum} ne md5_hex(join "", $secret, map { $params->{$_} } @keys);
+	die 'Invalid checksum: '.Dumper($params)
+		if $params->{checksum} ne md5_hex(join '', $secret, map { $params->{$_} } @keys);
 
 	return { map { +$_ => $params->{$_} } @keys };
+}
+
+=item httpPostWithChecksum($host, $data, $secret) String
+
+Sends an http request via post. Adds an md5 checksum compiled of the $data provided.
+Dies on error.
+
+C<$host> String - The host url;
+C<$data> Mixed - The data to be posted;
+C<$secret> String - A tokken to be added when creating the checksum
+
+=cut
+
+sub httpPostWithChecksum {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($host, $data, $secret) = @_;
+
+	my $encdata = Eldhelm::Util::ExternalScript->encodeArg($data);
+	my $checksum = md5_hex(join '', $secret, $encdata);
+
+	my $content = "checksum=$checksum&data=".Eldhelm::Util::Url->urlencode($encdata);	
+	return submitToUrl($host, undef, 'post', $content, {
+		'Content-Type' => 'application/x-www-form-urlencoded'
+	});
+}
+
+=item acceptPostWithChecksum($params, $secret) Mixed
+
+Decodes a request created with C<httpPostWithChecksum>. Returns the content verified against the checksum.
+Dies on error.
+
+C<$params> HashRef - The data posted;
+C<$secret> String - A tokken to be added when creating the checksum
+
+=cut
+
+sub acceptPostWithChecksum {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($params, $secret) = @_;
+
+	my $checksum = md5_hex(join '', $secret, $params->{data});
+	if ($checksum eq $params->{checksum}) {
+		my $data = Eldhelm::Util::ExternalScript->parseArg($params->{data});
+		return $data;
+	}
+	return;
 }
 
 =back

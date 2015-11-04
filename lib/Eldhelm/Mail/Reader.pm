@@ -30,7 +30,7 @@ sub getConfig {
 sub read {
 	my ($self) = @_;
 	$self->debug('Connecting ...');
-	my $imapCfg = $self->getConfig->{ $self->{'mailConfigNs'} };
+	my $imapCfg = $self->getConfig->{ $self->{mailConfigNs} };
 	my $imap = $self->{imap} = Net::IMAP::Client->new(
 		server => $imapCfg->{host},
 		user   => $imapCfg->{user},
@@ -42,7 +42,7 @@ sub read {
 	$self->debug("Logging in $imapCfg->{user}");
 	$imap->login or die('Login failed: '.$imap->last_error);
 	$imap->select('INBOX');
-	$self->debug('Loged in!');
+	$self->debug('Logged in!');
 
 	my $filter = $self->{filter};
 	my $ei     = 0;

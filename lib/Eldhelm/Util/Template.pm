@@ -155,9 +155,9 @@ C<$name> String - The file path.
 sub load {
 	my ($self, $name) = @_;
 	my $path = $self->getPath($name || $self->{name});
-	open FR, $path or confess "Can not load '$path' with params: ".Dumper($self->{params})."$!";
-	my $src = $self->{source} = join "", <FR>;
-	close FR;
+	open my $fr, $path or confess "Can not load '$path' with params: ".Dumper($self->{params}).$!;
+	my $src = $self->{source} = do { local $/ = undef; <$fr> };
+	close $fr;
 	return $src;
 }
 
@@ -213,7 +213,7 @@ sub parseSource {
 	$source =~ s/\{([a-z_][a-z0-9_\.]*)\}/$vars->{$1} = undef; ";;~~eldhelm~placeholder~var~$1~none~~;;"/gei;
 
 	my $fns = $self->{function};
-	my $i   = "";
+	my $i   = '';
 	$source =~ s/\{([a-z][a-z0-9_]*)(:?[a-z0-9_]*)[\t\s\r\n]+(.+?)\}/ 
 		my $fn = $1; 
 		my $nm = $2 || "$fn$i";
@@ -339,7 +339,7 @@ sub _format_html {
 		$value =~ s/\r//sg;
 		$value =~ s/\n/<br>\n/sg;
 		$value =~ s/\t/&nbsp;&nbsp;&nbsp;&nbsp;/g;
-		$value =~ s~(https?://[a-z0-9_%&+:/\-\.\?]+)~<a href="\1">\1</a>~i;
+		$value =~ s~(https?://[a-z0-9_%&+:/\-\.\?]+)~<a href="$1">$1</a>~i;
 		return $value;
 	}
 	confess "Can not format $value at $name to html. Encoding to html from a reference is not yet implemented";
@@ -360,7 +360,7 @@ sub _format_boolean {
 
 sub _format_template {
 	my ($self, $value, $format, $name) = @_;
-	return '' if !$value || ref($value) ne "ARRAY" || !@$value;
+	return '' if !$value || ref($value) ne 'ARRAY' || !@$value;
 
 	my $v = $self->{compileParams};
 	return join '', map { $v->{template} = $_->[1]; $self->compileStream($self->{template}{ $_->[0] }) } @$value;
@@ -395,7 +395,7 @@ sub _function_include {
 
 sub _function_extends {
 	my ($self, $name) = @_;
-	return "";
+	return '';
 }
 
 sub _function_instruct {
@@ -421,7 +421,7 @@ sub _interpolate_foreach {
 	my ($self, $fnm, $name) = @_;
 	my $content = $self->{foreach}{$fnm};
 	my $list = $self->reachNode($name, $self->{compileParams});
-	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+	return '' if !$list || ref($list) ne 'ARRAY' || !@$list;
 
 	my $v = $self->{compileParams};
 	my $i = 0;
@@ -432,7 +432,7 @@ sub _interpolate_join {
 	my ($self, $fnm, $name) = @_;
 	my $content = $self->{join}{$fnm};
 	my $list = $self->reachNode($name, $self->{compileParams});
-	return '' if !$list || ref($list) ne "ARRAY" || !@$list;
+	return '' if !$list || ref($list) ne 'ARRAY' || !@$list;
 
 	my $v = $self->{compileParams};
 	my $i = 0;

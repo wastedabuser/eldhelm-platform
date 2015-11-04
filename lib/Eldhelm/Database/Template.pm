@@ -259,7 +259,7 @@ sub lexTokenByName {
 }
 
 sub _lex_select {
-	my ($self, $tkn, $tokens) = @_;
+	my ($self, $stkn, $tokens) = @_;
 	my (@syntax, $flds, $chunks, @grp, @ordr, @lmt, $tkn) = ("select");
 	my $lv = 0;
 
