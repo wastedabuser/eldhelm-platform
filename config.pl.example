@@ -132,8 +132,13 @@
 			# virtual hosting
 			host => {
 				# add a virtual host
-				# "chrome.eldhelm.com" => { rewriteUrl => [ [ "", "controller:index" ], ] },
-			}
+				# "subdomain.mydomain.com" => { rewriteUrl => [ [ "", "controller:index" ], ] },
+			},
+			
+			# static content caching
+			staticContentCache => {
+				cacheControl => 'max-age=86400'
+			},
 		},
 		
 		# json and base64 protocols

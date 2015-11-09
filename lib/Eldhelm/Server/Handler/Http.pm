@@ -202,12 +202,13 @@ sub respond {
 	my $url = $self->rewriteUrl($self->{url});
 	$url = $self->{directoryIndex} if $self->{directoryIndex} && !$url;
 	my ($headers, $contents, $cont);
-
+	my $worker = $self->worker;
+	
 	if (my @m = $url =~ /^controller:(.+)$/) {
 		my $router = $self->router;
 
 		# create instance to update the timeout
-		$self->worker->getPersist($self->{get}{sessionId})
+		$worker->getPersist($self->{get}{sessionId})
 			if $self->{get}{sessionId};
 
 		($headers, $contents) = $self->routeAction($self->{routedAction} = $m[0]);
@@ -217,7 +218,7 @@ sub respond {
 
 		$self->addHeaders(@$headers) unless $router->hasErrors;
 		$self->{contentType} ||= 'text/html; charset=UTF-8';
-		$self->worker->sendData($self->createHttpResponse(\$cont));
+		$worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
@@ -226,14 +227,16 @@ sub respond {
 	unless (-f $path) {
 		$cont = $self->createStatusResponse(404, $path);
 		$self->{contentType} ||= 'text/html; charset=UTF-8';
-		$self->worker->sendData($self->createHttpResponse(\$cont));
+		$worker->sendData($self->createHttpResponse(\$cont));
 		return;
 	}
 
 	$self->{contentType} = Eldhelm::Util::Mime->getMime($path);
 	my $ln   = -s $path;
 	my $cref = '';
-	return $self->worker->sendFile($self->createHttpResponse(\$cref, $ln), $path, $ln);
+	my $staticCacheControl = $worker->getConfig('server.http.staticContentCache.cacheControl');
+	$self->addCacheControl($staticCacheControl) if $staticCacheControl;
+	return $worker->sendFile($self->createHttpResponse(\$cref, $ln), $path, $ln);
 }
 
 sub routeAction {
@@ -341,6 +344,12 @@ sub addHeaders {
 	my ($self, @headers) = @_;
 	push @{ $self->{responseHeaders} }, @headers
 		if @headers;
+	return $self;
+}
+
+sub addCacheControl {
+	my ($self, $value) = @_;
+	$self->addHeaders("Cache-Control: $value");
 	return $self;
 }
 

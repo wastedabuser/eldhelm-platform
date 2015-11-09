@@ -183,7 +183,7 @@ sub parse {
 sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
-	return $source unless $source =~ /\{[a-z_].*?\}/;
+	return $source unless $source =~ /\{[a-z_].*?\}/s;
 
 	$source =~ s/\{(block|template|separator)\s+(.+?)\s*\}(.*?)\{\1\}/
 			my($a,$b)=($1,$2);
@@ -201,10 +201,11 @@ sub parseSource {
 			";;~~eldhelm~placeholder~$a~$z~$b~~;;"
 		/gsei;
 
+	my $cdatas = $self->{cdata};
 	$z = -1;
 	$source =~ s/\{cdata-open\}(.*?)\{cdata-close\}/
 			$z++;
-			$self->{cdata}{$z} = $1;
+			$cdatas->{$z} = $1;
 			";;~~eldhelm~placeholder~cdata~cdata~$z~~;;"
 		/gsei;
 
