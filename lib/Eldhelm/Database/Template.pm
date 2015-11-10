@@ -29,14 +29,14 @@ sub getSql {
 
 sub getPath {
 	my ($self, $name) = @_;
-	return "$self->{rootPath}Eldhelm/Application/Template/".join("/", split(/\./, $name)).".tsql";
+	return "$self->{rootPath}Eldhelm/Application/Template/".join('/', split(/\./, $name)).'.tsql';
 }
 
 sub descTable {
 	my ($self, $table) = @_;
 	my $sql = $self->getSql;
 	return $self->{tableDesc}{$table} ||= [] if $self->{doNotUseDesc};
-	confess "No sql" unless $sql;
+	confess 'No sql' unless $sql;
 	return $self->{tableDesc}{$table} ||= $sql->fetchArray("DESC $table");
 }
 
@@ -68,9 +68,9 @@ sub find_path {
 sub load_file {
 	my ($self, $path) = @_;
 	$path = $self->find_path($path);
-	open FR, $path or confess "Can not load path: $path; $!";
-	$self->{stream} = join "\n", <FR>;
-	close FR;
+	open my $fr, $path or confess "Can not load path: $path; $!";
+	$self->{stream} = do { local $/ = undef; <$fr> };
+	close $fr;
 	return;
 }
 
@@ -149,14 +149,14 @@ sub tokenize {
 	foreach my $l (@lines) {
 		$lnum++;
 		if ($l =~ m|^[\s\t]*--(.*)$|) {
-			push @tokens, [ "comment", $1, $lnum, $cnum ];
+			push @tokens, [ 'comment', $1, $lnum, $cnum ];
 			next;
 		}
 		my @chars = split //, $l;
 		$cnum = 0;
-		foreach (@chars, "") {
+		foreach (@chars, '') {
 			$cnum++;
-			if ($_ eq "\\" && !$esc) {
+			if ($_ eq '\\' && !$esc) {
 				$esc = 1;
 				next;
 			}
@@ -172,10 +172,10 @@ sub tokenize {
 
 			if ($_ eq "'") {
 				if (defined $buf) {
-					push @tokens, [ "string", $buf, $lnum, $cnum ];
+					push @tokens, [ 'string', $buf, $lnum, $cnum ];
 					$buf = undef;
 				} else {
-					$buf = "";
+					$buf = '';
 				}
 				$flag = !$flag;
 				next;
@@ -186,9 +186,9 @@ sub tokenize {
 				next;
 			} elsif (defined $bufN) {
 				my $tp;
-				$tp = "symbol"   if $bufN eq ".";
-				$tp = "operator" if $bufN eq "-";
-				push @tokens, [ $tp || "number", $bufN, $lnum, $cnum ];
+				$tp = 'symbol'   if $bufN eq '.';
+				$tp = 'operator' if $bufN eq '-';
+				push @tokens, [ $tp || 'number', $bufN, $lnum, $cnum ];
 				$bufN = undef;
 			}
 
@@ -196,7 +196,7 @@ sub tokenize {
 				$bufOp .= $_;
 				next;
 			} elsif (defined $bufOp) {
-				push @tokens, [ "operator", $bufOp, $lnum, $cnum ];
+				push @tokens, [ 'operator', $bufOp, $lnum, $cnum ];
 				$bufOp = undef;
 				redo;
 			}
@@ -205,8 +205,8 @@ sub tokenize {
 				$bufW .= $_;
 				next;
 			} elsif (defined $bufW) {
-				my $tp = "word";
-				$tp = "function" if $_ eq "(";
+				my $tp = 'word';
+				$tp = 'function' if $_ eq '(';
 				push @tokens, [ $tp, $bufW, $lnum, $cnum ];
 				$bufW = undef;
 				redo;
@@ -216,17 +216,17 @@ sub tokenize {
 				$bufI .= $_;
 				next;
 			} elsif (defined $bufI) {
-				push @tokens, [ "instruction", $bufI, $lnum, $cnum ];
+				push @tokens, [ 'instruction', $bufI, $lnum, $cnum ];
 				$bufI = undef;
 				redo;
 			}
 
 			if (/[\(\)]/) {
-				push @tokens, [ ($_ eq "(" ? "open" : "close")."Bracket", $_, $lnum, $cnum ];
+				push @tokens, [ ($_ eq '(' ? 'open' : 'close').'Bracket', $_, $lnum, $cnum ];
 				next;
 			}
 			if (/[,\?]/) {
-				push @tokens, [ "symbol", $_, $lnum, $cnum ];
+				push @tokens, [ 'symbol', $_, $lnum, $cnum ];
 				next;
 			}
 
@@ -243,7 +243,7 @@ sub lex {
 
 sub lexToken {
 	my ($self, $tkn, $tokens) = @_;
-	if ($tkn->[0] eq "word") {
+	if ($tkn->[0] eq 'word') {
 		return $self->lexTokenByName(lc($tkn->[1]), $tkn, $tokens);
 	}
 }
@@ -260,7 +260,7 @@ sub lexTokenByName {
 
 sub _lex_select {
 	my ($self, $stkn, $tokens) = @_;
-	my (@syntax, $flds, $chunks, @grp, @ordr, @lmt, $tkn) = ("select");
+	my (@syntax, $flds, $chunks, @grp, @ordr, @lmt, $tkn) = ('select');
 	my $lv = 0;
 
 	($flds, $tkn) = $self->_lex_fields($tkn, $tokens, 1);
@@ -275,15 +275,15 @@ sub _lex_select {
 		push @syntax, $chunks;
 	}
 	if ($tkn->[1] =~ /group/i) {
-		push @grp,    "group";
+		push @grp,    'group';
 		push @syntax, \@grp;
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			$lv-- if $tkn->[0] eq "closeBracket";
-			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /having|order|limit/i;
+			$lv++ if $tkn->[0] eq 'openBracket';
+			$lv-- if $tkn->[0] eq 'closeBracket';
+			last if $lv == 0 && $tkn->[0] eq 'word' && $tkn->[1] =~ /having|order|limit/i;
 			my $expr = $self->lexExpression($tkn, $tokens);
 
-			# $lv++ if $expr->[0] eq "function";
+			# $lv++ if $expr->[0] eq 'function';
 			push @grp, $expr;
 		}
 	}
@@ -292,24 +292,24 @@ sub _lex_select {
 		push @syntax, $chunks;
 	}
 	if ($tkn->[1] =~ /order/i) {
-		push @ordr,   "order";
+		push @ordr,   'order';
 		push @syntax, \@ordr;
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			$lv-- if $tkn->[0] eq "closeBracket";
-			last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /limit/i;
+			$lv++ if $tkn->[0] eq 'openBracket';
+			$lv-- if $tkn->[0] eq 'closeBracket';
+			last if $lv == 0 && $tkn->[0] eq 'word' && $tkn->[1] =~ /limit/i;
 			my $expr = $self->lexExpression($tkn, $tokens);
 
-			# $lv++ if $expr->[0] eq "function";
+			# $lv++ if $expr->[0] eq 'function';
 			push @ordr, $expr;
 		}
 	}
 	if ($tkn->[1] =~ /limit/i) {
-		push @lmt,    "limit";
+		push @lmt,    'limit';
 		push @syntax, \@lmt;
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			$lv-- if $tkn->[0] eq "closeBracket";
+			$lv++ if $tkn->[0] eq 'openBracket';
+			$lv-- if $tkn->[0] eq 'closeBracket';
 			push @lmt, $tkn;
 		}
 	}
@@ -319,37 +319,37 @@ sub _lex_select {
 sub _lex_fields {
 	my ($self, $tkn, $tokens, $nodeName) = @_;
 	my (@flds, $lv, $flag);
-	push @flds, "fields" if $nodeName;
+	push @flds, 'fields' if $nodeName;
 	while (1) {
-		my @field = ("field", undef);
+		my @field = ('field', undef);
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			$lv-- if $tkn->[0] eq "closeBracket";
+			$lv++ if $tkn->[0] eq 'openBracket';
+			$lv-- if $tkn->[0] eq 'closeBracket';
 			if (   $lv == 0
-				&& $tkn->[0] eq "word"
+				&& $tkn->[0] eq 'word'
 				&& $tokens->[0]
-				&& $tokens->[0][0] ne "openBracket"
+				&& $tokens->[0][0] ne 'openBracket'
 				&& $tokens->[1]
-				&& $tokens->[1][1] eq "*")
+				&& $tokens->[1][1] eq '*')
 			{
-				$field[1] = "*";
+				$field[1] = '*';
 				$field[2] = $tkn->[1];
 				shift(@$tokens);
 				last unless $tkn = shift(@$tokens);
 			}
-			if ($lv == 0 && $tkn->[0] eq "word" && lc($tkn->[1]) eq "as") {
+			if ($lv == 0 && $tkn->[0] eq 'word' && lc($tkn->[1]) eq 'as') {
 				$tkn = shift(@$tokens);
 				$field[1] = $tkn->[1];
 				last unless $tkn = shift(@$tokens);
 			}
-			last if $lv == 0 && $tkn->[0] eq "symbol" && $tkn->[1] eq ",";
-			if ($lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /from/i) {
+			last if $lv == 0 && $tkn->[0] eq 'symbol' && $tkn->[1] eq ',';
+			if ($lv == 0 && $tkn->[0] eq 'word' && $tkn->[1] =~ /from/i) {
 				$flag = 1;
 				last;
 			}
 			my $expr = $self->lexExpression($tkn, $tokens, $lv);
 
-			# $lv++ if $expr->[0] eq "function";
+			# $lv++ if $expr->[0] eq 'function';
 			push @field, $expr;
 		}
 		push @flds, \@field if @field > 2;
@@ -362,16 +362,16 @@ sub _lex_fields {
 sub _lex_tables {
 	my ($self, $tkn, $tokens, $nodeName) = @_;
 	my (@tbls, $lv, $tbl);
-	push @tbls, "tables" if $nodeName;
+	push @tbls, 'tables' if $nodeName;
 	while ($tkn = shift @$tokens) {
 		($tbl, $tkn) = $self->lexTable($tkn, $tokens);
-		if (@$tbl){ 
+		if (@$tbl) {
 			push @tbls, $tbl;
 			redo;
 		}
-		$lv++ if $tkn && $tkn->[0] eq "openBracket";
-		$lv-- if $tkn && $tkn->[0] eq "closeBracket";
-		last if $lv == 0 && $tkn && $tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i;
+		$lv++ if $tkn && $tkn->[0] eq 'openBracket';
+		$lv-- if $tkn && $tkn->[0] eq 'closeBracket';
+		last if $lv == 0 && $tkn && $tkn->[0] eq 'word' && $tkn->[1] =~ /where|order|having|group|limit/i;
 		push @tbls, $tkn if $tkn && @$tkn;
 	}
 	return (\@tbls, $tkn);
@@ -382,31 +382,31 @@ sub lexTable {
 	my $next = $tokens->[0];
 	return ([], $tkn) unless $next;
 	my (@syntax, $lv);
-	if (   $tkn->[0] eq "word"
+	if (   $tkn->[0] eq 'word'
 		&& $tkn->[1] =~ /left|right|inner|outer/i
-		&& $next->[0] eq "word"
-		&& lc($next->[1]) eq "join")
+		&& $next->[0] eq 'word'
+		&& lc($next->[1]) eq 'join')
 	{
-		push @syntax, "table", $tkn, shift(@$tokens), $self->lexTableAlias(shift(@$tokens), $tokens);
+		push @syntax, 'table', $tkn, shift(@$tokens), $self->lexTableAlias(shift(@$tokens), $tokens);
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			$lv-- if $tkn->[0] eq "closeBracket";
+			$lv++ if $tkn->[0] eq 'openBracket';
+			$lv-- if $tkn->[0] eq 'closeBracket';
 			last
 				if $lv == 0
-					&& $tkn->[0] eq "word"
-					&& $tkn->[1] =~ /where|order|having|group|limit|left|right|inner|outer/i;
-			last if $lv == 0 && $tkn->[0] eq "symbol" && $tkn->[1] eq ",";
+				&& $tkn->[0] eq 'word'
+				&& $tkn->[1] =~ /where|order|having|group|limit|left|right|inner|outer/i;
+			last if $lv == 0 && $tkn->[0] eq 'symbol' && $tkn->[1] eq ',';
 			my $expr = $self->lexExpression($tkn, $tokens);
 			push @syntax, $expr;
 		}
-	} elsif ($tkn->[0] eq "openBracket"
-		&& $next->[0] eq "word"
-		&& lc($next->[1]) eq "select")
+	} elsif ($tkn->[0] eq 'openBracket'
+		&& $next->[0] eq 'word'
+		&& lc($next->[1]) eq 'select')
 	{
-		push @syntax, "table", $tkn;
+		push @syntax, 'table', $tkn;
 		while ($tkn = shift @$tokens) {
-			$lv++ if $tkn->[0] eq "openBracket";
-			if ($tkn->[0] eq "closeBracket") {
+			$lv++ if $tkn->[0] eq 'openBracket';
+			if ($tkn->[0] eq 'closeBracket') {
 				$lv--;
 				last if $lv < 0;
 			}
@@ -415,10 +415,10 @@ sub lexTable {
 		push @syntax, $tkn, $self->lexTableAlias(undef, $tokens);
 		$tkn = undef;
 
-	} elsif ($tkn->[0] eq "word" && $tkn->[1] =~ /where|order|having|group|limit/i) {
+	} elsif ($tkn->[0] eq 'word' && $tkn->[1] =~ /where|order|having|group|limit/i) {
 
-	} elsif ($tkn->[0] eq "word" && $next->[0] eq "word") {
-		push @syntax, "table", $self->lexTableAlias($tkn, $tokens);
+	} elsif ($tkn->[0] eq 'word' && $next->[0] eq 'word') {
+		push @syntax, 'table', $self->lexTableAlias($tkn, $tokens);
 		$tkn = shift(@$tokens);
 	}
 	return (\@syntax, $tkn);
@@ -428,7 +428,7 @@ sub lexTableAlias {
 	my ($self, $tkn, $tokens) = @_;
 	my $alias = shift(@$tokens);
 	my @syntax = ($tkn || (), $alias);
-	push @syntax, $alias = shift(@$tokens) if lc($alias->[1]) eq "as";
+	push @syntax, $alias = shift(@$tokens) if lc($alias->[1]) eq 'as';
 	$self->{tableAliases}{ $alias->[1] } = $tkn->[1] if $tkn;
 	return @syntax;
 }
@@ -436,14 +436,14 @@ sub lexTableAlias {
 sub _lex_conditions {
 	my ($self, $tkn, $tokens, $nodeName) = @_;
 	my (@whrs, $lv);
-	push @whrs, "conditions" if $nodeName;
+	push @whrs, 'conditions' if $nodeName;
 	while ($tkn = shift @$tokens) {
-		$lv++ if $tkn->[0] eq "openBracket";
-		$lv-- if $tkn->[0] eq "closeBracket";
-		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|having|group|limit/i;
+		$lv++ if $tkn->[0] eq 'openBracket';
+		$lv-- if $tkn->[0] eq 'closeBracket';
+		last if $lv == 0 && $tkn->[0] eq 'word' && $tkn->[1] =~ /order|having|group|limit/i;
 		my $expr = $self->lexExpression($tkn, $tokens);
 
-		# $lv++ if $expr->[0] eq "function";
+		# $lv++ if $expr->[0] eq 'function';
 		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
@@ -452,14 +452,14 @@ sub _lex_conditions {
 sub _lex_havingConditions {
 	my ($self, $tkn, $tokens, $nodeName) = @_;
 	my (@whrs, $lv);
-	push @whrs, "havingConditions" if $nodeName;
+	push @whrs, 'havingConditions' if $nodeName;
 	while ($tkn = shift @$tokens) {
-		$lv++ if $tkn->[0] eq "openBracket";
-		$lv-- if $tkn->[0] eq "closeBracket";
-		last if $lv == 0 && $tkn->[0] eq "word" && $tkn->[1] =~ /order|limit/i;
+		$lv++ if $tkn->[0] eq 'openBracket';
+		$lv-- if $tkn->[0] eq 'closeBracket';
+		last if $lv == 0 && $tkn->[0] eq 'word' && $tkn->[1] =~ /order|limit/i;
 		my $expr = $self->lexExpression($tkn, $tokens);
 
-		# $lv++ if $expr->[0] eq "function";
+		# $lv++ if $expr->[0] eq 'function';
 		push @whrs, $expr;
 	}
 	return (\@whrs, $tkn);
@@ -470,15 +470,15 @@ sub lexExpression {
 	my $next = $tokens->[0];
 	my @syntax;
 
-	# if ($next && $tkn->[0] eq "word" && $tkn->[1] !~ /^(?:in|or|and|not|date)$/i && $next->[0] eq "openBracket") {
+	# if ($next && $tkn->[0] eq 'word' && $tkn->[1] !~ /^(?:in|or|and|not|date)$/i && $next->[0] eq 'openBracket') {
 	# shift(@$tokens);
 	# @syntax = @$tkn;
-	# $syntax[0] = "function";
+	# $syntax[0] = 'function';
 	# return \@syntax;
 	# }
-	if ($next && $tkn->[0] eq "word" && $next->[0] eq "symbol" && $next->[1] eq ".") {
+	if ($next && $tkn->[0] eq 'word' && $next->[0] eq 'symbol' && $next->[1] eq '.') {
 		my ($op, $field) = (shift(@$tokens), shift(@$tokens));
-		push @syntax, "reference", $tkn, $op, $field;
+		push @syntax, 'reference', $tkn, $op, $field;
 		return \@syntax;
 	}
 	return $tkn;
@@ -561,7 +561,7 @@ sub compile {
 	$self->limit($args->{limit})               if $args->{limit};
 	$self->parse;
 	$self->{compiled} = $self->compileSyntax($args);
-	$self->{compiled} =~ s/\[(.+?)\]/$self->compileFilters($1)." "/ge;
+	$self->{compiled} =~ s/\[(.+?)\]/$self->compileFilters($1).' '/ge;
 	return $self->{compiled};
 }
 
@@ -577,11 +577,10 @@ sub compileNode {
 
 sub compileNodeByName {
 	my ($self, $name, $node, $args) = @_;
-	confess "Can not compile node without a name: ".Dumper($node) if !$name;
+	confess 'Can not compile node without a name: '.Dumper($node) if !$name;
 	my $fn = "_compile_$name";
 	if (!$self->can($fn)) {
 		confess "Unexpected node $name";
-		return;
 	}
 	return $self->$fn($node, $args);
 }
@@ -595,9 +594,9 @@ sub _compile_select {
 	foreach (qw(fields tables conditions group havingConditions order limit)) {
 		my $rf = $self->{$_};
 		push @compiled, $self->compileNodeByName($_, $clauses{$_}, $args)
-			if $clauses{$_} || (!ref $rf && $rf) || (ref $rf eq "HASH" && keys %$rf);
+			if $clauses{$_} || (!ref $rf && $rf) || (ref $rf eq 'HASH' && keys %$rf);
 	}
-	return join("", "SELECT\n\t", @compiled);
+	return join('', "SELECT\n\t", @compiled);
 }
 
 sub _compile_fields {
@@ -618,10 +617,10 @@ sub _compile_field {
 	my ($self, $node, $args) = @_;
 	my ($alias, @list) = @$node[ 1 .. $#$node ];
 	my $nm = $alias;
-	$nm = $list[-1][0]     if $list[-1][0] eq "word";
-	$nm = $list[-1][-1][1] if $list[-1][0] eq "reference";
+	$nm = $list[-1][0]     if $list[-1][0] eq 'word';
+	$nm = $list[-1][-1][1] if $list[-1][0] eq 'reference';
 	return if $nm && $self->excludeField($nm);
-	return $self->formatField($nm, $alias, join("", map { $self->compileNode($_) } @list));
+	return $self->formatField($nm, $alias, join('', map { $self->compileNode($_) } @list));
 }
 
 sub _compile_tables {
@@ -632,13 +631,13 @@ sub _compile_tables {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nFROM\n\t".join("", map { $self->compileNode($_) } @list);
+	return "\nFROM\n\t".join('', map { $self->compileNode($_) } @list);
 }
 
 sub _compile_table {
 	my ($self, $node, $args) = @_;
 	my @list = @$node[ 1 .. $#$node ];
-	return join "", map { $self->compileNode($_) } @list;
+	return join '', map { $self->compileNode($_) } @list;
 }
 
 sub _compile_conditions {
@@ -650,8 +649,8 @@ sub _compile_conditions {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "" unless @data;
-	return "\nWHERE\n\t".join("", @data);
+	return '' unless @data;
+	return "\nWHERE\n\t".join('', @data);
 }
 
 sub _compile_group {
@@ -661,7 +660,7 @@ sub _compile_group {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nGROUP ".join("", @data);
+	return "\nGROUP ".join('', @data);
 }
 
 sub _compile_havingConditions {
@@ -672,7 +671,7 @@ sub _compile_havingConditions {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nHAVING\n\t".join("", @data);
+	return "\nHAVING\n\t".join('', @data);
 }
 
 sub _compile_order {
@@ -682,7 +681,7 @@ sub _compile_order {
 	foreach (@list) {
 		push @data, $self->compileNode($_);
 	}
-	return "\nORDER ".join("", @data);
+	return "\nORDER ".join('', @data);
 }
 
 sub _compile_limit {
@@ -696,13 +695,13 @@ sub _compile_limit {
 			push @data, $self->compileNode($_);
 		}
 	}
-	return "\nLIMIT ".join("", @data);
+	return "\nLIMIT ".join('', @data);
 }
 
 sub _compile_reference {
 	my ($self, $node, $args) = @_;
 	my @list = @$node[ 1 .. $#$node ];
-	return join("", map { $_->[1] } @list)." ";
+	return join('', map { $_->[1] } @list).' ';
 }
 
 sub _compile_string {
@@ -737,12 +736,12 @@ sub _compile_symbol {
 
 sub _compile_openBracket {
 	my ($self, $node) = @_;
-	return "( ";
+	return '( ';
 }
 
 sub _compile_closeBracket {
 	my ($self, $node) = @_;
-	return ") ";
+	return ') ';
 }
 
 sub _compile_instruction {
@@ -754,21 +753,21 @@ sub convertFilterToTokens {
 	my ($self, $isAfterMoreTkns) = @_;
 	my $fp = $self->{filterPlaceholders};
 	my @list;
-	my $and = [ "word", "AND" ];
+	my $and = [ 'word', 'AND' ];
 	foreach my $name (grep { !$fp->{$_} } keys %{ $self->{conditions} }) {
 		my $val   = $self->{conditions}{$name};
 		my $alias = $self->searchFieldTableAlias($name);
-		confess "You supplied the following conditions: "
+		confess 'You supplied the following conditions: '
 			.Dumper($self->{conditions})
 			."The table alias of the field `$name` is unknown. Make sure `$name` is available as a field in the tables or is defined as [$name ...]\n"
 			if !$alias && !$self->{ignoreUndefAlias};
-		my $fld = [ "reference", [ "word", $alias ], [ "symbol", "." ], [ "word", $name ] ];
-		if (ref $val eq "ARRAY") {
-			my @values = map { [ "string", $_ ], [ "symbol", "," ] } @$val;
+		my $fld = [ 'reference', [ 'word', $alias ], [ 'symbol', '.' ], [ 'word', $name ] ];
+		if (ref $val eq 'ARRAY') {
+			my @values = map { [ 'string', $_ ], [ 'symbol', ',' ] } @$val;
 			pop @values;
-			push @list, $and, $fld, [ "word", "IN" ], ["openBracket"], @values, ["closeBracket"];
+			push @list, $and, $fld, [ 'word', 'IN' ], ['openBracket'], @values, ['closeBracket'];
 		} else {
-			push @list, $and, $fld, [ "operator", "=" ], [ "string", $val ];
+			push @list, $and, $fld, [ 'operator', '=' ], [ 'string', $val ];
 		}
 	}
 	shift @list if $isAfterMoreTkns;
@@ -780,13 +779,16 @@ sub converWildcardsToTokens {
 	my ($i,    @expands) = (-1);
 	foreach my $f (@$list) {
 		$i++;
-		next if $f->[1] ne "*";
+		next if $f->[1] ne '*';
 		push @expands, [ $i, $f->[2] ];
 	}
 	foreach my $f (reverse @expands) {
 		my ($alias, @flds) = ($f->[1]);
 		foreach (@{ $self->expandWildcard($alias) }) {
-			push @flds, [ "field", undef, [ "reference", [ "word", $alias ], [ "symbol", "." ], [ "word", $_ ] ] ];
+			push @flds, [ 'field', undef, [ 'reference', [ 'word', $alias ], [ 'symbol', '.' ], [ 'word', $_ ] ] ];
+		}
+		unless (@flds) {
+			push @flds, [ 'field', undef, [ 'reference', [ 'word', $alias ], [ 'symbol', '.' ], [ 'operator', '*' ] ] ];
 		}
 		splice @$list, $f->[0], 1, @flds;
 	}
@@ -795,7 +797,9 @@ sub converWildcardsToTokens {
 sub expandWildcard {
 	my ($self, $alias) = @_;
 	my $table = $self->{tableAliases}{$alias};
-	my $desc  = $self->descTable($table);
+	return [] unless $table;
+
+	my $desc = $self->descTable($table);
 	return $self->{tableDescFields}{$table} ||= [ map { $_->{Field} } @$desc ];
 }
 
@@ -812,16 +816,16 @@ sub compileFilters {
 
 sub compileValues {
 	my ($self, $query, $values) = @_;
-	if (ref $values eq "ARRAY") {
+	if (ref $values eq 'ARRAY') {
 		my @list = @$values;
-		my $num = $query =~ tr/\?//;
+		my $num  = $query =~ tr/\?//;
 		$num-- if $num < @list;
 		$num--;
 		foreach (0 .. $num) {
 			my $v = shift @list;
 			$query =~ s/\?/'$v'/;
 		}
-		$query =~ s/\?/join(",", map {"'$_'"} @list)/e if @list;
+		$query =~ s/\?/join(',', map {"'$_'"} @list)/e if @list;
 
 	} else {
 		if ($values =~ /^\d+\.?\d*$/) {
@@ -836,8 +840,8 @@ sub compileValues {
 sub formatField {
 	my ($self, $name, $alias, $expression) = @_;
 	my $format = $self->{format}{$name};
-	return $expression.($alias ? "AS $alias" : "") unless $format;
-	return "DATE_FORMAT($expression, '$self->{defaultFormat}{date}') AS $name" if $format eq "date";
+	return $expression.($alias ? "AS $alias" : '') unless $format;
+	return "DATE_FORMAT($expression, '$self->{defaultFormat}{date}') AS $name" if $format eq 'date';
 	return $expression;
 }
 
@@ -854,7 +858,7 @@ sub searchFieldTableAlias {
 		map {
 			my ($a, $t) = ($_, $self->{tableAliases}{$_});
 			map { +$_->{Field} => $a } @{ $self->descTable($t) }
-			} keys %{ $self->{tableAliases} }
+		} keys %{ $self->{tableAliases} }
 	};
 	return $self->{tableFieldsLookup}{$field};
 }

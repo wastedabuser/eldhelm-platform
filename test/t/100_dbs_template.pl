@@ -262,8 +262,8 @@ ok(!$tpl->{tableDesc}{start_date});
 diag("===============> test 12 - parsing subquery in FROM and wildcard in SELECT");
 
 $tpl->stream("SELECT 
-	*,
-	COUNT(*) * 10 AS gold
+	t.*,
+	COUNT(t.*) * 10 AS gold
 FROM 
 	(
 		SELECT 
