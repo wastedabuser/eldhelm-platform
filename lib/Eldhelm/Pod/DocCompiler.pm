@@ -131,7 +131,13 @@ sub writeOutput {
 	foreach (@{ $self->{compiled} }) {
 		my ($p, $c) = @$_;
 		my $path = $output.'/'.$self->outputName($p->name);
-		my $oldC = Eldhelm::Util::FileSystem->getFileContents($path);
+		my $oldC;
+		eval {
+			$oldC = Eldhelm::Util::FileSystem->getFileContents($path);
+			1;
+		} or do {
+			$self->debug($@) unless $@ =~ /No such file or directory/;
+		};
 		if ($c eq $oldC) {
 			$self->debug(" > Skip $path") if $self->{debug};
 			next;
