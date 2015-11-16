@@ -51,26 +51,62 @@ sub dbh {
 
 sub query {
 	my ($self, $query, @params) = @_;
-	my $sth = $self->{dbh}->prepare($query);
-	for (my $i = 0 ; $i <= $#params ; $i++) {
+	my ($expandedQuery, $expanedParams) = $self->expandParams($query, \@params);
+
+	my $sth = $self->{dbh}->prepare($expandedQuery);
+	for (my $i = 0 ; $i <= $#$expanedParams ; $i++) {
 		my $opts;
-		if ($params[$i] =~ /^\d+\.?\d*$/) {
+		if ($expanedParams->[$i] =~ /^\d+\.?\d*$/) {
 			$opts = { TYPE => DBI::SQL_NUMERIC };
 		}
 		eval {
-			$sth->bind_param($i + 1, $params[$i], $opts);
+			$sth->bind_param($i + 1, $expanedParams->[$i], $opts);
 			1;
 		} or do {
-			confess "$query: $@\n".Dumper(\@params);
+			confess "$expandedQuery: $@\n".Dumper($expanedParams);
 		};
 	}
 	eval {
 		$sth->execute();
 		1;
 	} or do {
-		confess "$query: $@\n".Dumper(\@params);
+		confess "$expandedQuery: $@\n".Dumper($expanedParams);
 	};
 	return $sth;
+}
+
+### UNIT TEST: 101_dbs_mysql.pl ###
+
+sub expandParams {
+	my ($self, $query, $params) = @_;
+	my ($i, @queryParams, %expand);
+	for ($i = 0 ; $i <= $#$params ; $i++) {
+		my $p = $params->[$i];
+		if (ref $p eq 'ARRAY') {
+			$expand{$i} = $p;
+			push @queryParams, @$p;
+			next;
+		}
+		push @queryParams, $p;
+	}
+	if (%expand) {
+		$i = 0;
+		my @chunks = split /(\?)/, $query;
+		$query = '';
+		foreach (@chunks) {
+			if ($_ eq '?') {
+				if (ref $expand{$i}) {
+					$query .= join ',', map { '?' } @{ $expand{$i} };
+				} else {
+					$query .= $_;
+				}
+				$i++;
+			} else {
+				$query .= $_;
+			}
+		}
+	}
+	return ($query, \@queryParams);
 }
 
 sub fetchScalar {
