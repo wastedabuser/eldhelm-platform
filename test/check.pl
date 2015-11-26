@@ -79,7 +79,8 @@ foreach my $s (@sources) {
 	my @ts = $f =~ /###\s*UNIT TEST:\s*(.+?)\s*###/g;
 	next unless @ts;
 
-	$testScripts{$s} = \@ts;
+	my ($className) = $f =~ /package[\s\t]+(.+?)[\s\t]*?;/;
+	$testScripts{$s} = [\@ts, $className];
 }
 
 my $critic = Perl::Critic->new(-profile => "perlcritic.config");
@@ -108,6 +109,11 @@ sub checkSyntax {
 sub runPerlCritic {
 	my ($s) = @_;
 	print "Static analysis $i [$s] ... ";
+	if ($s =~ /.pl$/) {
+		print "SKIP\n";
+		print "\tThis is a perl script not a package\n\n" if $ops{dump};
+		return 1;
+	}
 	my @violations = $critic->critique($s);
 
 	if (@violations) {
@@ -125,21 +131,29 @@ sub runPerlCritic {
 sub runUnitTests {
 	my ($s) = @_;
 
-	unless ($testScripts{$s}) {
+	my $tests = $testScripts{$s};
+	unless ($tests) {
 		print "[Skip] No unit tests defined for $i [$s]\n\n" if $ops{dump};
 		return 1;
 	}
-
+	my ($testFiles, @testArgs) = @$tests;
+	
 	my $lbl = "Unit tests $i [$s] ... ";
 	print $lbl;
-	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @{ $testScripts{$s} })."\n" if $ops{dump};
-	my $ts = join " ", map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @{ $testScripts{$s} };
-	my $testResult = `perl runner.pl $ts 2>&1`;
+	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @$testFiles,)."\n" if $ops{dump};
+	my $ts = join " ", map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
+	my $i = 1;
+	my $args = join ' ', map { "-arg".($i++).qq~ "$_"~ } $s, @testArgs;
+	my $testResult = `perl runner.pl $ts $args 2>&1`;
 	$testResult =~ s/\n/\n\t/g;
 	$testResult = "\t$testResult";
 
 	if (index($testResult, "Result: PASS") >= 0) {
 		print $ops{dump} ? (" " x length($lbl))."OK\n" : "OK\n";
+		print "$testResult\n" if $ops{dump};
+		return 1;
+	}
+	if (index($testResult, "Result: NOTESTS") >= 0) {
 		print "$testResult\n" if $ops{dump};
 		return 1;
 	}

@@ -20,6 +20,12 @@ sub new {
 	return $self;
 }
 
+sub desc {
+	my ($self) = @_;
+	my $sql = $self->{dbPool}->getDb;
+	return $sql->desc($self->{table});
+}
+
 sub createSelectQuery {
 	my ($self, $what, $where, $order, $limit) = @_;
 
