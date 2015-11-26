@@ -18,6 +18,8 @@ This is a static class.
 
 use strict;
 
+### UNIT TEST: 500_math.pl ###
+
 =item max($list, $key) Number
 
 Searches for the maximum number in an ArrayRef containing HashRefs.
@@ -43,14 +45,15 @@ C<$key> Mixed - The property holding the number.
 
 sub max {
 	shift @_ if $_[0] eq __PACKAGE__;
-    my ($list, $key) = @_;
-	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
-	my $max = "-inf";
-    foreach my $ret (@$list) {
+	my ($list, $key) = @_;
+	my @keys = ref $key eq 'ARRAY' ? @$key : ($key);
+	my $max = '-inf';
+	foreach (@$list) {
+		my $ret = $_;
 		$ret = $ret->{$_} foreach @keys;
-        $max = $ret if $ret > $max;
-    }
-    return $max;
+		$max = $ret if $ret > $max;
+	}
+	return $max;
 }
 
 =item min($list, $key) Number
@@ -78,14 +81,15 @@ C<$key> Mixed - The property holding the number.
 
 sub min {
 	shift @_ if $_[0] eq __PACKAGE__;
-    my ($list, $key) = @_;
-	my @keys = ref $key eq "ARRAY" ? @$key : ($key);
-	my $min = "+inf";
-    foreach my $ret (@$list) {
+	my ($list, $key) = @_;
+	my @keys = ref $key eq 'ARRAY' ? @$key : ($key);
+	my $min = '+inf';
+	foreach (@$list) {
+		my $ret = $_;
 		$ret = $ret->{$_} foreach @keys;
-        $min = $ret if $ret < $min;
-    }
-    return $min;
+		$min = $ret if $ret < $min;
+	}
+	return $min;
 }
 
 =back
