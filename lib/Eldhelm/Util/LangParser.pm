@@ -550,14 +550,14 @@ sub mergeDiff {
 
 sub mergeSubset {
 	my ($self, $model, $set1, $set2) = @_;
-
-	confess "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1]): 
+	my $message = "Can not merge $set1->[0]($set1->[1]) with $set2->[0]($set2->[1]). Maybe you are merging a diff with a full translation.";
+	confess "$message: 
 ============= first =============
 ".Dumper($set1->[1])." 
-============= second =============
+============= second ============
 ".Dumper($set2->[1])."
 =============  end  =============
-"
+$message"
 		if $set1->[0] ne $set2->[0];
 
 	my $fn = "_merge_$model->[0]";
