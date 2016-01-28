@@ -50,7 +50,7 @@ sub status {
 
 	return $status->{$name} unless defined $value;
 	confess("Status can not be a reference!") if ref $value;
-	
+
 	$status->{$name} = $value;
 	return;
 }
@@ -59,10 +59,10 @@ sub setWaitStatus {
 	my ($self) = @_;
 	my $status = $self->{workerStatus};
 	lock($status);
-	
+
 	$status->{action} = "wait";
-	$status->{proto} = "";
-	$status->{task} = "";
+	$status->{proto}  = "";
+	$status->{task}   = "";
 }
 
 sub getConnection {
@@ -102,6 +102,17 @@ sub getAllConnections {
 		push @list, Eldhelm::Util::Tool::cloneStructure($conn);
 	}
 	return \@list;
+}
+
+sub getAllConnectionCount {
+	my ($self) = @_;
+	my $cnt;
+	{
+		my $conns = $self->{connections};
+		lock($conns);
+		$cnt = keys %$conns;
+	}
+	return $cnt;
 }
 
 sub router {

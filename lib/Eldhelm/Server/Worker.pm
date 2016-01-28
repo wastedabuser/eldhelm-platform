@@ -59,6 +59,13 @@ sub init {
 	$self->{maxTaskTimeR} = $self->getConfig("server.logger.slowLogTimeR") || $self->{maxTaskTime};
 }
 
+sub getServerStat {
+	my ($self, $name) = @_;
+	my $stats = $self->{serverStats};
+	lock($stats);
+	return $stats->{$name};
+}
+
 # =================================
 # Tasks
 # =================================

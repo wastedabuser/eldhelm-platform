@@ -65,6 +65,9 @@ sub new {
 			lastHeartbeat        => time,
 			jobQueue             => [],
 
+			hpsList => {},
+			hps     => {},
+
 			persists       => shared_clone({}),
 			persistsByType => shared_clone({}),
 			persistLookup  => shared_clone({}),
@@ -74,6 +77,8 @@ sub new {
 			connections      => shared_clone({}),
 			connectionEvents => shared_clone({}),
 			sheduledEvents   => shared_clone({}),
+
+			serverStats => shared_clone({}),
 
 			workerCountU => 1,
 			workerCountR => 2,
@@ -359,7 +364,7 @@ sub createWorker {
 		workerQueue   => $workerQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(configPath config info logQueue connections persists persistsByType persistLookup sheduledEvents stash)
+			qw(configPath config info logQueue connections persists persistsByType persistLookup sheduledEvents serverStats stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $workerQueue;
@@ -531,6 +536,8 @@ sub listen {
 
 		$self->message("will do other jobs");
 		$self->doOtherJobs();
+
+		$self->captureStats;
 	}
 
 	print "Main loop ended with status $self->{endMainLoopReason}\n";
@@ -940,6 +947,8 @@ sub executeBufferedTask {
 	$self->message("execute bufered task");
 	delete $self->{parseBufferMap}{ $sock->fileno };
 
+	$self->countHit($buff->{proto});
+
 	if ($self->{proxyConfig} && $buff->{parser}->proxyPossible($buff, $self->{proxyConfig}{proxyUrls})) {
 		$self->addToProxyStream($sock, \$buff->{headerContent}, \$buff->{content});
 		return;
@@ -1190,6 +1199,47 @@ sub heartbeat {
 	$self->{lastHeartbeat} = time;
 
 	$self->doAction("monitoring.heartbeat:sendHeartbeat", { message => $self->{workerStatusMessage} });
+}
+
+sub countHit {
+	my ($self, $proto) = @_;
+	my $h = $self->{hps};
+	$h->{All}++;
+	$h->{$proto}++;
+}
+
+sub captureStats {
+	my ($self) = @_;
+	return if $self->{lastHps} + 1 >= time;
+	$self->{lastHps} = time;
+
+	my $stats;
+	my $hpsV = $self->{hps};
+	my $hpsL = $self->{hpsList};
+	foreach my $p (keys %$hpsV) {
+		my $hps = $hpsV->{$p};
+		$hpsV->{$p} = 0;
+		my $la = $hpsL->{$p} ||= [];
+		push @$la, $hps;
+
+		shift @$la if @$la > 5;
+		my $sum = 0;
+		$sum += $_ foreach @$la;
+		my $avgHps = $sum / 10;
+
+		$stats = $self->{serverStats};
+		{
+			lock($stats);
+			$stats->{"currentHps$p"} = $hps;
+			$stats->{"averageHps$p"} = $avgHps;
+		}
+	}
+
+	$stats = $self->{serverStats};
+	{
+		lock($stats);
+		$stats->{workerStatus} = $self->{workerStatusMessage};
+	}
 }
 
 # =================================

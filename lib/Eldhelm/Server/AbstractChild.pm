@@ -113,7 +113,7 @@ sub stash {
 sub registerPersist {
 	my ($self, $args) = @_;
 
-	confess 'Can not register presistent object without id' unless $args->{id};
+	confess 'Can not register presistent object without id'          unless $args->{id};
 	confess 'Can not register presistent object without persistType' unless $args->{persistType};
 	my $persistData = shared_clone($args);
 
@@ -359,6 +359,29 @@ sub unregisterPersistLookup {
 	return $key;
 }
 
+sub getPersistCount {
+	my ($self) = @_;
+	my $cnt;
+	{
+		my $per = $self->{persists};
+		lock($per);
+		$cnt = keys %$per;
+	}
+	return $cnt;
+}
+
+sub getPersistCountByType {
+	my ($self, $type) = @_;
+	my $cnt;
+	{
+		my $per = $self->{persistsByType};
+		lock($per);
+		my $pmap = $per->{$type} || {};
+		$cnt = keys %$pmap;
+	}
+	return $cnt;
+}
+
 sub doJob {
 	my ($self, $job) = @_;
 	if (!$job->{job}) {
@@ -475,7 +498,6 @@ sub createExternalScriptCommand {
 	my $compiledArgs = Eldhelm::Util::ExternalScript->encodeArg($args || []);
 	return ($scriptFile, qq~perl $scriptFile "$self->{configPath}" "$compiledArgs"~);
 }
-
 
 =item runExternalScript($name, $args) Mixed
 
