@@ -27,7 +27,7 @@ use Eldhelm::Util::Factory;
 use Eldhelm::Server::Router;
 use Eldhelm::Util::Tool;
 
-use base qw(Eldhelm::Server::AbstractChild);
+use parent 'Eldhelm::Server::AbstractChild';
 
 sub new {
 	my ($class, %args) = @_;
@@ -49,7 +49,7 @@ sub status {
 	lock($status);
 
 	return $status->{$name} unless defined $value;
-	confess("Status can not be a reference!") if ref $value;
+	confess('Status can not be a reference!') if ref $value;
 
 	$status->{$name} = $value;
 	return;
@@ -60,9 +60,9 @@ sub setWaitStatus {
 	my $status = $self->{workerStatus};
 	lock($status);
 
-	$status->{action} = "wait";
-	$status->{proto}  = "";
-	$status->{task}   = "";
+	$status->{action} = 'wait';
+	$status->{proto}  = '';
+	$status->{task}   = '';
 }
 
 sub getConnection {
@@ -81,7 +81,7 @@ sub getConnection {
 	return if !$connData;
 
 	lock($connData);
-	return Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Connection", $connData);
+	return Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::Connection', $connData);
 }
 
 sub getAllConnections {
@@ -157,7 +157,7 @@ sub sendData {
 sub closeConnection {
 	my ($self, $fno, $event) = @_;
 	$fno ||= $self->{fno};
-	$self->addDataToQueue($fno, shared_clone($event || { initiator => "server" }));
+	$self->addDataToQueue($fno, shared_clone($event || { initiator => 'server' }));
 	return;
 }
 
@@ -168,13 +168,13 @@ sub doJob {
 		return;
 	}
 
-	return $self->addDataToQueue(undef, shared_clone({ %$job, proto => "System" }));
+	return $self->addDataToQueue(undef, shared_clone({ %$job, proto => 'System' }));
 }
 
 sub doActionInBackground {
 	my ($self, $action, $data) = @_;
 	return $self->doJob(
-		{   job          => "handleAction",
+		{   job          => 'handleAction',
 			action       => $action,
 			data         => $data,
 			priority     => 1,
@@ -199,7 +199,7 @@ sub delay {
 	return unless $handle;
 
 	my $stamp = time + $interval;
-	my $id    = $stamp."-".rand();
+	my $id    = $stamp.'-'.rand();
 
 	$self->addDataToQueue(
 		undef,
@@ -235,7 +235,7 @@ sub cancelDelay {
 
 sub DESTROY {
 	my ($self) = @_;
-	$self->error("i am dead");
+	$self->error('i am dead');
 }
 
 1;

@@ -25,7 +25,9 @@ You should not construct this object directly. You should instead use:
 
 use strict;
 
-use base qw(Eldhelm::Basic::View);
+use Data::Dumper;
+
+use parent 'Eldhelm::Basic::View';
 
 =item new(%args)
 
@@ -91,6 +93,31 @@ sub addTemplate {
 	my $tpls = $self->{tpls};
 	$tpls->{$ns} ||= [];
 	push @{ $tpls->{$ns} }, [ $tpl, $args ];
+}
+
+=item addTemplateArgs($tpl, $args, $ns)
+
+Adds more arguments to a template in a specified namespace.
+
+C<$tpl> String - dotted notation of a template template file in the Eldhelm::Application::Template namespace;
+C<$args> HashRef - compile arguments;
+C<$ns> String - Optional; The namespace to append the template to; Could be header, footer, content; Defaults to content;
+
+=cut
+
+sub addTemplateArgs {
+	my ($self, $tpl, $args, $ns) = @_;
+	return unless $args;
+
+	$ns ||= 'content';
+	my $tpls = $self->{tpls};
+	my $list = $tpls->{$ns};
+	return unless $list;
+
+	foreach my $t (@$list) {
+		next if $t->[0] ne $tpl;
+		$t->[1] = { %{ $t->[1] }, %$args };
+	}
 }
 
 sub compile {

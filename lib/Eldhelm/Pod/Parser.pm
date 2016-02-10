@@ -137,7 +137,7 @@ sub parse {
 	my @chunks = split /[\n\r]+(\=[a-z0-9]+)/, $stream;
 	$self->{docCount} = scalar @chunks;
 	if ($self->hasDoc) {
-		my ($pname, $pindex, $lcName, $mode);
+		my ($pname, $pindex, $lcName, $mode) = ('');
 		foreach my $pn (@chunks) {
 			next unless $pn;
 

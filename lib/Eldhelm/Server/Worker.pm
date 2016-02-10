@@ -31,7 +31,7 @@ use Data::Dumper;
 use Time::HiRes qw(usleep time);
 use Carp qw(confess longmess);
 
-use base qw(Eldhelm::Server::Child);
+use parent 'Eldhelm::Server::Child';
 
 sub create {
 	my (%args) = @_;
@@ -41,7 +41,7 @@ sub create {
 sub new {
 	my ($class, %args) = @_;
 	my $self = Eldhelm::Server::Child->instance;
-	if (ref $self ne "Eldhelm::Server::Worker") {
+	if (ref $self ne 'Eldhelm::Server::Worker') {
 		$self = Eldhelm::Server::Child->new(%args);
 		bless $self, $class;
 
@@ -54,16 +54,40 @@ sub new {
 
 sub init {
 	my ($self) = @_;
-	$self->{maxTaskTime}  = $self->getConfig("server.logger.slowLogTime");
-	$self->{maxTaskTimeU} = $self->getConfig("server.logger.slowLogTimeU") || $self->{maxTaskTime};
-	$self->{maxTaskTimeR} = $self->getConfig("server.logger.slowLogTimeR") || $self->{maxTaskTime};
+	$self->{maxTaskTime}  = $self->getConfig('server.logger.slowLogTime');
+	$self->{maxTaskTimeU} = $self->getConfig('server.logger.slowLogTimeU') || $self->{maxTaskTime};
+	$self->{maxTaskTimeR} = $self->getConfig('server.logger.slowLogTimeR') || $self->{maxTaskTime};
 }
+
+=item getServerStat($name) 
+
+Returns a server stat by name
+
+C<$name> String - the name of the stat;
+
+The following names are available:
+C<workerStatus> - A worker status string;
+C<averageHpsAll> - Average hits per second for all protocols;
+C<averageHpsHttp> - Average hits per second for a specific protocol. Might be Http or Base64 etc.;
+
+=cut
 
 sub getServerStat {
 	my ($self, $name) = @_;
 	my $stats = $self->{serverStats};
 	lock($stats);
 	return $stats->{$name};
+}
+
+=item getTaskElapsedTime
+
+Returns the elapsed time executing the current task in seconds
+
+=cut
+
+sub getTaskElapsedTime {
+	my ($self, $name) = @_;
+	return time - $self->{taskStartTime};
 }
 
 # =================================
@@ -75,7 +99,7 @@ sub run {
 	my ($conn, $data);
 	while (1) {
 		($conn, $data) = $self->fetchTask;
-		if ($conn && $conn eq "connectionError") {
+		if ($conn && $conn eq 'connectionError') {
 			next;
 		} elsif (!$data) {
 			$self->setWaitStatus;
@@ -83,12 +107,12 @@ sub run {
 			next;
 		}
 
-		my $taskStartTime = time;
+		$self->{taskStartTime} = time;
 		$self->runTask($conn, $data);
-		my $maxTime  = $self->{ "maxTaskTime".$self->{workerType} };
-		my $execTime = time - $taskStartTime;
+		my $maxTime  = $self->{ 'maxTaskTime'.$self->{workerType} };
+		my $execTime = $self->getTaskElapsedTime;
 		if ($maxTime > 0 && $execTime > $maxTime) {
-			$self->log("A worker task took ".sprintf("%.4f", $execTime)." seconds: ".Dumper($data), "slow");
+			$self->log('A worker task took '.sprintf('%.4f', $execTime).' seconds: '.Dumper($data), 'slow');
 		}
 
 		threads->yield();
@@ -111,8 +135,8 @@ sub fetchTask {
 	return () unless $task;
 
 	unless (ref $task) {
-		$self->exitWorker if $task eq "exitWorker";
-		$self->reconfig   if $task eq "reconfig";
+		$self->exitWorker if $task eq 'exitWorker';
+		$self->reconfig   if $task eq 'reconfig';
 		return ();
 	}
 
@@ -120,9 +144,9 @@ sub fetchTask {
 	($self->{fno}, $job) = @$task;
 
 	my $conn = $self->getConnection;
-	if (!$conn && $job->{proto} ne "System") {
+	if (!$conn && $job->{proto} ne 'System') {
 		$self->error("Can not process task, connection $self->{fno} is not available");
-		return ("connectionError", $job);
+		return ('connectionError', $job);
 	}
 
 	$self->router({ connection => $conn })->clearErrors;
@@ -131,8 +155,8 @@ sub fetchTask {
 
 sub runTask {
 	my ($self, $conn, $data) = @_;
-	$self->status("action", "run");
-	$self->status("proto",  $data->{proto});
+	$self->status('action', 'run');
+	$self->status('proto',  $data->{proto});
 	my $handler = $self->createHandler($data->{proto}, %$data);
 	if ($handler) {
 		if ($handler->{composer}) {
@@ -164,22 +188,22 @@ sub createHandler {
 
 sub endTask {
 	my ($self) = @_;
-	$self->log("Closing");
+	$self->log('Closing');
 	$self->closeConnection;
 	return $self;
 }
 
 sub exitWorker {
 	my ($self) = @_;
-	print "Exitting worker ".threads->tid()." ... \n";
-	$self->status("action", "exit");
+	print 'Exitting worker '.threads->tid()." ... \n";
+	$self->status('action', 'exit');
 	usleep(10_000);
 	threads->exit();
 }
 
 sub reconfig {
 	my ($self) = @_;
-	print "Reconfiguring worker ".threads->tid()." ... \n";
+	print 'Reconfiguring worker '.threads->tid()." ... \n";
 	$self->init;
 }
 

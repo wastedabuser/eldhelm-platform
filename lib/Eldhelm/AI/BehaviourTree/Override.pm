@@ -1,8 +1,8 @@
-package Eldhelm::AI::BehaviourTree::Inverter;
+package Eldhelm::AI::BehaviourTree::Override;
 
 use strict;
 
-use base qw(Eldhelm::AI::BehaviourTree::Decorator);
+use parent 'Eldhelm::AI::BehaviourTree::Decorator';
 
 sub new {
 	my ($class, %args) = @_;
@@ -15,7 +15,8 @@ sub new {
 sub update {
 	my ($self) = @_;
 	$self->logUpdate;
-	my $status = $self->{status} = $self->getChild->update() ne "success" ? "success" : "failed";
+	$self->getChild->update();
+	my $status = $self->{status} ||= 'success';
 	$self->logFinishUpdate;
 	return $status;
 }

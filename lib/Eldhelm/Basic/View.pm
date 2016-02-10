@@ -116,7 +116,7 @@ C<$args> HashRef - arguments passed to the helper constructor;
 sub getHelper {
 	my ($self, $name, $args) = @_;
 	$args ||= {};
-	return Eldhelm::Util::Factory->instanceFromNotation("Eldhelm::Helper", $name, %$args);
+	return Eldhelm::Util::Factory->instanceFromNotation('Eldhelm::Helper', $name, %$args);
 }
 
 =item addTplArgs($args)
