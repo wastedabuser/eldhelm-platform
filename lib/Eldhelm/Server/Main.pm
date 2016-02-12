@@ -67,6 +67,7 @@ sub new {
 
 			hpsList => {},
 			hps     => {},
+			lastHps => 0,
 
 			persists       => shared_clone({}),
 			persistsByType => shared_clone({}),
@@ -727,7 +728,8 @@ sub configConnection {
 	$self->message("config $sock");
 
 	$sock->autoflush(1);
-
+	setsockopt($sock, Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1) or warn "Can't set TCP_NODELAY: $!";
+	
 	if (!Eldhelm::Util::MachineInfo->isWin) {
 		use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 		my $flags = $sock->fcntl(F_GETFL, 0) or warn "Can't get flags for the socket: $!";

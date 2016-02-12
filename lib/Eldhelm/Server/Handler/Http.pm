@@ -398,6 +398,7 @@ sub createHttpResponse {
 	my @headers = (
 		"HTTP/1.0 $self->{status}",
 		"Server: Eldhelm Server $info->{version} ($^O)",
+		"Eldhelm-Time: ".$self->worker->getTaskElapsedTimeMs(),
 		"Content-Length: $ln",
 		$self->{contentType} ? "Content-Type: $self->{contentType}" : (),
 		@{ $self->{responseHeaders} }, "\r\n",

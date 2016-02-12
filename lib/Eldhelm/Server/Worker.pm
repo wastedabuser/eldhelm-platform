@@ -86,8 +86,19 @@ Returns the elapsed time executing the current task in seconds
 =cut
 
 sub getTaskElapsedTime {
-	my ($self, $name) = @_;
+	my ($self) = @_;
 	return time - $self->{taskStartTime};
+}
+
+=item getTaskElapsedTimeMs
+
+Returns the elapsed time executing the current task in miliseconds
+
+=cut
+
+sub getTaskElapsedTimeMs {
+	my ($self) = @_;
+	return (time - $self->{taskStartTime}) * 1000;
 }
 
 # =================================
