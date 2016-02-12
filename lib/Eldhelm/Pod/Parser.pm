@@ -59,6 +59,7 @@ Cosntructs a new object.
 C<%args> Hash - Constructor arguments;
 
 C<file> String - Path to file;
+C<libPath> String - Path to the base classes;
 
 =cut
 
@@ -113,10 +114,14 @@ sub parseInheritance {
 		$libRoot =~ s/$lfn//;
 		$libRoot =~ s/$lfnw//;
 		(my $eFile = $data->{extends}[0]) =~ s|::|/|g;
-
+		my $appPath = $libRoot.$eFile.'.pm';
+		unless (-f $appPath) {
+			$appPath = $self->{libPath}.'/'.$eFile.'.pm';
+		}
+		
 		my $parser = $self->{parent} = Eldhelm::Pod::Parser->new;
 		eval {
-			$parser->parseFile($libRoot.$eFile.'.pm');
+			$parser->parseFile($appPath);
 			$data->{inheritance} = [ $parser->inheritance, $name ];
 		} or do {
 			warn $@;
@@ -372,7 +377,8 @@ sub inheritedMethods {
 	my ($self) = @_;
 	my $methods = $self->{data}{methodsItems};
 	return () unless $methods;
-	return sort { $a->{name} cmp $b->{name} } grep { $_->{name} !~ /\s*new\s*\(|Inherited\smethods/ } @$methods;
+	my @list = sort { $a->{name} cmp $b->{name} } grep { $_->{name} !~ /\s*new\s*\(|Inherited\smethods/ } @$methods;
+	return @list;
 }
 
 sub libFileName {

@@ -21,9 +21,9 @@ sub new {
 
 sub getDb {
 	my ($self, $name) = @_;
-	$name ||= "_default";
+	$name ||= '_default';
 	if (!$self->{connections}{$name}) {
-		my $config = $self->{config}{mysql} || $self->{worker}->getConfig("mysql");
+		my $config = $self->{config}{mysql} || $self->{worker}->getConfig('mysql');
 		$self->{connections}{$name} = Eldhelm::Database::MySql->new(%{ $config->{$name} });
 	}
 	$self->{connections}{$name}->connect if !$self->{connections}{$name}->isConnected;

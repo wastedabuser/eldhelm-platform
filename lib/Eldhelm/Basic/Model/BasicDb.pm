@@ -5,7 +5,7 @@ use Data::Dumper;
 use Eldhelm::Util::Tool;
 use Eldhelm::Database::Filter;
 
-use base qw(Eldhelm::Basic::Model);
+use parent 'Eldhelm::Basic::Model';
 
 sub new {
 	my ($class, %args) = @_;
@@ -13,7 +13,7 @@ sub new {
 	bless $self, $class;
 
 	$self->{table}        = $args{table};
-	$self->{pkFields}     = $args{pkFields} || ["id"];
+	$self->{pkFields}     = $args{pkFields} || ['id'];
 	$self->{customFields} = $args{customFields} || {};
 	$self->{defaultOrder} = $args{defaultOrder} || [];
 
@@ -40,24 +40,24 @@ sub createDeleteQuery {
 
 sub chooseFields {
 	my ($self, $fields) = @_;
-	if (ref $fields eq "ARRAY") {
-		return join ",", map { "t.`$_`" } @$fields;
-	} elsif (ref $fields eq "HASH") {
-		return join ",", map { "t.`$_` AS ".$fields->{$_} } keys %$fields;
+	if (ref $fields eq 'ARRAY') {
+		return join ',', map { "t.`$_`" } @$fields;
+	} elsif (ref $fields eq 'HASH') {
+		return join ',', map { "t.`$_` AS ".$fields->{$_} } keys %$fields;
 	}
-	return "";
+	return '';
 }
 
 sub fieldList {
 	my ($self, $fields, $key) = @_;
-	$key ||= "id";
+	$key ||= 'id';
 	push @$fields, $key if $key && $fields && grep { $_ ne $key } @$fields;
 	return $key;
 }
 
 sub setOrder {
 	my ($self, $order) = @_;
-	if (ref $order ne "ARRAY") {
+	if (ref $order ne 'ARRAY') {
 		$self->{currentOrder} = [$order];
 	} else {
 		$self->{currentOrder} = $order;
@@ -68,7 +68,7 @@ sub setOrder {
 sub orderClause {
 	my ($self, $order) = @_;
 	my @list = @{ $order || $self->{currentOrder} || $self->{defaultOrder} };
-	return @list ? "ORDER BY ".join(",", @list) : "";
+	return @list ? 'ORDER BY '.join(',', @list) : '';
 }
 
 sub setPage {
@@ -91,16 +91,16 @@ sub limitClause {
 		$value = "$self->{limitOffset}, $self->{limitAmount}"
 			if $self->{limitOffset} =~ /^\d+$/ && $self->{limitAmount};
 	}
-	return $value ? "LIMIT $value" : "";
+	return $value ? "LIMIT $value" : '';
 }
 
 sub getAll {
 	my ($self, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;
-	my $what  = $self->chooseFields($fields) || "t.*";
+	my $what  = $self->chooseFields($fields) || 't.*';
 	my $order = $self->orderClause;
 	my $limit = $self->limitClause;
-	return $sql->fetchArray($self->createSelectQuery($what, "1", $order, $limit));
+	return $sql->fetchArray($self->createSelectQuery($what, '1', $order, $limit));
 }
 
 sub getHash {
@@ -124,10 +124,10 @@ sub getAssocColumn {
 sub getListByIds {
 	my ($self, $list, $fields) = @_;
 	my $sql   = $self->{dbPool}->getDb;
-	my $what  = $self->chooseFields($fields) || "t.*";
+	my $what  = $self->chooseFields($fields) || 't.*';
 	my $order = $self->orderClause;
 	return $sql->fetchArray(
-		$self->createSelectQuery($what, "`".$self->{pkFields}[0]."` IN (".join(",", map { "?" } @$list).")", $order),
+		$self->createSelectQuery($what, '`'.$self->{pkFields}[0].'` IN ('.join(',', map { '?' } @$list).')', $order),
 		@$list);
 }
 
@@ -164,7 +164,7 @@ sub createFilter {
 sub filter {
 	my ($self, $filterData, $fields) = @_;
 	my $sql    = $self->{dbPool}->getDb;
-	my $what   = $self->chooseFields($fields) || "t.*";
+	my $what   = $self->chooseFields($fields) || 't.*';
 	my $filter = $self->createFilter($filterData);
 	my $order  = $self->orderClause;
 	my $limit  = $self->limitClause;
@@ -175,6 +175,12 @@ sub filter {
 sub filterOne {
 	my $self = shift;
 	return $self->filter(@_)->[0];
+}
+
+sub filterHash {
+	my ($self, $filter, $key, $fields) = @_;
+	$key = $self->fieldList($fields, $key);
+	return { map { +$_->{$key} => $_ } @{ $self->filter($filter, $fields) } };
 }
 
 sub filterAssocArray {

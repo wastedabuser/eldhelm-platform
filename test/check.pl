@@ -8,16 +8,13 @@ use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
 use Eldhelm::Util::Factory;
 use Eldhelm::Pod::Parser;
+use Eldhelm::Pod::Validator;
 use Eldhelm::Pod::DocCompiler;
 use Perl::Critic;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
-	items => [
-		'Source file',
-		'Source directory',
-		'Dotted notation of a class'
-	],
+	items   => [ 'Source file', 'Source directory', 'Dotted notation of a class' ],
 	options => [
 		[ 'h help',   'see this help' ],
 		[ 'all',      'checks all code' ],
@@ -83,7 +80,7 @@ foreach my $s (@sources) {
 	next unless @ts;
 
 	my ($className) = $f =~ /package[\s\t]+(.+?)[\s\t]*?;/;
-	$testScripts{$s} = [\@ts, $className];
+	$testScripts{$s} = [ \@ts, $className ];
 }
 
 my $critic = Perl::Critic->new(-profile => 'perlcritic.config');
@@ -92,7 +89,7 @@ my $inc = join ' ', map { qq~-I "$_"~ } @libPaths;
 my @errors;
 
 sub checkSyntax {
-	my ($s) = @_;
+	my ($s, $i) = @_;
 	print "Syntax check $i [$s] ... ";
 	my $output = `perl $inc -Ttcw "$s" 2>&1`;
 	$output =~ s/\n/\n\t/g;
@@ -110,7 +107,7 @@ sub checkSyntax {
 }
 
 sub runPerlCritic {
-	my ($s) = @_;
+	my ($s, $i) = @_;
 	print "Static analysis $i [$s] ... ";
 	if ($s =~ /.pl$/) {
 		print "SKIP\n";
@@ -132,7 +129,7 @@ sub runPerlCritic {
 }
 
 sub runUnitTests {
-	my ($s) = @_;
+	my ($s, $i) = @_;
 
 	my $tests = $testScripts{$s};
 	unless ($tests) {
@@ -140,13 +137,13 @@ sub runUnitTests {
 		return 1;
 	}
 	my ($testFiles, @testArgs) = @$tests;
-	
+
 	my $lbl = "Unit tests $i [$s] ... ";
 	print $lbl;
 	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @$testFiles,)."\n" if $ops{dump};
-	my $ts = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
-	my $i = 1;
-	my $args = join ' ', map { "-arg".($i++).qq~ "$_"~ } $s, @testArgs;
+	my $ts         = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
+	my $z          = 1;
+	my $args       = join ' ', map { "-arg".($z++).qq~ "$_"~ } $s, @testArgs;
 	my $testResult = `perl runner.pl $ts $args 2>&1`;
 	$testResult =~ s/\n/\n\t/g;
 	$testResult = "\t$testResult";
@@ -167,23 +164,29 @@ sub runUnitTests {
 }
 
 sub runDocCheck {
-	my ($s) = @_;
-	
-	my $p = Eldhelm::Pod::Parser->new( file => $s );
+	my ($s, $i) = @_;
+
+	my $p = Eldhelm::Pod::Parser->new(file => $s, libPath => '../lib');
 	unless ($p->hasDoc) {
-		print "[Skip] No PODs for $i [$s]\n\n" if $ops{dump};
+		print "[Skip] No POD for $i [$s]\n\n" if $ops{dump};
 		return 1;
 	}
+
+	my @violations = Eldhelm::Pod::Validator->new(parser => $p)->validate;
+	if (@violations) {
+		push @errors, [ $i, $s, join("", map { "\t$_\n" } @violations) ];
+		print "POD ISSUES\n";
+		print "\t".scalar(@violations)." issues found\n\n" if $ops{dump};
+		return;
+	}
 	
-	my $lbl = "Compiling PODs $i [$s] ... ";
+	my $lbl = "Compiling POD $i [$s] ... ";
 	print "$lbl OK\n";
-	print Eldhelm::Pod::DocCompiler->new(
-		rootPath => '../lib/'
-	)->compileParsed('pod.class', $p);
+	print Eldhelm::Pod::DocCompiler->new(rootPath => '../lib/')->compileParsed('pod.class', $p);
 	print "\n\n";
-	
+
 	return 1;
-	
+
 	# print "FAILED\n";
 	# return;
 }
@@ -193,20 +196,20 @@ foreach my $s (@sources) {
 	my $ok;
 
 	if ($ops{syntax}) {
-		$ok = checkSyntax($s);
+		$ok = checkSyntax($s, $i);
 		next unless $ok;
 	}
 
 	if ($ops{static}) {
-		$ok = runPerlCritic($s);
+		$ok = runPerlCritic($s, $i);
 	}
 
 	if ($ops{unittest}) {
-		$ok = runUnitTests($s);
+		$ok = runUnitTests($s, $i);
 	}
-	
+
 	if ($ops{doc}) {
-		$ok = runDocCheck($s);
+		$ok = runDocCheck($s, $i);
 	}
 
 	$fi++ unless $ok;

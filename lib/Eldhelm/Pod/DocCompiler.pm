@@ -41,9 +41,10 @@ Cosntructs a new object.
 C<%args> Hash - Constructor arguments;
 
 C<files> ArrayRef - Files to be processed;
-C<tpl> String - The teplate of the documentation page.
-C<rootPath> String - The path where templates are located;
-C<contentsTpl> String - The template of the contents page.
+C<tpl> String - The teplate of the documentation page;
+C<libPath> String - The path to the platform lib containing the base classes;
+C<rootPath> String - The path to the platform lib containing the templates;
+C<contentsTpl> String - The template of the contents page;
 C<outputFolder> String - The folder to write the documentation files;
 C<contentsOutputFile> String - The name of the outputed contents file;
 C<fileNameFormat> String - File naming format currently cuports only C<dashed> keyword;
@@ -74,7 +75,7 @@ sub new {
 
 sub parse {
 	my ($self, $paths) = @_;
-	$self->debug("Parsing...") if $self->{debug};
+	$self->debug('Parsing...') if $self->{debug};
 	my @files;
 	foreach my $p (@$paths) {
 		if (-f $p) {
@@ -96,8 +97,9 @@ sub parse {
 		$self->debug(" > Parsing $f") if $self->{debug};
 		push @parsed,
 			Eldhelm::Pod::Parser->new(
-			debug => $self->{debug},
-			file  => $f
+			debug   => $self->{debug},
+			file    => $f,
+			libPath => $self->{libPath}
 			);
 	}
 	return $self->{parsed} = \@parsed;
@@ -105,8 +107,8 @@ sub parse {
 
 sub compile {
 	my ($self, $tpl) = @_;
-	$self->debug("Compiling...") if $self->{debug};
-	
+	$self->debug('Compiling...') if $self->{debug};
+
 	my @compiled;
 	foreach my $p (@{ $self->{parsed} }) {
 		next unless $p->hasDoc;
@@ -126,8 +128,8 @@ sub compileParsed {
 
 sub writeOutput {
 	my ($self, $output) = @_;
-	$self->debug("Writing...") if $self->{debug};
-	
+	$self->debug('Writing...') if $self->{debug};
+
 	foreach (@{ $self->{compiled} }) {
 		my ($p, $c) = @$_;
 		my $path = $output.'/'.$self->outputName($p->name);
@@ -157,8 +159,8 @@ sub outputName {
 
 sub compileContents {
 	my ($self, $tpl) = @_;
-	$self->debug("Compiling contents...") if $self->{debug};
-	
+	$self->debug('Compiling contents...') if $self->{debug};
+
 	$self->{contents} = Eldhelm::Util::Template->new(
 		name     => $tpl,
 		params   => { classes => [ map { { name => $_->[0]->name } } @{ $self->{compiled} } ], },
@@ -169,7 +171,7 @@ sub compileContents {
 
 sub writeContents {
 	my ($self, $output) = @_;
-	$self->debug("Writing contents...") if $self->{debug};
+	$self->debug('Writing contents...') if $self->{debug};
 	my $path = "$self->{outputFolder}/$output";
 	my $oldC = Eldhelm::Util::FileSystem->getFileContents($path);
 	if ($oldC eq $self->{contents}) {
