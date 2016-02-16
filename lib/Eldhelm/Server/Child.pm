@@ -8,7 +8,9 @@ Eldhelm::Server::AbstractChild - A base class for a thread wrapper object that r
 
 =head1 SYNOPSIS
 
-This class should not be constructed directly.
+This class should not be constructed directly. This is a singleton object.
+
+	Eldhelm::Server::Child->instance
 
 =head1 METHODS
 
@@ -237,5 +239,19 @@ sub DESTROY {
 	my ($self) = @_;
 	$self->error('i am dead');
 }
+
+=back
+
+=head1 AUTHOR
+
+Andrey Glavchev @ Essence Ltd. (http://essenceworks.com)
+
+=head1 LICENSE
+
+This software is Copyright (c) 2011-2015 of Essence Ltd.
+
+Distributed undert the MIT license.
+ 
+=cut
 
 1;

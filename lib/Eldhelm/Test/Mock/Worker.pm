@@ -8,7 +8,7 @@ use Data::Dumper;
 use Eldhelm::Test::Mock::Session;
 use Carp qw(confess longmess);
 
-use base qw(Eldhelm::Server::Child);
+use parent 'Eldhelm::Server::Child';
 
 sub create {
 	my (%args) = @_;
@@ -18,7 +18,7 @@ sub create {
 sub new {
 	my ($class, %args) = @_;
 	my $self = Eldhelm::Server::Child->instance;
-	if (ref $self ne "Eldhelm::Server::Worker") {
+	if (ref $self ne 'Eldhelm::Server::Worker') {
 		$self = Eldhelm::Server::Child->new(%args);
 		bless $self, $class;
 

@@ -8,7 +8,9 @@ Eldhelm::Server::AbstractChild - A base class for a thread wrapper object.
 
 =head1 SYNOPSIS
 
-This class should not be constructed directly.
+This class should not be constructed directly. This is a singleton object.
+
+	Eldhelm::Server::AbstractChild->instance
 
 =head1 DESCRIPTION
 

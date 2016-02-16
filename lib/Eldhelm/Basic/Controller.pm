@@ -105,7 +105,7 @@ sub new {
 		public         => {},
 		cachedModels   => $args{cachedModels} || {},
 		views          => [],
-		content        => "",
+		content        => '',
 		headers        => [],
 	};
 	bless $self, $class;
@@ -372,7 +372,7 @@ sub getResponseHeaders {
 
 sub getResponseContent {
 	my ($self) = @_;
-	return join "", $self->{content}, map { $_->compile } @{ $self->{views} };
+	return join '', $self->{content}, map { $_->compile } @{ $self->{views} };
 }
 
 =item getView($view, $args, $standAlone) Eldhelm::Application::View

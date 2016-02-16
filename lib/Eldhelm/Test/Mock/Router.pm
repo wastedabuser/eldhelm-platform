@@ -9,7 +9,7 @@ sub new {
 	my $self = { %args };
 	bless $self, $class;
 
-	confess "callback not defined" unless $self->{callback};
+	confess 'callback not defined' unless $self->{callback};
 	
 	return $self;
 }
