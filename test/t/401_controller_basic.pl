@@ -23,8 +23,16 @@ unless ($className) {
 my $config = do '../../config.pl' or die 'Can not read config!';
 my $worker = Eldhelm::Test::Mock::Worker->new(config => $config);
 
+diag("Verifying construction");
 my $controller = Eldhelm::Util::Factory->instance($className, router => $worker->{router});
-my $source     = Eldhelm::Util::FileSystem->getFileContents($sourceContext);
+my $source = Eldhelm::Util::FileSystem->getFileContents($sourceContext);
+
+my %methods = %{ $controller->{exported} }, %{ $controller->{public} };
+foreach (keys %methods) {
+	ok($source =~ /sub[\s\t]+$_[\s\t]\{/, "Public or exported method $_");
+}
+diag(Dumper [keys %methods]);
+
 my @allResources;
 
 diag("Verifying models");
@@ -32,7 +40,7 @@ my %models = map { +$_ => 1 } $source =~ /getModel\((.*?)\)/g;
 foreach (keys %models) {
 	my $val = eval("[$_]");
 	next unless $val;
-	
+
 	my ($name, $args) = @$val;
 	push @allResources, $name;
 	eval {
@@ -49,7 +57,7 @@ diag("Verifying views");
 foreach (keys %models) {
 	my $val = eval("[$_]");
 	next unless $val;
-	
+
 	my ($name, $args) = @$val;
 	$args ||= {};
 	$args->{worker} = $worker;
@@ -69,7 +77,7 @@ diag("Verifying controllers");
 foreach (keys %models) {
 	my $name = eval($_);
 	next unless $name;
-	
+
 	push @allResources, $name;
 	eval {
 		my $model = $controller->getController($name);
@@ -86,7 +94,7 @@ diag("Verifying scripts");
 foreach (keys %models) {
 	my $name = eval($_);
 	next unless $name;
-	
+
 	push @allResources, $name;
 	eval {
 		my $model = $controller->getScript($name);
