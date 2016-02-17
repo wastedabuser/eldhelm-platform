@@ -148,6 +148,17 @@ sub id {
 	return $self->get('id');
 }
 
+=item persistType() String
+
+The ref() name of the persistant object.
+
+=cut
+
+sub persistType {
+	my ($self) = @_;
+	return $self->get('persistType');
+}
+
 sub call {
 	my ($self, $fn, @data) = @_;
 	return $self->$fn(@data) if $self->can($fn);
