@@ -151,18 +151,19 @@ sub compile {
 
 	if ($self->{currentUrl}) {
 		my $baseUrl = Eldhelm::Util::Url->new(uri => $self->{currentUrl});
-
+		my %params;
+		%params = %{ $self->{currentParams} } if $self->{currentParams};
 		my $pp = $self->{page} - 1;
 		if ($pp > 0) {
-			my $furl = $baseUrl->compileWithParams({ helper_html_table_page => 1 });
-			my $purl = $baseUrl->compileWithParams({ helper_html_table_page => $pp });
+			my $furl = $baseUrl->compileWithParams({ %params, helper_html_table_page => 1 });
+			my $purl = $baseUrl->compileWithParams({ %params, helper_html_table_page => $pp });
 			push @controls, qq~<a href="$furl">first page</a>~;
 			push @controls, qq~<a href="$purl">prev page</a>~;
 		}
 		my $pn = $self->{page} + 1;
 		if ($pn <= $self->{pageCount}) {
-			my $nurl = $baseUrl->compileWithParams({ helper_html_table_page => $pn });
-			my $lurl = $baseUrl->compileWithParams({ helper_html_table_page => $self->{pageCount} });
+			my $nurl = $baseUrl->compileWithParams({ %params, helper_html_table_page => $pn });
+			my $lurl = $baseUrl->compileWithParams({ %params, helper_html_table_page => $self->{pageCount} });
 			push @controls, qq~<a href="$nurl">next page</a>~;
 			push @controls, qq~<a href="$lurl">last page</a>~;
 		}

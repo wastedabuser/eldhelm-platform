@@ -49,6 +49,7 @@ use strict;
 
 use Eldhelm::Util::FileSystem;
 use Eldhelm::Util::StringUtil;
+use Eldhelm::Perl::SourceParser;
 use Data::Dumper;
 use Carp;
 
@@ -68,6 +69,7 @@ sub new {
 	my $self = {%args};
 	bless $self, $class;
 
+	$self->{sourceParser} = Eldhelm::Perl::SourceParser->new;
 	$self->parseFile($self->{file}) if $self->{file};
 
 	return $self;
@@ -97,17 +99,11 @@ sub parseInheritance {
 
 	my $data = $self->{data} = {};
 	$stream =~ s/(^|[\n\r])=[a-z]+.+?=cut//sg;
-	my ($name) = $stream =~ m/^[\s\t]*package (.+);/m;
-	$data->{className} = $name;
-
-	my ($extends) = $stream =~ m/^[\s\t]*use (?:base|parent) (.+);/m;
-	if ($extends) {
-		if ($extends =~ m/qw[\s\t]*[\(\[](.+)[\)\]]/) {
-			$data->{extends} = [ split /\s/, $1 ];
-		} elsif ($extends =~ m/["'](.+)["']/) {
-			$data->{extends} = [$1];
-		}
-
+	
+	$self->{sourceParser}->parse($stream, $data);
+	my $name = $data->{className};
+	
+	if ($data->{extends}) {
 		my $lfn     = $self->libFileName;
 		my $lfnw    = $self->libFileNameWin;
 		my $libRoot = $self->{file};

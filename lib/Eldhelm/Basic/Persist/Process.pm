@@ -8,6 +8,8 @@ Eldhelm::Basic::Persist::Process - A persistant object with a session context.
 
 =head1 SYNOPSIS
 
+Getting the current context of the object.
+
 	$self->sessionContext;
 
 =head1 DESCRIPTION
@@ -24,7 +26,7 @@ use strict;
 use Eldhelm::Util::Factory;
 use Data::Dumper;
 
-use base qw(Eldhelm::Basic::Persist);
+use parent 'Eldhelm::Basic::Persist';
 
 sub new {
 	my ($class, %args) = @_;

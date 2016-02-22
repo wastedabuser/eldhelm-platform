@@ -33,7 +33,7 @@ use Math::Random::MT qw(rand);
 use threads;
 use threads::shared;
 
-use base qw(Eldhelm::Server::BaseObject);
+use parent 'Eldhelm::Server::BaseObject';
 
 my $instanceIndex = 0;
 

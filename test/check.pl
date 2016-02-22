@@ -7,9 +7,11 @@ use Data::Dumper;
 use Eldhelm::Util::CommandLine;
 use Eldhelm::Util::FileSystem;
 use Eldhelm::Util::Factory;
+use Eldhelm::Perl::SourceParser;
 use Eldhelm::Pod::Parser;
 use Eldhelm::Pod::Validator;
 use Eldhelm::Pod::DocCompiler;
+use Eldhelm::Test::Unit;
 use Perl::Critic;
 
 my $cmd = Eldhelm::Util::CommandLine->new(
@@ -73,16 +75,6 @@ foreach (@defaultPats, @{ $ops{list} }) {
 	}
 }
 
-my %testScripts;
-foreach my $s (@sources) {
-	my $f  = Eldhelm::Util::FileSystem->getFileContents($s);
-	my @ts = $f =~ /###\s*UNIT TEST:\s*(.+?)\s*###/g;
-	next unless @ts;
-
-	my ($className) = $f =~ /package[\s\t]+(.+?)[\s\t]*?;/;
-	$testScripts{$s} = [ \@ts, $className ];
-}
-
 my $critic = Perl::Critic->new(-profile => 'perlcritic.config');
 my ($i, $fi, $oi) = (0, 0, 0);
 my $inc = join ' ', map { qq~-I "$_"~ } @libPaths;
@@ -131,19 +123,34 @@ sub runPerlCritic {
 sub runUnitTests {
 	my ($s, $i) = @_;
 
-	my $tests = $testScripts{$s};
-	unless ($tests) {
+	my $unit = Eldhelm::Test::Unit->new(file => $s);
+	my $sData = $unit->sourceData;
+	my ($className, $parentClassName, $testFiles) = ($sData->{className}, $sData->{extends}[0], $unit->unitTests);
+	if ($className) {
+		if ($className =~ /^Eldhelm::Application::Controller/) {
+			unshift @$testFiles, "401_controller_basic.pl";
+		} elsif ($className =~ /^Eldhelm::Application::Model/) {
+			if ($parentClassName =~ /BasicDb/) {
+				unshift @$testFiles, "400_model_basic_db.pl";
+			}
+		} elsif ($className =~ /^Eldhelm::Application::Persist/) {
+			unshift @$testFiles, "402_persist_basic.pl";
+		} elsif ($className =~ /^Eldhelm::Application::View/) {
+			unshift @$testFiles, "403_view_basic.pl";
+		}
+	}
+	
+	if (!$testFiles || !@$testFiles) {
 		print "[Skip] No unit tests defined for $i [$s]\n\n" if $ops{dump};
 		return 1;
 	}
-	my ($testFiles, @testArgs) = @$tests;
-
+	
 	my $lbl = "Unit tests $i [$s] ... ";
 	print $lbl;
 	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @$testFiles,)."\n" if $ops{dump};
 	my $ts         = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
 	my $z          = 1;
-	my $args       = join ' ', map { "-arg".($z++).qq~ "$_"~ } $s, @testArgs;
+	my $args       = join ' ', map { "-arg".($z++).qq~ "$_"~ } $s, $className;
 	my $testResult = `perl runner.pl $ts $args 2>&1`;
 	$testResult =~ s/\n/\n\t/g;
 	$testResult = "\t$testResult";
@@ -179,7 +186,7 @@ sub runDocCheck {
 		print "\t".scalar(@violations)." issues found\n\n" if $ops{dump};
 		return;
 	}
-	
+
 	my $lbl = "Compiling POD $i [$s] ... ";
 	print "$lbl OK\n";
 	print Eldhelm::Pod::DocCompiler->new(rootPath => '../lib/')->compileParsed('pod.class', $p);
