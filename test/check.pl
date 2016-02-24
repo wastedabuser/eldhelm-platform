@@ -23,6 +23,7 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ 'platform', 'check platform code only' ],
 		[ 'util',     'check platform utils code only' ],
 		[ 'product',  'check product code only' ],
+		[ 'prefix',   'adds a prefix to all listed files' ],
 		[ 'dump',     'show verbose output' ],
 		[ 'syntax',   'check syntax' ],
 		[ 'static',   'run static anlysis using Perl::Critic' ],
@@ -49,11 +50,23 @@ push @defaultPats, '../lib'                   if $ops{platform} || $ops{all};
 push @defaultPats, "../../platform-utils/lib" if $ops{util}     || $ops{all};
 push @defaultPats, '../../Eldhelm'            if $ops{product}  || $ops{all};
 
+my @listed;
+if ($ops{prefix}) {
+	@listed = map { "$ops{prefix}$_" } @{ $ops{list} };
+} else {
+	@listed = @{ $ops{list} };
+}
+
+my $err = "[Skip] %s is neither a folder nor a perl source!\n";
 my @sources;
 my $si;
-foreach (@defaultPats, @{ $ops{list} }) {
+foreach (@defaultPats, @listed) {
 	if (-f $_) {
-		push @sources, $_;
+		if (/(?:\.pm|\.pl)$/) {
+			push @sources, $_;
+		} else {
+			print sprintf($err, $_);
+		}
 		next;
 	}
 	my $flag;
@@ -70,7 +83,7 @@ foreach (@defaultPats, @{ $ops{list} }) {
 		$flag = 1;
 	}
 	unless ($flag) {
-		print "[Skip] $p is neither a folder nor a package!\n";
+		print sprintf($err, $p);
 		$si++;
 	}
 }
@@ -225,20 +238,27 @@ foreach my $s (@sources) {
 
 my $hr =
 	"=======================================================================================================================================\n";
+my $result;
 if (@errors) {
-	print $hr;
-	print "FAILED=$fi; " if $fi;
-	print 'ERRORS='.scalar(@errors).";\n";
-	print $hr;
+	$result .= $hr;
+	$result .= "FAILED=$fi; " if $fi;
+	$result .= 'ERRORS='.scalar(@errors).";\n";
+	$result .= $hr;
 	foreach (@errors) {
 		my ($ind, $name, $output) = @$_;
-		print "Failed $ind [$name]\n$output\n";
+		$result .= "Failed $ind [$name]\n$output\n";
 	}
 }
-print $hr;
-print "FAILED=$fi/$i; " if $fi;
-print "OK=$oi/$i; ";
-print "SKIPPED=$si; " if $si;
-print 'ERRORS='.scalar(@errors).'; ' if @errors;
-print "CHECKED=$i;\n";
-print $hr;
+$result .= $hr;
+$result .= "FAILED=$fi/$i; " if $fi;
+$result .= "OK=$oi/$i; ";
+$result .= "SKIPPED=$si; " if $si;
+$result .= 'ERRORS='.scalar(@errors).'; ' if @errors;
+$result .= "CHECKED=$i;\n";
+$result .= $hr;
+
+if ($oi != $i) {
+	die $result;
+} else {
+	print $result;
+}
