@@ -33,10 +33,12 @@ foreach (@{ $ops{list} }) {
 	
 	(my $d = $t) =~ s/[^\/]+$//;
 	if (!-d $d) {
-		`mkdir $d`;
 		print "Creating dir $d\n";
+		`mkdir -p $d`;
+		die $? if $?;
 	} 
 	
-	`cp $f $t`;
 	print "Copying $f to $t\n";
+	`cp $f $t`;
+	die $? if $?;
 }
