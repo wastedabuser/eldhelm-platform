@@ -13,7 +13,7 @@ use Eldhelm::Database::Pool;
 use Eldhelm::Util::Factory;
 use Eldhelm::Util::FileSystem;
 
-my ($index, $sourceContext, $className) = @ARGV;
+my ($index, $configPath, $sourceContext, $className) = @ARGV;
 
 unless ($className) {
 	plan skip_all => 'This test can not run without a class context';
@@ -21,7 +21,7 @@ unless ($className) {
 	plan 'no_plan';
 }
 
-my $config = do '../../config.pl' or die 'Can not read config!';
+my $config = do($configPath || '../../config.pl') or die 'Can not read config!';
 my $worker = Eldhelm::Test::Mock::Worker->new(config => $config);
 
 diag("Verifying construction");

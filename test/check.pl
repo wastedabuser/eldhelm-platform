@@ -27,8 +27,10 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ 'dump',     'show verbose output' ],
 		[ 'syntax',   'check syntax' ],
 		[ 'static',   'run static anlysis using Perl::Critic' ],
-		[ 'unittest', 'run unit tests referenced in the source' ],
+		[ 'unittest', 'run all unit tests for specified source code' ],
+		[ 'autotest', 'run only the default auto tests' ],
 		[ 'doc',      'check pod documentation' ],
+		[ 'config',   'path to server config (required by some unit tests)' ],
 	],
 	examples => [
 		"perl check.pl -all -syntax -static -unittest",
@@ -95,7 +97,7 @@ my @errors;
 
 sub checkSyntax {
 	my ($s, $i) = @_;
-	print "Syntax check $i [$s] ... ";
+	print " - Syntax check $i [$s] ... ";
 	my $output = `perl $inc -Ttcw "$s" 2>&1`;
 	$output =~ s/\n/\n\t/g;
 	$output = "\t$output";
@@ -113,7 +115,7 @@ sub checkSyntax {
 
 sub runPerlCritic {
 	my ($s, $i) = @_;
-	print "Static analysis $i [$s] ... ";
+	print " - Static analysis $i [$s] ... ";
 	if ($s =~ /.pl$/) {
 		print "SKIP\n";
 		print "\tThis is a perl script not a package\n\n" if $ops{dump};
@@ -134,11 +136,12 @@ sub runPerlCritic {
 }
 
 sub runUnitTests {
-	my ($s, $i) = @_;
+	my ($s, $i, $scope) = @_;
 
 	my $unit = Eldhelm::Test::Unit->new(file => $s);
 	my $sData = $unit->sourceData;
-	my ($className, $parentClassName, $testFiles) = ($sData->{className}, $sData->{extends}[0], $unit->unitTests);
+	my ($className, $parentClassName) = ($sData->{className}, $sData->{extends}[0]);
+	my $testFiles = $scope eq 'auto' ? [] : $unit->unitTests;
 	if ($className) {
 		if ($className =~ /^Eldhelm::Application::Controller/) {
 			unshift @$testFiles, "401_controller_basic.pl";
@@ -158,12 +161,12 @@ sub runUnitTests {
 		return 1;
 	}
 	
-	my $lbl = "Unit tests $i [$s] ... ";
+	my $lbl = " - Unit test $i [$s] ... ";
 	print $lbl;
 	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @$testFiles,)."\n" if $ops{dump};
 	my $ts         = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
 	my $z          = 1;
-	my $args       = join ' ', map { "-arg".($z++).qq~ "$_"~ } $s, $className;
+	my $args       = join ' ', ($ops{config} ? "-config $ops{config}" : ()), map { "-arg".($z++).qq~ "$_"~ } $s, $className;
 	my $testResult = `perl runner.pl $ts $args 2>&1`;
 	$testResult =~ s/\n/\n\t/g;
 	$testResult = "\t$testResult";
@@ -200,7 +203,7 @@ sub runDocCheck {
 		return;
 	}
 
-	my $lbl = "Compiling POD $i [$s] ... ";
+	my $lbl = " - Compiling POD $i [$s] ... ";
 	print "$lbl OK\n";
 	print Eldhelm::Pod::DocCompiler->new(rootPath => '../lib/')->compileParsed('pod.class', $p);
 	print "\n\n";
@@ -213,27 +216,30 @@ sub runDocCheck {
 
 foreach my $s (@sources) {
 	$i++;
-	my $ok;
+	my @oks = (1,1,1,1);
 
+	print "$i. Working on [$s]\n";
+	
 	if ($ops{syntax}) {
-		$ok = checkSyntax($s, $i);
-		next unless $ok;
-	}
-
-	if ($ops{static}) {
-		$ok = runPerlCritic($s, $i);
+		next unless $oks[0] = checkSyntax($s, $i);
 	}
 
 	if ($ops{unittest}) {
-		$ok = runUnitTests($s, $i);
+		$oks[1] = runUnitTests($s, $i, 'all');
+	} elsif ($ops{autotest}) {
+		$oks[1] = runUnitTests($s, $i, 'auto');
 	}
-
+	
+	if ($ops{static}) {
+		$oks[2] = runPerlCritic($s, $i);
+	}
+	
 	if ($ops{doc}) {
-		$ok = runDocCheck($s, $i);
+		$oks[3] = runDocCheck($s, $i);
 	}
 
-	$fi++ unless $ok;
-	$oi++ if $ok;
+	$oi++ if $oks[0] && $oks[1];
+	$fi++ if grep { !$_ } @oks;
 }
 
 my $hr =
@@ -241,7 +247,7 @@ my $hr =
 my $result;
 if (@errors) {
 	$result .= $hr;
-	$result .= "FAILED=$fi; " if $fi;
+	$result .= "WARN=$fi; " if $fi;
 	$result .= 'ERRORS='.scalar(@errors).";\n";
 	$result .= $hr;
 	foreach (@errors) {
@@ -250,8 +256,8 @@ if (@errors) {
 	}
 }
 $result .= $hr;
-$result .= "FAILED=$fi/$i; " if $fi;
-$result .= "OK=$oi/$i; ";
+$result .= "WARN=$fi/$i; " if $fi;
+$result .= "PASS=$oi/$i; ";
 $result .= "SKIPPED=$si; " if $si;
 $result .= 'ERRORS='.scalar(@errors).'; ' if @errors;
 $result .= "CHECKED=$i;\n";

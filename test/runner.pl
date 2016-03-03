@@ -16,6 +16,7 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ 'platform', 'Runs platform test only' ],
 		[ 'product',  'Runs product test only' ],
 		[ 'dump',     'Dumps the test results' ],
+		[ 'config',   'A path to the server configuration file (may be required by some tests)'],
 		[ 'arg1',     'An argument to be passed to the tests' ],
 		[ 'arg2',     'An argument to be passed to the tests' ],
 		[ 'arg3',     'An argument to be passed to the tests' ]
@@ -46,7 +47,7 @@ my $i       = 0;
 my @aliases = map { [ $_, $i++ ] } sort { $a cmp $b } @tests;
 my $harness = TAP::Harness->new(
 	{   verbosity => $ops{dump} || 0,
-		test_args => { map { +$_->[1] => [ $_->[1], $ops{arg1}, $ops{arg2}, $ops{arg3} ] } @aliases }
+		test_args => { map { +$_->[1] => [ $_->[1], $ops{config}, $ops{arg1}, $ops{arg2}, $ops{arg3} ] } @aliases }
 	}
 );
 $harness->runtests(@aliases);

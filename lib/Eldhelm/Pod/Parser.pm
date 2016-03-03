@@ -99,10 +99,10 @@ sub parseInheritance {
 
 	my $data = $self->{data} = {};
 	$stream =~ s/(^|[\n\r])=[a-z]+.+?=cut//sg;
-	
+
 	$self->{sourceParser}->parse($stream, $data);
 	my $name = $data->{className};
-	
+
 	if ($data->{extends}) {
 		my $lfn     = $self->libFileName;
 		my $lfnw    = $self->libFileNameWin;
@@ -114,8 +114,8 @@ sub parseInheritance {
 		unless (-f $appPath) {
 			$appPath = $self->{libPath}.'/'.$eFile.'.pm';
 		}
-		
-		my $parser = $self->{parent} = Eldhelm::Pod::Parser->new;
+
+		my $parser = $self->{parent} = Eldhelm::Pod::Parser->new(libPath => $self->{libPath});
 		eval {
 			$parser->parseFile($appPath);
 			$data->{inheritance} = [ $parser->inheritance, $name ];
