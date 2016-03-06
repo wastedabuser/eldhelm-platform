@@ -115,6 +115,7 @@ C<%args> Hash - Constructor arguments;
 C<rootPath> - Template storage location;
 C<name> - Template file name in dotted notation;
 C<params> HashRef - Compile params;
+C<globalParams> HashRef - Compile globalParams - available in any include depth;
 
 The C<name> should describe the template location relative to the C<rootPath> supplied.
 
@@ -123,12 +124,13 @@ The C<name> should describe the template location relative to the C<rootPath> su
 sub new {
 	my ($class, %args) = @_;
 	my $self = {
-		rootPath => $args{rootPath},
-		name     => $args{name},
-		params   => $args{params} || {},
-		var      => {},
-		function => {},
-		cdata    => {}
+		rootPath     => $args{rootPath},
+		name         => $args{name},
+		params       => $args{params} || {},
+		globalParams => $args{globalParams} || {},
+		var          => {},
+		function     => {},
+		cdata        => {}
 	};
 	bless $self, $class;
 
@@ -183,7 +185,7 @@ sub parse {
 sub parseSource {
 	my ($self, $source) = @_;
 	return unless $source;
-	return $source unless $source =~ /\{[a-z_].*?\}/s;
+	return $source unless $source =~ /\{[a-z_].*?\}/is;
 
 	$source =~ s/\{(block|template|separator)\s+(.+?)\s*\}(.*?)\{\1\}/
 			my($a,$b)=($1,$2);
@@ -263,7 +265,8 @@ C<$args> HashRef - Optional; Additional compile arguments;
 
 sub compile {
 	my ($self, $args) = @_;
-	$self->{compileParams} = { %{ $self->{params} }, %{ $args || {} } };
+	$self->{templateParams} = { %{ $self->{params} }, %{ $args || {} } };
+	$self->{compileParams} = { %{ $self->{globalParams} }, %{ $self->{templateParams} } };
 	return $self->compileStream($self->{source});
 }
 
@@ -389,8 +392,9 @@ sub _function_include {
 		$options = {};
 	}
 	return Eldhelm::Util::Template->new(
-		name   => $tpl,
-		params => $self->reachNode($options->{ns}, $self->{compileParams}),
+		name         => $tpl,
+		globalParams => $self->{globalParams},
+		params       => $self->reachNode($options->{ns}, $self->{templateParams}),
 	)->compile;
 }
 

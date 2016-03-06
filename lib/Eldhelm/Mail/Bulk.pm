@@ -83,6 +83,7 @@ sub new {
 		multilanguage => $args{multilanguage},
 		allowedLangs  => $args{allowedLangs} || [],
 		defaultLang   => $args{defaultLang} || 'en',
+		defaultParams => {}
 	};
 	bless $self, $class;
 
@@ -103,8 +104,8 @@ Sends mail to recepients.
 sub send {
 	my ($self) = @_;
 	my $cfg = $self->getConfig;
-	my %defaultParams = (%{ $cfg->{globalTemplateParams} }, %{ $self->{tplParams} });
-	$self->{defaultParams} = \%defaultParams;
+
+	my $defaultParams = Eldhelm::Util::Tool->merge($self->{defaultParams}, $self->{tplParams});
 
 	my $size  = $self->{packetSize};
 	my %langs = map { +$_ => $_ } @{ $self->{allowedLangs} };
@@ -155,9 +156,10 @@ sub send {
 			my $body;
 			if ($self->{tpl}) {
 				$body = Eldhelm::Util::Template->new(
-					rootPath => $self->{tplRootPath},
-					name     => $tpl,
-					params   => { %defaultParams, %$rcp },
+					rootPath     => $self->{tplRootPath},
+					name         => $tpl,
+					globalParams => $cfg->{globalTemplateParams},
+					params       => { %$defaultParams, %$rcp },
 				)->compile;
 			} else {
 				$body = $self->{content};

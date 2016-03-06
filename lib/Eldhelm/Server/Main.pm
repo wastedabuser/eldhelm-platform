@@ -1518,13 +1518,13 @@ sub getFileContent {
 		my $buf;
 		eval {
 			$self->log("Open '$path'", "access");
-			open FILE, $path or confess $!;
-			binmode FILE;
+			open my $fr, $path or confess $!;
+			binmode $fr;
 			my $data;
-			while (read(FILE, $data, 4) != 0) {
+			while (read($fr, $data, 4) != 0) {
 				$buf .= $data;
 			}
-			close FILE or confess $!;
+			close $fr or confess $!;
 			$self->log("File '$path' is ".length($buf), "access");
 		};
 		$self->error("Error reading file: $@") if $@;

@@ -54,6 +54,7 @@ sub new {
 		content       => $args{content},
 		tpl           => $args{tpl},
 		tplParams     => $args{tplParams},
+		preview       => $args{preview},
 		config        => $args{config},
 		defaultParams => {}
 	};
@@ -80,9 +81,9 @@ sub send {
 	my $data;
 	if ($self->{tpl}) {
 		$data = Eldhelm::Util::Template->new(
-			name => $self->{tpl},
-			params =>
-				Eldhelm::Util::Tool::merge($self->{defaultParams}, $cfg->{globalTemplateParams}, $self->{tplParams}),
+			name         => $self->{tpl},
+			globalParams => $cfg->{globalTemplateParams},
+			params       => Eldhelm::Util::Tool->merge($self->{defaultParams}, $self->{tplParams}),
 		)->compile;
 	} else {
 		$data = $self->{content};
@@ -93,7 +94,7 @@ sub send {
 	$self->{mailSubject} = sprintf($cfg->{subject}, $self->{subject});
 
 	my $cls = $cfg->{smtp}{tls} ? 'Eldhelm::Mail::TLS' : 'MIME::Lite';
-	my $mail = $cls->new(
+	my %mailData = (
 		From => $self->{from} || $cfg->{from},
 		$self->{replyto} ? ('Reply-to' => $self->{replyto}) : (),
 		To       => $self->{mail},
@@ -102,9 +103,12 @@ sub send {
 		Type     => 'text/html',
 		Data     => $data,
 	);
+	my $mail = $cls->new(%mailData);
 	$mail->attr('content-type.charset' => 'UTF-8');
 
-	if ($cfg->{smtp}) {
+	if ($self->{preview}) {
+		print Dumper(\%mailData);
+	} elsif ($cfg->{smtp}) {
 		$mail->send(
 			($cfg->{smtp}{tls} ? 'smtp_tls' : 'smtp'), $cfg->{smtp}{host},
 			AuthUser => $cfg->{smtp}{user},
