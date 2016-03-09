@@ -70,7 +70,7 @@ C<< {foreach var}<div>{_i}.{foreach.a}</div>{foreach} >> if C<var> is C<< [{a=>'
 C<join> - Joins the values provided.
 C<{join var}{join.}{join}> if C<var> is C<< [1,2,3] >> and produces C<123>;
 C<{join var}{join.a}{join}> if C<var> is C<< [{a=>1},{b=>2}] >> and produces C<12>;
-C<<{_i>> is also available, see C<foreach>;
+C<{_i}> is also available, see C<foreach>;
 
 C<separator> Defines a separator to be used for join
 C<{separator var},{separator}> Defines a separator as comma.

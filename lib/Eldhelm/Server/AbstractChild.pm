@@ -298,7 +298,7 @@ sub filterPersist {
 		{
 			lock($pItem);
 			foreach my $fk (@filterKeys) {
-				$i++ if defined($pItem->{$fk}) && $pItem->{$fk} eq $filter->{$fk};
+				$i++ if $pItem->{$fk} eq $filter->{$fk};
 			}
 		}
 		push @result, $s if @filterKeys == $i;
@@ -337,6 +337,27 @@ sub getPersistsByType {
 		if $filter;
 
 	return map { $self->getPersist($_) || () } @list;
+}
+
+=item getPersistsByTypeList($type, $filter) Array
+
+Gets all persistant objects from specified types and then optionally filters them.
+
+C<$types> ArrayRef - The types of the objects as a package names;
+C<$fitler> $filter - Optional; Properties to be matched on the persistant objects;
+
+	$self->getPersistsByType(
+		['Eldhelm::Server::Session', 'Eldhelm::Applictaion::Persists::MySession'],
+		{
+			connected => 1
+		}
+	);
+
+=cut
+
+sub getPersistsByTypeList {
+	my ($self, $types, $filter) = @_;
+	return map { $self->getPersistsByType($_, $filter) } @$types;
 }
 
 sub registerPersistLookup {
