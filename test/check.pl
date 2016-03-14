@@ -109,7 +109,7 @@ sub checkSyntax {
 	}
 
 	push @errors, [ $i, $s, $output ];
-	print "FAILED\n";
+	print "FAILED\n\n";
 	return;
 }
 
@@ -182,7 +182,7 @@ sub runUnitTests {
 	}
 
 	push @errors, [ $i, $s, $testResult ];
-	print "FAILED\n";
+	print "FAILED\n\n";
 	return;
 }
 

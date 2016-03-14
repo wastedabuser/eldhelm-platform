@@ -24,7 +24,7 @@ unless ($className) {
 my $config = do($configPath || '../../config.pl') or die 'Can not read config!';
 my $worker = Eldhelm::Test::Mock::Worker->new(config => $config);
 
-diag("Verifying construction");
+diag('Verifying construction');
 
 Eldhelm::Database::Pool->new(config => $config);
 my $model = Eldhelm::Util::Factory->instance($className);
@@ -43,7 +43,7 @@ eval {
 my $source = Eldhelm::Util::FileSystem->getFileContents($sourceContext);
 my @allResources;
 
-diag("Verifying models");
+diag('Verifying models');
 my %models = map { +$_ => 1 } $source =~ /getModel\((.*?)\)/g;
 foreach (keys %models) {
 	my $val = eval("[$_]");
@@ -61,3 +61,20 @@ foreach (keys %models) {
 }
 
 diag(Dumper \@allResources);
+
+diag('Verifing queries');
+my %queries = map { +$_ => 1 } $source =~ /qq\|(.*?)\|/gs;
+my $sql = $model->{dbPool}->getDb;
+my @queriesList = keys %queries;
+foreach my $q (@queriesList) {
+	my @args = map { 'unit-test-stub-value' } $q =~ /(\?)/g;
+	eval {
+		$sql->query($q, @args);
+		ok(1, 'Query seems OK');
+	} or do {
+		note($@);
+		fail("Query failed!\n$@");
+	};
+}
+
+diag(scalar(@queriesList).' SQL Queries tested!');
