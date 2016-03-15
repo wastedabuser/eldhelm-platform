@@ -63,7 +63,7 @@ foreach (keys %models) {
 diag(Dumper \@allResources);
 
 diag('Verifing queries');
-my %queries = map { +$_ => 1 } $source =~ /qq\|(.*?)\|/gs;
+my %queries = map { +$_ => 1 } $source =~ /q?q\|(.*?)\|/gs;
 my $sql = $model->{dbPool}->getDb;
 my @queriesList = keys %queries;
 foreach my $q (@queriesList) {
