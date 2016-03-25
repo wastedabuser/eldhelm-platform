@@ -8,7 +8,9 @@ Eldhelm::Server::BaseObject
 
 =head1 SYNOPSIS
 
-This class should not be constructed directly. That's why it does not provide a constructor.
+This class should not be constructed directly. That's why it does not provide a constructor. You should:
+
+	use parent 'Eldhelm::Server::BaseObject';
 
 =head1 DESCRIPTION
 
@@ -42,12 +44,16 @@ sub worker {
 
 sub compose {
 	my ($self, $data, $options) = @_;
-	my $composer = $self->get("composer");
+	my $composer = $self->get('composer');
 	if ($composer) {
 		Eldhelm::Util::Factory->usePackage($composer);
 		my $composed;
-		eval { $composed = $composer->compose($data, $options) };
-		$self->worker->error("Error while encoding data: $@") if $@;
+		eval { 
+			$composed = $composer->compose($data, $options);
+			1;
+		} or do {
+			$self->worker->error("Error while encoding data: $@") if $@;
+		};
 		return $composed;
 	} else {
 		return $data;
@@ -176,7 +182,7 @@ sub getPureList {
 	my ($self, @list) = @_;
 	lock($self);
 
-	return map { ref $self->{$_} eq "ARRAY" ? @{ $self->{$_} } : $self->{$_} || () } @list;
+	return map { ref $self->{$_} eq 'ARRAY' ? @{ $self->{$_} } : $self->{$_} || () } @list;
 }
 
 =item getHash(@list) Hash
@@ -310,8 +316,11 @@ sub pushItem {
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	return unless ref $var;
 
-	$var->{$rkey} ||= [];
-	return push @{ $var->{$rkey} }, shared_clone($item);
+	$var->{$rkey} ||= shared_clone([]);
+	if (ref($item) && !is_shared($item)) {
+		$item = shared_clone($item);
+	}
+	return push @{ $var->{$rkey} }, $item;
 }
 
 =item grepArrayref($key, $callback, @options) ArrayRef
@@ -334,7 +343,7 @@ sub grepArrayref {
 	lock($self);
 
 	my ($var, $rkey) = $self->getRefByNotation($key);
-	return unless ref $var && ref $var->{$rkey} eq "ARRAY";
+	return unless ref $var && ref $var->{$rkey} eq 'ARRAY';
 
 	my $list = $var->{$rkey};
 	@$list = grep { $fn->($_, @options) } @$list;
@@ -357,7 +366,7 @@ sub clearArrayref {
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	return $self unless ref $var;
 
-	if (ref $var->{$rkey} eq "ARRAY") {
+	if (ref $var->{$rkey} eq 'ARRAY') {
 		@{ $var->{$rkey} } = ();
 	} else {
 		$var->{$rkey} = shared_clone([]);
@@ -379,7 +388,7 @@ sub scalarArrayref {
 	lock($self);
 
 	my ($var, $rkey) = $self->getRefByNotation($key);
-	return unless ref $var && ref $var->{$rkey} eq "ARRAY";
+	return unless ref $var && ref $var->{$rkey} eq 'ARRAY';
 
 	return scalar @{ $var->{$rkey} };
 }
@@ -398,7 +407,7 @@ sub getHashrefHash {
 
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	my $ref = $var->{$rkey};
-	return () if ref $ref ne "HASH";
+	return () if ref $ref ne 'HASH';
 
 	return %$ref;
 }
@@ -419,7 +428,7 @@ sub getHashrefKeys {
 
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	my $ref = $var->{$rkey};
-	return () if ref $ref ne "HASH";
+	return () if ref $ref ne 'HASH';
 
 	return keys %$ref;
 }
@@ -438,9 +447,9 @@ sub getHashrefValues {
 
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	my $ref = $var->{$rkey};
-	return () if ref $ref ne "HASH";
+	return () if ref $ref ne 'HASH';
 
-	if (ref $keysList eq "ARRAY") {
+	if (ref $keysList eq 'ARRAY') {
 		return map { $ref->{$_} } grep { exists $ref->{$_} } @$keysList;
 	}
 
@@ -547,7 +556,13 @@ sub setWhenFalse {
 	my ($var, $rkey) = $self->getRefByNotation($key);
 	return $var->{$rkey} if $var->{$rkey};
 
-	$var->{$rkey} = $value || 1;
+	$value ||= 1;
+	if (ref($value) && !is_shared($value)) {
+		$var->{$rkey} = shared_clone($value);
+	} else {
+		$var->{$rkey} = $value;
+	}
+
 	return;
 }
 
