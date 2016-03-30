@@ -4,8 +4,9 @@ use strict;
 
 use Carp qw(confess longmess);
 use Data::Dumper;
-use Eldhelm::Util::Factory;
 use Date::Format;
+use Eldhelm::Util::Factory;
+use Eldhelm::Util::FileSystem;
 
 sub new {
 	my ($class, %args) = @_;
@@ -19,7 +20,7 @@ sub new {
 
 sub getPath {
 	my ($self, $name) = @_;
-	return "$self->{rootPath}Eldhelm/Application/AI/Definition/".join("/", split(/\./, $name)).".pl";
+	return "$self->{rootPath}Eldhelm/Application/AI/Definition/".join('/', split(/\./, $name)).'.pl';
 }
 
 sub loadFile {
@@ -49,7 +50,7 @@ sub getNodeObject {
 
 	my $type = $def->{type};
 	unless ($type) {
-		$self->log(longmess "Can not determine node type for: ".Dumper($def));
+		$self->log(longmess 'Can not determine node type for: '.Dumper($def));
 		die;
 	}
 	return Eldhelm::Util::Factory->instance("Eldhelm::AI::BehaviourTree::$type", %args);
@@ -57,8 +58,8 @@ sub getNodeObject {
 
 sub traverse {
 	my ($self) = @_;
-	$self->log(time2str("%d.%m.%Y %T", time).": ===========================================");
-	$self->log("Starting tree traversal");
+	$self->log(time2str('%d.%m.%Y %T', time).': ===========================================');
+	$self->log('Starting tree traversal');
 	my $status = $self->{status} = $self->getNodeObject($self->{definition})->update;
 	$self->log("Done tree traversal: $status");
 }
@@ -66,8 +67,8 @@ sub traverse {
 sub evaluateProperty {
 	my ($self, $value) = @_;
 	return $value if ref $value || $value !~ /\$/;
-	
-	my $params = $self->{params};
+
+	my $params  = $self->{params};
 	my $context = $self->{context};
 	$value =~ s/\$(\w+)/exists $params->{$1} ? "\$params->{$1}" : "\$context->$1()"/ge;
 	my $ret = eval($value);
@@ -78,12 +79,10 @@ sub evaluateProperty {
 sub log {
 	my ($self, $msg) = @_;
 	return unless $self->{logEnabled};
-	
+
 	my $path = $self->{logPath};
 	if ($path) {
-		open FW, ">>$path" or confess "Can not find path: $path";
-		print FW "$msg\n";
-		close FW;
+		Eldhelm::Util::FileSystem->appendFileContents($path, $msg, "\n");
 	} else {
 		print "$msg\n";
 	}
