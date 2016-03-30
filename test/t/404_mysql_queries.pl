@@ -59,3 +59,4 @@ foreach my $q (@queriesList) {
 }
 
 diag(scalar(@queriesList).' SQL Queries tested!');
+pass('Should be ok!') unless @queriesList;

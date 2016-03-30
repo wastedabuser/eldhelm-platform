@@ -28,6 +28,7 @@ sub new {
 		$self->{persists}       = shared_clone({});
 		$self->{persistsByType} = shared_clone({});
 		$self->{persistLookup}  = shared_clone({});
+		$self->{stash}          = shared_clone({});
 		$self->{log}            = [];
 		$self->{debug}          = [];
 		$self->{error}          = [];
