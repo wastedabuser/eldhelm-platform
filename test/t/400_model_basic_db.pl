@@ -9,8 +9,6 @@ use lib '../../lib';
 use Test::More;
 use Data::Dumper;
 use Eldhelm::Test::Mock::Worker;
-use Eldhelm::Database::Pool;
-use Eldhelm::Util::Factory;
 use Eldhelm::Util::FileSystem;
 
 my ($index, $configPath, $sourceContext, $className) = @ARGV;
@@ -26,7 +24,6 @@ my $worker = Eldhelm::Test::Mock::Worker->new(config => $config);
 
 diag('Verifying construction');
 
-Eldhelm::Database::Pool->new(config => $config);
 my $model = Eldhelm::Util::Factory->instance($className);
 
 ok($model->{table}, 'table defined');
@@ -61,20 +58,3 @@ foreach (keys %models) {
 }
 
 diag(Dumper \@allResources);
-
-diag('Verifing queries');
-my %queries = map { +$_ => 1 } $source =~ /q?q\|(.*?)\|/gs;
-my $sql = $model->{dbPool}->getDb;
-my @queriesList = keys %queries;
-foreach my $q (@queriesList) {
-	my @args = map { 'unit-test-stub-value' } $q =~ /(\?)/g;
-	eval {
-		$sql->query($q, @args);
-		ok(1, 'Query seems OK');
-	} or do {
-		note($@);
-		fail("Query failed!\n$@");
-	};
-}
-
-diag(scalar(@queriesList).' SQL Queries tested!');

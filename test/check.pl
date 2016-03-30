@@ -144,15 +144,15 @@ sub runUnitTests {
 	my $testFiles = $scope eq 'auto' ? [] : $unit->unitTests;
 	if ($className) {
 		if ($className =~ /^Eldhelm::Application::Controller/) {
-			unshift @$testFiles, "401_controller_basic.pl";
+			unshift @$testFiles, '401_controller_basic.pl';
 		} elsif ($className =~ /^Eldhelm::Application::Model/) {
 			if ($parentClassName =~ /BasicDb/) {
-				unshift @$testFiles, "400_model_basic_db.pl";
+				unshift @$testFiles, '400_model_basic_db.pl', '404_mysql_queries.pl';
 			}
 		} elsif ($className =~ /^Eldhelm::Application::Persist/) {
-			unshift @$testFiles, "402_persist_basic.pl";
+			unshift @$testFiles, '402_persist_basic.pl';
 		} elsif ($className =~ /^Eldhelm::Application::View/) {
-			unshift @$testFiles, "403_view_basic.pl";
+			unshift @$testFiles, '403_view_basic.pl';
 		}
 	}
 	
