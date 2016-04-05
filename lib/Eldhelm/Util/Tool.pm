@@ -21,8 +21,8 @@ use Encode qw();
 use Math::Random::MT qw(rand);
 use Scalar::Util;
 
-use base qw(Exporter);
-our @EXPORT_OK = qw(merge isIn isNotIn toList);
+use Exporter 'import';
+our @EXPORT_OK = qw(merge isIn isNotIn toList cloneStructure);
 
 ### UNIT TEST: 302_tool.pl ###
 

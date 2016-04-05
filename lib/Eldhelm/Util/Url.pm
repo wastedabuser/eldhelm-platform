@@ -18,6 +18,10 @@ Eldhelm::Util::Url - A utility class for parsing and creating URLs.
 	$u->compileWithFolder('def');
 	# abc.com/def?a=1&b=2&c=3
 
+=head1 DESCRIPTION
+
+A utility for parsing and compiling uri strings.
+
 =head1 METHODS
 
 =over
@@ -26,6 +30,16 @@ Eldhelm::Util::Url - A utility class for parsing and creating URLs.
 
 use strict;
 use Carp;
+
+=item new(%args)
+
+Constructs a new object.
+
+C<%args> Hash - Constructor arguments;
+
+C<uri> String - A URI string;
+
+=cut
 
 sub new {
 	my ($class, %args) = @_;

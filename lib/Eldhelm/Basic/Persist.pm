@@ -22,6 +22,7 @@ This class provides all the base functionality a persistant object needs.
 =cut
 
 use strict;
+
 use Eldhelm::Server::Child;
 use Eldhelm::Util::Tool;
 use Digest::MD5;
