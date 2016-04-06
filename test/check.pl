@@ -110,7 +110,7 @@ sub checkSyntax {
 
 	push @errors, [ $i, $s, $output ];
 	print "FAILED\n\n";
-	return;
+	return 0;
 }
 
 sub runPerlCritic {
@@ -125,9 +125,14 @@ sub runPerlCritic {
 
 	if (@violations) {
 		push @errors, [ $i, $s, join("", map { "\t$_" } @violations) ];
-		print "VIOLATED\n";
+		if (grep { /Crticial!/ } @violations) {
+			print "FAILED\n";
+			return -1;
+		} else {
+			print "VIOLATED\n";
+		}
 		print "\t".scalar(@violations)." violations found\n\n" if $ops{dump};
-		return;
+		return 0;
 	}
 
 	print "OK\n";
@@ -183,7 +188,7 @@ sub runUnitTests {
 
 	push @errors, [ $i, $s, $testResult ];
 	print "FAILED\n\n";
-	return;
+	return 0;
 }
 
 sub runDocCheck {
@@ -200,7 +205,7 @@ sub runDocCheck {
 		push @errors, [ $i, $s, join("", map { "\t$_\n" } @violations) ];
 		print "POD ISSUES\n";
 		print "\t".scalar(@violations)." issues found\n\n" if $ops{dump};
-		return;
+		return 0;
 	}
 
 	my $lbl = " - Compiling POD $i [$s] ... ";
@@ -211,7 +216,7 @@ sub runDocCheck {
 	return 1;
 
 	# print "FAILED\n";
-	# return;
+	# return 0;
 }
 
 foreach my $s (@sources) {
@@ -238,12 +243,14 @@ foreach my $s (@sources) {
 		$oks[3] = runDocCheck($s, $i);
 	}
 
-	$oi++ if $oks[0] && $oks[1];
-	$fi++ if grep { !$_ } @oks;
+	$oi++ if $oks[0] && $oks[1] && $oks[2] >= 0;
+	$fi++ if grep { $_ <= 0 } @oks;
 }
 
-my $hr =
-	"=======================================================================================================================================\n";
+my $failure = $oi != $i;
+my $hr = $failure ? '*' x 140 : '-' x 140;
+$hr .= "\n";
+
 my $result;
 if (@errors) {
 	$result .= $hr;
@@ -263,7 +270,7 @@ $result .= 'ERRORS='.scalar(@errors).'; ' if @errors;
 $result .= "CHECKED=$i;\n";
 $result .= $hr;
 
-if ($oi != $i) {
+if ($failure) {
 	die $result;
 } else {
 	print $result;

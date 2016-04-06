@@ -30,7 +30,7 @@ our $VERSION = '1.0';
 
 #-----------------------------------------------------------------------------
 
-Readonly::Scalar my $DESC => q{'use base' used instead of 'use parent'};
+Readonly::Scalar my $DESC => q{'use base' used instead of 'use parent' - Crticial!};
 Readonly::Scalar my $DESC2 => q{qw() used when there is only one parent class};
 Readonly::Scalar my $EXPL => [];
 

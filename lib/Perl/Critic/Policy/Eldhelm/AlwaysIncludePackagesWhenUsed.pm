@@ -1,14 +1,14 @@
-package Perl::Critic::Policy::Eldhelm::ProhibitCallingBaseConstructorByClassName;
+package Perl::Critic::Policy::Eldhelm::AlwaysIncludePackagesWhenUsed;
 
 =pod
 
 =head1 NAME
 
-Perl::Critic::Policy::Eldhelm::ProhibitCallingBaseConstructorByClassName
+Perl::Critic::Policy::Eldhelm::AlwaysIncludePackagesWhenUsed
 
 =head1 DESCRIPTION
 
-A perl critic policy which nags when you call the parent constructor like this MyParentPackage::MyParentName->new() instead of SUPER::new().
+A perl critic policy which nags when you use a package without explicitly calling use package; in your source.
 
 =head1 METHODS
 
@@ -21,6 +21,7 @@ use strict;
 use warnings;
 
 use Readonly;
+use Data::Dumper;
 
 use Perl::Critic::Utils qw{ :severities };
 use base 'Perl::Critic::Policy';
@@ -29,7 +30,7 @@ our $VERSION = '1.0';
 
 #-----------------------------------------------------------------------------
 
-Readonly::Scalar my $DESC => q{Base constructor called by CLASS->new() instead of SUPER::new() - Crticial!};
+Readonly::Scalar my $DESC => q{package used but never declared - Crticial!};
 Readonly::Scalar my $EXPL => [];
 
 #-----------------------------------------------------------------------------
@@ -38,20 +39,19 @@ sub supported_parameters { return () }
 
 sub default_severity { return $SEVERITY_MEDIUM }
 sub default_themes   { return () }
-sub applies_to       { return 'PPI::Statement::Sub' }
+sub applies_to       { return 'PPI::Document' }
 
 #-----------------------------------------------------------------------------
 
 sub violates {
 	my ($self, $elem, undef) = @_;
 
-	return if $elem->name ne 'new';
+	my $cont     = $elem->content;
+	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t].*?['"]?([\w:]+)['"]?;/gm;
+	my @uses     = grep { $_ !~ /SUPER/ } $cont =~ /(\w+::[\w:]+)/g;
 
-	my $block = $elem->find('PPI::Structure::Block');
-	return if !$block || !@$block;
-	
-	if ($block->[0] =~ m/my\s+\$self\s+=\s+(.+?)->new/) {
-		return $self->violation($DESC, $EXPL, $block->[0]);
+	foreach (@uses) {
+		return $self->violation("$_ ".$DESC, $EXPL, $elem) unless $declared{$_};
 	}
 
 	return;

@@ -282,3 +282,21 @@ HAVING gold >= 100");
 $query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
 note($query);
 ok($query =~ /\*\s,/);
+
+diag("===============> test 13 - parsing case in select");
+
+$tpl->stream("SELECT 
+	CASE 
+		WHEN hb1.win > 0 THEN 'win'
+		WHEN hb1.drop > 0 THEN 'drop'
+		WHEN hb1.lose > 0 THEN 'loss'
+		ELSE ''
+	END AS a
+FROM 
+	table1 hb1
+WHERE
+	hb1 b = 1");
+$query = $tpl->clearFields->clearFilter->clearTableAliases->compile;
+note($query);
+
+ok($query =~ / > 0 THEN/)

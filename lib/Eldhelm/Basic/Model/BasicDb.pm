@@ -35,7 +35,7 @@ sub createSelectQuery {
 sub createDeleteQuery {
 	my ($self, $where, $limit) = @_;
 
-	return "DELETE FROM `$self->{table}` t WHERE $where $limit";
+	return "DELETE FROM `$self->{table}` WHERE $where $limit";
 }
 
 sub chooseFields {

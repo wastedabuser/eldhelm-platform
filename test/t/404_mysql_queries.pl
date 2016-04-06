@@ -30,7 +30,7 @@ foreach (@parts) {
 	my ($quote, $query) = split /\|/;
 	if ($queries{$query}) {
 		note($query);
-		fail('Same query multiple times!');
+		fail("Same query multiple times!\n $query");
 	} else {
 		$queries{$query} = $quote;
 		pass('Query extracted');
@@ -48,6 +48,7 @@ foreach my $q (@queriesList) {
 	
 	my $quote = $queries{$q};
 	$q =~ s/\$\w+//g if $quote eq 'qq';
+	$q =~ s/\[\w+(.+?)\]/$1/ge;
 	my @args = map { 'unit-test-stub-value' } $q =~ /(\?)/g;
 	eval {
 		$sql->query($q, @args);
