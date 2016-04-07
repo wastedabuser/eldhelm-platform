@@ -47,8 +47,8 @@ sub violates {
 	my ($self, $elem, undef) = @_;
 
 	my $cont     = $elem->content;
-	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t].*?['"]?([\w:]+)['"]?;/gm;
-	my @uses     = grep { $_ !~ /SUPER/ } $cont =~ /(\w+::[\w:]+)/g;
+	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t]+(?:parent)*[\s\t]*['"]?(\w+::[\w:]+)['"]?/gm;
+	my @uses     = grep { $_ !~ /SUPER|\$/ } $cont =~ /([\$\w]+::[\$\w:]+)/g;
 
 	foreach (@uses) {
 		return $self->violation("$_ ".$DESC, $EXPL, $elem) unless $declared{$_};
