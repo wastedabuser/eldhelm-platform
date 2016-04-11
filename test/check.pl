@@ -45,19 +45,41 @@ if (!@ARGV || $ops{h} || $ops{help}) {
 	exit;
 }
 
-my @libPaths = ('../lib', "../../platform-utils/lib", '../../');
-
-my @defaultPats;
-push @defaultPats, '../lib'                   if $ops{platform} || $ops{all};
-push @defaultPats, "../../platform-utils/lib" if $ops{util}     || $ops{all};
-push @defaultPats, '../../Eldhelm'            if $ops{product}  || $ops{all};
-
 my @listed;
 if ($ops{prefix}) {
 	@listed = map { "$ops{prefix}$_" } @{ $ops{list} };
 } else {
 	@listed = @{ $ops{list} };
 }
+
+my $baseDir = '../..';
+my $configPath = $ops{config};
+if (!$configPath && $listed[0] =~ m/\/|\\/) {
+	my @chunks = split /\/|\\/, $listed[0];
+	my $dir;
+	if ($chunks[0] =~ /^\w:/) {
+		$dir = shift @chunks;
+	} else {
+		$dir = '';
+	}
+	foreach (@chunks) {
+		$dir .= "/$_";
+		my $cfg = "$dir/config.pl";
+		if (-f $cfg) {
+			print "Detected config: $cfg\n";
+			$baseDir = $dir;
+			$configPath = $cfg;
+			last;
+		}
+	}
+}
+
+my @libPaths = ("$baseDir/platform/lib", "$baseDir/platform-utils/lib", "$baseDir/");
+
+my @defaultPats;
+push @defaultPats, "$baseDir/platform/lib"       if $ops{platform} || $ops{all};
+push @defaultPats, "$baseDir/platform-utils/lib" if $ops{util}     || $ops{all};
+push @defaultPats, "$baseDir/Eldhelm"            if $ops{product}  || $ops{all};
 
 my $err = "[Skip] %s is neither a folder nor a perl source!\n";
 my @sources;
@@ -160,18 +182,18 @@ sub runUnitTests {
 			unshift @$testFiles, '403_view_basic.pl';
 		}
 	}
-	
+
 	if (!$testFiles || !@$testFiles) {
 		print "[Skip] No unit tests defined for $i [$s]\n\n" if $ops{dump};
 		return 1;
 	}
-	
+
 	my $lbl = " - Unit test $i [$s] ... ";
 	print $lbl;
 	print "\n\tRunning the following tests:\n".join("\n", map { "\t- $_" } @$testFiles,)."\n" if $ops{dump};
-	my $ts         = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
-	my $z          = 1;
-	my $args       = join ' ', ($ops{config} ? "-config $ops{config}" : ()), map { "-arg".($z++).qq~ "$_"~ } $s, $className;
+	my $ts   = join ' ', map { -f ("../../test/t/$_") ? qq~"../../test/t/$_"~ : qq~"t/$_"~ } @$testFiles,;
+	my $z    = 1;
+	my $args = join ' ', ($configPath ? "-config $configPath" : ()), map { "-arg".($z++).qq~ "$_"~ } $s, $className;
 	my $testResult = `perl runner.pl $ts $args 2>&1`;
 	$testResult =~ s/\n/\n\t/g;
 	$testResult = "\t$testResult";
@@ -221,10 +243,10 @@ sub runDocCheck {
 
 foreach my $s (@sources) {
 	$i++;
-	my @oks = (1,1,1,1);
+	my @oks = (1, 1, 1, 1);
 
 	print "$i. Working on [$s]\n";
-	
+
 	if ($ops{syntax}) {
 		next unless $oks[0] = checkSyntax($s, $i);
 	}
@@ -234,11 +256,11 @@ foreach my $s (@sources) {
 	} elsif ($ops{autotest}) {
 		$oks[1] = runUnitTests($s, $i, 'auto');
 	}
-	
+
 	if ($ops{static}) {
 		$oks[2] = runPerlCritic($s, $i);
 	}
-	
+
 	if ($ops{doc}) {
 		$oks[3] = runDocCheck($s, $i);
 	}
