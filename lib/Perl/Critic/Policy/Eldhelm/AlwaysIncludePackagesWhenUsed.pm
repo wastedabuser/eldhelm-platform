@@ -48,8 +48,14 @@ sub violates {
 
 	my $cont     = $elem->content;
 	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t]+(?:parent)*[\s\t]*['"]?(\w+::[\w:]+)['"]?/gm;
-	my @uses     = grep { $_ !~ /SUPER|\$/ } $cont =~ /([\$\w]+::[\$\w:]+)/g;
-
+	my @uses;
+	foreach (split /[\n\r]+/, $cont) {
+		next if /^[\s\t]*#/;
+		my @p = /([\$\w]+::[:\w\$]+\(?)/g;
+		next unless @p;
+		s/::\w+\(// foreach @p;
+		push @uses, grep { $_ !~ /SUPER|\$/ } @p;
+	}
 	foreach (@uses) {
 		return $self->violation("$_ ".$DESC, $EXPL, $elem) unless $declared{$_};
 	}
