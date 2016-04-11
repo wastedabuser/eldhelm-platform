@@ -6,6 +6,7 @@ use DBD::mysql;
 use Date::Format;
 use Data::Dumper;
 use Eldhelm::Util::Tool;
+use Scalar::Util;
 use Carp;
 
 sub new {
@@ -54,9 +55,9 @@ sub query {
 	my ($expandedQuery, $expanedParams) = $self->expandParams($query, \@params);
 
 	my $sth = $self->{dbh}->prepare($expandedQuery);
-	for (my $i = 0 ; $i <= $#$expanedParams ; $i++) {
+	for (my $i = 0 ; $i <= $#$expanedParams; $i++) {
 		my $opts;
-		if ($expanedParams->[$i] =~ /^\d+\.?\d*$/) {
+		if (Scalar::Util::looks_like_number($expanedParams->[$i])) {
 			$opts = { TYPE => DBI::SQL_NUMERIC };
 		}
 		eval {

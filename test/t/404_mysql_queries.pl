@@ -47,7 +47,11 @@ foreach my $q (@queriesList) {
 	}
 	
 	my $quote = $queries{$q};
-	$q =~ s/\$\w+//g if $quote eq 'qq';
+	if ($quote eq 'qq') {
+		$q =~ s/\(\$\w+\)/\('unit-test-stub-value'\)/g;
+		$q =~ s/`\$(\w+)`/`\1`/g;
+		$q =~ s/\$\w+//g;
+	}
 	$q =~ s/\[\w+(.+?)\]/$1/ge;
 	my @args = map { 'unit-test-stub-value' } $q =~ /(\?)/g;
 	eval {
