@@ -47,7 +47,8 @@ sub violates {
 	my ($self, $elem, undef) = @_;
 
 	my $cont     = $elem->content;
-	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t]+(?:parent)*[\s\t]*['"]?(\w+::[\w:]+)['"]?/gm;
+	$cont =~ s/(^|[\n\r])=[a-z]+.+?=cut//sg;
+	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t]+(?:parent)*[\s\t]*['"]?(\w+::[\w:]+)['"]?/gm;	
 	my @uses;
 	foreach (split /[\n\r]+/, $cont) {
 		next if /^[\s\t]*#/;

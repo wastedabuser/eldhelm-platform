@@ -561,7 +561,7 @@ sub clone {
 
 =item doFn($self, $baseRef, $dataRef, $callback, @options) Mixed
 
-Applies a callback over the current object. This is usefult to create a theread-safe scope direct data manipulation.
+Applies a callback over the current object. This is usefult to create a theread-safe scope for direct data manipulation.
 
 C<$self> The caller object
 C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
@@ -661,6 +661,66 @@ sub setWhenFalse {
 	}
 
 	return;
+}
+
+
+=item semaphoreScope($self, $baseRef, $dataRef, $callback, @options) Mixed
+
+Applies a callback over the current object. This is usefult to create a scope which will automatically handle a semaphore variable. While the scope is executing the semaphore will be raised.
+
+C<$self> The caller object
+C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
+C<$dataRef> HashRef - A data structure;
+C<$callback> FunctionRef - The callback to be applied on every item;
+C<@options> Optional; Additionl arguments to the callback function;
+
+	# let's say
+	# $self is Eldhelm::Basic::DataObject
+	# multiple threads are excuting
+	# the same code
+	
+	if ($self->hasSemaphore) {
+		# handle semaphore
+		
+	} else {
+		# two threads will never 
+		# execute the following block 
+		# in the same time
+		$self->semaphoreScope(sub {
+			my ($self) = @_;
+			
+			return unless $self->get('var1');
+			# logic here
+			
+			return unless $self->get('var2');
+			# logic here
+			
+			$self->set('var3', 1);
+		});
+	}
+	
+=cut
+
+sub semaphoreScope {
+	my ($self, $baseRef, $dataRef, $fn, @options) = @_;
+	$self->set('_semaphore_', 1);
+	my $result = $fn->($baseRef, @options);
+	$self->remove('_semaphore_');
+	return $result;
+}
+
+=item hasSemaphore() 1 or undef
+
+Checks whether a spemaphore flag has been risen. Please see C<semaphoreScope> method for an exmaple.
+
+C<$self> The caller object
+
+=cut
+
+sub hasSemaphore {
+	my ($self) = @_;
+	lock($self);
+	return $self->{_semaphore_};
 }
 
 =back
