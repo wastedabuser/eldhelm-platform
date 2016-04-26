@@ -141,6 +141,32 @@ sub get {
 	return $var->{$rkey};
 }
 
+=item isDefined($self, $baseRef, $dataRef, $key) self
+
+Checks whether a proeprty is defined
+
+C<$self> The caller object
+C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
+C<$dataRef> HashRef - A data structure;
+C<$key> String - the name of the property or it's dotted notation;
+
+	# let's say
+	# $self is Eldhelm::Basic::DataObject
+	my $a = $self->isDefined('a');
+	
+	# or deeper
+	my $ab = $self->isDefined('a.b');
+
+=cut
+
+sub isDefined {
+	my ($self, $baseRef, $dataRef, $key) = @_;
+	lock($baseRef);
+
+	my ($var, $rkey) = getRefByNotation($dataRef, $key);
+	return defined $var->{$rkey};
+}
+
 =item getList($self, $baseRef, $dataRef, @list) Array
 
 Returns a list of properties.
