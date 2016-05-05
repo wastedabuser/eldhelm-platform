@@ -11,14 +11,15 @@ Eldhelm::Basic::DataObject - A data accessor object.
 	# $object is Eldhelm::Server::BaseObject
 	my $dataObj = $object->dataObject('my.very.very.deep.reference');
 	
-	# some work here
-	
-	# some time later
+	# $dataObj is Eldhelm::Basic::DataObject
+	# do some work with it like:
 	$dataObj->get('property');
+	$dataObj->set('other-property', 1);
 
 =head1 DESCRIPTION
 
-Threadsafe access of data. See Eldhelm::Server::BaseObject->dataObject.
+Threadsafe access of data. In general you should not construct this object yourself, please see L<< Eldhelm::Server::BaseObject->dataObject >>.
+Eldhelm::Basic::DataObject will delegate it's threadsafe method calls to L<Eldhelm::Util::ThreadsafeData>.
 
 =head1 METHODS
 

@@ -14,7 +14,8 @@ This class should not be constructed directly. That's why it does not provide a 
 
 =head1 DESCRIPTION
 
-A base class for all persistant objects. Provides methods for thread-safe data manipulation.
+A base class for all persistant objects. Please see L<Eldhelm::Util::ThreadsafeData>.
+Eldhelm::Server::BaseObject will delegate it's threadsafe method calls to L<Eldhelm::Util::ThreadsafeData>.
 
 =head1 METHODS
 

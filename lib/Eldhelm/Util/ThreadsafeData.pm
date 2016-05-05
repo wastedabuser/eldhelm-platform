@@ -11,14 +11,14 @@ Eldhelm::Basic::ThreadsafeData - A data accessor object.
 	# $object is Eldhelm::Server::BaseObject
 	my $dataObj = $object->dataObject('my.very.very.deep.reference');
 	
-	# some work here
-	
-	# some time later
+	# $dataObj is Eldhelm::Basic::DataObject
+	# do some work with it like:
 	$dataObj->get('property');
+	$dataObj->set('other-property', 1);
 
 =head1 DESCRIPTION
 
-Threadsafe access of data. See Eldhelm::Server::BaseObject->dataObject and Eldhelm::Basic::DataObject.
+Threadsafe access of data. You should not use this class directly. Please see L<Eldhelm::Server::BaseObject> and L<Eldhelm::Basic::DataObject>.
 
 =head1 METHODS
 
@@ -84,6 +84,43 @@ sub set {
 		$var->{$rkey} = $value;
 	}
 	return $self;
+}
+
+=item setWhenFalse($self, $baseRef, $dataRef, $key, $value) Mixed
+
+Acts as set when the property given by $key is false (0, undef or ''). If not the property value is returned.
+
+C<$self> The caller object
+C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
+C<$dataRef> HashRef - A data structure;
+C<$key> String - The name of the property or it's dotted notation;
+C<$value> Mixed - Optional; The property to be set; Defaults to 1;
+
+	# let's say
+	# $self is Eldhelm::Basic::DataObject
+	my $r = $self->setWhenFalse('a', 1);
+	# $r is undef
+	# then if we call it again
+	$r = $self->setWhenFalse('a', 2);
+	# $r is 1
+
+=cut
+
+sub setWhenFalse {
+	my ($self, $baseRef, $dataRef, $key, $value) = @_;
+	lock($baseRef);
+
+	my ($var, $rkey) = getRefByNotation($dataRef, $key);
+	return $var->{$rkey} if $var->{$rkey};
+
+	$value ||= 1;
+	if (ref($value) && !is_shared($value)) {
+		$var->{$rkey} = shared_clone($value);
+	} else {
+		$var->{$rkey} = $value;
+	}
+
+	return;
 }
 
 =item setHash($self, $baseRef, $dataRef, %values) self
@@ -585,7 +622,7 @@ sub clone {
 	return Eldhelm::Util::Tool->cloneStructure($ref);
 }
 
-=item doFn($self, $baseRef, $dataRef, $callback, @options) Mixed
+=item lockedScope($self, $baseRef, $dataRef, $callback, @options) Mixed
 
 Applies a callback over the current object. This is usefult to create a theread-safe scope for direct data manipulation.
 
@@ -603,7 +640,7 @@ C<@options> Optional; Additionl arguments to the callback function;
 	$self->{a} = 1;
 	
 	# instead do
-	$self->doFn(sub {
+	$self->lockedScope(sub {
 		my ($self) = @_;
 		
 		$self->{a} = 1;
@@ -622,7 +659,7 @@ Please note that you should never interact with other persistant objects inside 
 	# $self is Eldhelm::Basic::DataObject
 	# $a and $b are persistant objects
 	
-	$a->doFn(sub {
+	$a->lockedScope(sub {
 		my ($self) = @_;
 		
 		# OK
@@ -645,48 +682,11 @@ Please note that you should never interact with other persistant objects inside 
 
 =cut
 
-sub doFn {
+sub lockedScope {
 	my ($self, $baseRef, $dataRef, $fn, @options) = @_;
 	lock($baseRef);
 
 	return $fn->($baseRef, @options);
-}
-
-=item setWhenFalse($self, $baseRef, $dataRef, $key, $value) Mixed
-
-Acts as set when the property given by $key is false (0, undef or ''). If not the property value is returned.
-
-C<$self> The caller object
-C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
-C<$dataRef> HashRef - A data structure;
-C<$key> String - The name of the property or it's dotted notation;
-C<$value> Mixed - Optional; The property to be set; Defaults to 1;
-
-	# let's say
-	# $self is Eldhelm::Basic::DataObject
-	my $r = $self->setWhenFalse('a', 1);
-	# $r is undef
-	# then if we call it again
-	$r = $self->setWhenFalse('a', 2);
-	# $r is 1
-
-=cut
-
-sub setWhenFalse {
-	my ($self, $baseRef, $dataRef, $key, $value) = @_;
-	lock($baseRef);
-
-	my ($var, $rkey) = getRefByNotation($dataRef, $key);
-	return $var->{$rkey} if $var->{$rkey};
-
-	$value ||= 1;
-	if (ref($value) && !is_shared($value)) {
-		$var->{$rkey} = shared_clone($value);
-	} else {
-		$var->{$rkey} = $value;
-	}
-
-	return;
 }
 
 =item semaphoreScope($self, $baseRef, $dataRef, $semaName, $callback, @options) Mixed
