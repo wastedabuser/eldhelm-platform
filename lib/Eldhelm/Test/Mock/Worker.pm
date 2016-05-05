@@ -73,6 +73,12 @@ sub createTestSession {
 	return $s;
 }
 
+sub registerTestPersist {
+	my ($self, $persist) = @_;
+	$self->{testSessions}{ $persist->id } = $persist;
+	return $persist;
+}
+
 sub getPersist {
 	my ($self, $id) = @_;
 	return if !$id;

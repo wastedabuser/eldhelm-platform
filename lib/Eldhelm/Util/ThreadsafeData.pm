@@ -622,6 +622,42 @@ sub clone {
 	return Eldhelm::Util::Tool->cloneStructure($ref);
 }
 
+=item cloneList($self, $baseRef, $dataRef, $key) Array
+
+Returns a deep clone of the structures represented by the specified properties and resturs a copy in an Array structure.
+
+C<$self> The caller object
+C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
+C<$dataRef> HashRef - A data structure;
+C<@list> Array - The list of properties to be cloned;
+
+=cut
+
+sub cloneList {
+	my ($self, $baseRef, $dataRef, @list) = @_;
+	lock($baseRef);
+
+	return map { clone($self, $baseRef, $dataRef, $_) } @list;
+}
+
+=item cloneHash($self, $baseRef, $dataRef, $key) Hash
+
+Returns a deep clone of the structures represented by the specified properties and resturs a copy in a Hash structure.
+
+C<$self> The caller object
+C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
+C<$dataRef> HashRef - A data structure;
+C<@list> Array - The list of properties to be cloned;
+
+=cut
+
+sub cloneHash {
+	my ($self, $baseRef, $dataRef, @list) = @_;
+	lock($baseRef);
+
+	return map { +$_ => clone($self, $baseRef, $dataRef, $_) } @list;
+}
+
 =item lockedScope($self, $baseRef, $dataRef, $callback, @options) Mixed
 
 Applies a callback over the current object. This is usefult to create a theread-safe scope for direct data manipulation.
