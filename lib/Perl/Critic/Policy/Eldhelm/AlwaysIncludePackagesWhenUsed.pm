@@ -46,17 +46,41 @@ sub applies_to       { return 'PPI::Document' }
 sub violates {
 	my ($self, $elem, undef) = @_;
 
-	my $cont     = $elem->content;
+	my $cont = $elem->content;
 	$cont =~ s/(^|[\n\r])=[a-z]+.+?=cut//sg;
-	my %declared = map { +$_ => 1 } $cont =~ /^[\s\t]*(?:use|package|require)[\s\t]+(?:parent)*[\s\t]*['"]?(\w+::[\w:]+)['"]?/gm;	
+	my %declared = map { +$_ => 1 } $cont =~ /^
+		[\s\t]*
+		(?:use|package|require)
+		[\s\t]+
+		(?:parent|base)*
+		[\s\t]*
+		(?:['"]|qw\()?
+		(\w+::[\w:]+)
+		(?:['"]|\))?
+	/xgm;
+	
+	# warn Dumper \%declared;
+	
 	my @uses;
-	foreach (split /[\n\r]+/, $cont) {
-		next if /^[\s\t]*#/;
-		my @p = /([\$\w]+::[:\w\$]+\(?)/g;
+	foreach my $l (split /[\n\r]+/, $cont) {
+		next if $l =~ /^[\s\t]*#/;
+		
+		my @p = $l =~ /(["']?[\$\w]+::[:\w\$]+["']?\(?)/g;
 		next unless @p;
+		
+		# warn $l;
+		# warn Dumper \@p;
+		
+		@p = grep { $_ !~ /^(?:["']|qw)/ } @p;
+		next unless @p;
+		
 		s/::\w+\(// foreach @p;
-		push @uses, grep { $_ !~ /SUPER|\$/ } @p;
+		@p = grep { $_ !~ /SUPER|\$/ } @p;
+		next unless @p;
+		
+		push @uses, @p;
 	}
+	
 	foreach (@uses) {
 		return $self->violation("$_ ".$DESC, $EXPL, $elem) unless $declared{$_};
 	}

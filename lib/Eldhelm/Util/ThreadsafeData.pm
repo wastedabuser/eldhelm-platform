@@ -689,14 +689,14 @@ sub setWhenFalse {
 	return;
 }
 
-
-=item semaphoreScope($self, $baseRef, $dataRef, $callback, @options) Mixed
+=item semaphoreScope($self, $baseRef, $dataRef, $semaName, $callback, @options) Mixed
 
 Applies a callback over the current object. This is usefult to create a scope which will automatically handle a semaphore variable. While the scope is executing the semaphore will be raised.
 
 C<$self> The caller object
 C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
 C<$dataRef> HashRef - A data structure;
+C<$semaName> String - The name of the semaphore;
 C<$callback> FunctionRef - The callback to be applied on every item;
 C<@options> Optional; Additionl arguments to the callback function;
 
@@ -705,33 +705,37 @@ C<@options> Optional; Additionl arguments to the callback function;
 	# multiple threads are excuting
 	# the same code
 	
-	if ($self->hasSemaphore) {
+	if ($self->hasSemaphore('my-semaphore')) {
 		# handle semaphore
 		
 	} else {
 		# two threads will never 
 		# execute the following block 
 		# in the same time
-		$self->semaphoreScope(sub {
-			my ($self) = @_;
-			
-			return unless $self->get('var1');
-			# logic here
-			
-			return unless $self->get('var2');
-			# logic here
-			
-			$self->set('var3', 1);
-		});
+		$self->semaphoreScope(
+			'my-semaphore', 
+			sub {
+				my ($self) = @_;
+				
+				return unless $self->get('var1');
+				# logic here
+				
+				return unless $self->get('var2');
+				# logic here
+				
+				$self->set('var3', 1);
+			}
+		);
 	}
 	
 =cut
 
 sub semaphoreScope {
-	my ($self, $baseRef, $dataRef, $fn, @options) = @_;
-	$self->set('_semaphore_', 1);
+	my ($self, $baseRef, $dataRef, $semaName, $fn, @options) = @_;
+	my $semaphoreName = "_semaphore-${semaName}_";
+	$self->set($semaphoreName, 1);
 	my $result = $fn->($baseRef, @options);
-	$self->remove('_semaphore_');
+	$self->remove($semaphoreName);
 	return $result;
 }
 
@@ -740,13 +744,16 @@ sub semaphoreScope {
 Checks whether a spemaphore flag has been risen. Please see C<semaphoreScope> method for an exmaple.
 
 C<$self> The caller object
+C<$semaName> String - The name of the semaphore;
 
 =cut
 
 sub hasSemaphore {
-	my ($self) = @_;
+	my ($self, $semaName) = @_;
+	my $semaphoreName = "_semaphore-${semaName}_";
+
 	lock($self);
-	return $self->{_semaphore_};
+	return $self->{$semaphoreName};
 }
 
 =back

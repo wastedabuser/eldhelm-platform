@@ -22,7 +22,7 @@ use strict;
 use Carp;
 use Data::Dumper;
 
-use base qw(Eldhelm::Basic::Persist);
+use parent 'Eldhelm::Basic::Persist';
 
 my @conProps = qw(fno eventFno);
 
@@ -215,7 +215,7 @@ sub resetSession {
 # ================================================
 
 
-=item close()
+=item closed()
 
 Indicates whether the connection was closed
 

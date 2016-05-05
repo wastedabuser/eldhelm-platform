@@ -25,6 +25,8 @@ my $worker = Eldhelm::Test::Mock::Worker->new(config => $config);
 
 diag("Verifying construction");
 my $controller = Eldhelm::Util::Factory->instance($className, router => $worker->{router});
+ok(ref $controller, 'constructed');
+
 my $source = Eldhelm::Util::FileSystem->getFileContents($sourceContext);
 
 my %methods = %{ $controller->{exported} }, %{ $controller->{public} };
