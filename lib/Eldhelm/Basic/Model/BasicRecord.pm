@@ -4,7 +4,7 @@ use strict;
 use Data::Dumper;
 use Eldhelm::Basic::Model::BasicDb;
 
-use base qw(Eldhelm::Basic::Model);
+use parent 'Eldhelm::Basic::Model';
 
 sub new {
 	my ($class, %args) = @_;
@@ -37,7 +37,7 @@ sub createInstance {
 
 sub save {
 	my ($self) = @_;
-	$self->setIfNot("id", $self->{basicDb}->save($self->{data}));
+	$self->setIfNot('id', $self->{basicDb}->save($self->{data}));
 	return $self;
 }
 
