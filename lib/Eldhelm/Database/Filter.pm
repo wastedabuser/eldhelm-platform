@@ -123,4 +123,11 @@ sub _fn_streq {
 	return [ "STRCMP(`$var`, ?) = 0", [$value] ];
 }
 
+sub _fn_interval {
+	my ($self, $var, $num, $period) = @_;
+	$period =~ s/\W//g;
+	$var = $self->compileVar($var);
+	return [ "`$var` >= DATE_SUB(CURDATE(), INTERVAL ? $period)", [$num] ];
+}
+
 1;
