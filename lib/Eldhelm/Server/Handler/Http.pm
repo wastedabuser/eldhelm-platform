@@ -55,7 +55,7 @@ sub parse {
 			next;
 		}
 		if (m/^(.*?)\s*:\s*(.*)$/) {
-			$parsed{headers}{$1} = $2;
+			$parsed{headers}{lc($1)} = $2;
 			$parsed{headerContent} .= "$_\r\n";
 		} else {
 			$cf = 1 unless $_;
@@ -63,7 +63,7 @@ sub parse {
 	}
 	$parsed{headerContent} .= "\r\n";
 
-	my $ln = $parsed{len} = $parsed{headers}{'Content-Length'} || -1;
+	my $ln = $parsed{len} = $parsed{headers}{'content-length'} || -1;
 	$parsed{len} -= length $parsed{content} if $ln > 0;
 
 	return (\%parsed, '');
@@ -98,7 +98,7 @@ sub new {
 sub init {
 	my ($self) = @_;
 
-	my $host = $self->{headers}{Host};
+	my $host = $self->{headers}{host};
 	$host =~ s/^www\.//;
 	$self->{host} = $host;
 
@@ -126,7 +126,7 @@ sub init {
 
 sub parseContent {
 	my ($self, $content) = @_;
-	my $ct = $self->{headers}{'Content-Type'};
+	my $ct = $self->{headers}{'content-type'};
 	if (index($ct, 'application/x-www-form-urlencoded') >= 0) {
 		$self->parsePostUrlencoded($content);
 	} elsif (index($ct, 'application/json') >= 0) {
@@ -135,7 +135,7 @@ sub parseContent {
 		$self->parsePlain($content);
 	}
 	$self->parseGet($self->{queryString});
-	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
+	$self->parseCookies($self->{headers}{cookie}) if $self->{headers}{cookie};
 
 	$self->worker->status('task', $self->{url});
 	$self->worker->log("$self->{method} $self->{url}", 'access');
@@ -431,7 +431,7 @@ sub finish {
 	my ($self) = @_;
 	$self->worker->endTask unless $self->{stopped};
 
-	# if !$self->{headers}{Connection} eq 'keep-alive';
+	# if !$self->{headers}{connection} eq 'keep-alive';
 }
 
 sub respondContentAndFinish {
