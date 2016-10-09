@@ -21,7 +21,7 @@ use Data::Dumper;
 use Date::Format;
 use Eldhelm::Util::Factory;
 
-use base qw(Eldhelm::Server::Handler);
+use parent 'Eldhelm::Server::Handler';
 
 # static methods
 
@@ -131,6 +131,8 @@ sub parseContent {
 		$self->parsePostUrlencoded($content);
 	} elsif (index($ct, 'application/json') >= 0) {
 		$self->parsePostJson($content);
+	} elsif (index($ct, 'text/plain') >= 0) {
+		$self->parsePlain($content);
 	}
 	$self->parseGet($self->{queryString});
 	$self->parseCookies($self->{headers}{Cookie}) if $self->{headers}{Cookie};
@@ -160,6 +162,11 @@ sub parsePostJson {
 		$self->worker->log("Unable to parse json: $@ Headers: ".Dumper($self->{headers})."Content: $str", 'error');
 	};
 	return $self;
+}
+
+sub parsePlain {
+	my ($self, $str) = @_;
+	$self->{postContent} = $str;
 }
 
 sub parseCookies {
