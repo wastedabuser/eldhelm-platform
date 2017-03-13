@@ -41,12 +41,13 @@ sub read {
 
 	$self->debug("Logging in $imapCfg->{user}");
 	$imap->login or die('Login failed: '.$imap->last_error);
-	$imap->select('INBOX');
 	$self->debug('Logged in!');
 
-	my $inbox = $imap->status('INBOX');
-	$self->debug("Inbox status: unseen:$inbox->{UNSEEN}, total:$inbox->{MESSAGES}");
-	$self->debug('Selected inbox folder') if $imap->select('INBOX');
+	if ($imap->select('INBOX')) {
+		$self->debug('Selected inbox folder: '.Dumper($imap->{FOLDERS}{INBOX}));
+	} else {
+		die 'Cant select inbox: '.$imap->last_error;
+	}
 	
 	my $filter = $self->{filter};
 	my $ei     = 0;
