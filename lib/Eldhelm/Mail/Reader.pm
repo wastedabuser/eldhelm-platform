@@ -13,7 +13,7 @@ sub new {
 		config            => $args{config},
 		debug             => $args{debug},
 		callbacks         => $args{callbacks} || {},
-		filter            => $args{filter} || [],
+		filter            => $args{filter} || ['ALL'],
 		expungeAfterCount => $args{expungeAfterCount} || 10,
 		mailConfigNs      => $args{mailConfigNs} || 'imap',
 	};
@@ -44,6 +44,10 @@ sub read {
 	$imap->select('INBOX');
 	$self->debug('Logged in!');
 
+	my $inbox = $imap->status('INBOX');
+	$self->debug("Inbox status: unseen:$inbox->{UNSEEN}, total:$inbox->{MESSAGES}");
+	$self->debug('Selected inbox folder') if $imap->select('INBOX');
+	
 	my $filter = $self->{filter};
 	my $ei     = 0;
 	if (@$filter) {
@@ -52,9 +56,7 @@ sub read {
 		my %messages;
 		foreach my $f (@$filter) {
 			$self->debug('Running filter: '.Dumper($f));
-			if (ref $f eq 'HASH') {
-				$messages{$_} = 1 foreach @{ $imap->search($f) };
-			}
+			$messages{$_} = 1 foreach @{ $imap->search($f) };
 		}
 		my @msgs = keys %messages;
 		$self->debug('Found '.scalar(@msgs).' messages');
