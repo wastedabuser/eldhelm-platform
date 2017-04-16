@@ -77,7 +77,7 @@ sub new {
 
 			connections      => shared_clone({}),
 			connectionEvents => shared_clone({}),
-			sheduledEvents   => shared_clone({}),
+			scheduledEvents   => shared_clone({}),
 
 			serverStats => shared_clone({}),
 
@@ -332,7 +332,7 @@ sub createExecutor {
 		workerQueue   => $executorQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents sheduledEvents connectionEvents stash)
+			qw(config info logQueue connections persists persistsByType persistLookup delayedEvents scheduledEvents connectionEvents stash)
 	);
 	$self->log("Created executor: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }   = $executorQueue;
@@ -365,7 +365,7 @@ sub createWorker {
 		workerQueue   => $workerQueue,
 		responseQueue => $responseQueue,
 		map { +$_ => $self->{$_} }
-			qw(configPath config info logQueue connections persists persistsByType persistLookup sheduledEvents serverStats stash)
+			qw(configPath config info logQueue connections persists persistsByType persistLookup scheduledEvents serverStats stash)
 	);
 	$self->log("Created worker: ".$t->tid);
 	$self->{workerQueue}{ $t->tid }  = $workerQueue;

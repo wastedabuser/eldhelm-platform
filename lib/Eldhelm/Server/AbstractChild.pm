@@ -30,7 +30,7 @@ use Data::Dumper;
 use Time::HiRes;
 use Carp qw(confess longmess);
 use Eldhelm::Server::Router;
-use Eldhelm::Server::Shedule;
+use Eldhelm::Server::Schedule;
 use Eldhelm::Util::Factory;
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::ExternalScript;
@@ -434,49 +434,49 @@ sub doAction {
 	);
 }
 
-=item getShedule($name) Eldhelm::Server::Shedule
+=item getSchedule($name) Eldhelm::Server::Schedule
 
-Returns a L<Eldhelm::Server::Shedule> object by name. This object coordinates the execution of a scheduled task;
+Returns a L<Eldhelm::Server::Schedule> object by name. This object coordinates the execution of a scheduled task;
 
 C<$name> String - The name of the scheduled task;
 
 =cut
 
-sub getShedule {
+sub getSchedule {
 	my ($self, $name) = @_;
 	my $s;
 	{
-		my $se = $self->{sheduledEvents};
+		my $se = $self->{scheduledEvents};
 		lock($se);
 		$s = $se->{$name};
 	}
 	return unless $s;
-	return Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::Shedule', $s);
+	return Eldhelm::Util::Factory->instanceFromScalar('Eldhelm::Server::Schedule', $s);
 }
 
-=item getShedule($name, $schedule, $action, $data) self
+=item getSchedule($name, $schedule, $action, $data) self
 
 Registers a new scheduled task.
 
-C<$name> String - A string indicating the sheduled task;
+C<$name> String - A string indicating the scheduled task;
 C<$schedule> String - A string indicating when the task should be executed;
 C<$action> String - The controller action to be called;
 C<$data> HashRef - The context data when the action is called;
 
 =cut
 
-sub setShedule {
-	my ($self, $name, $shedule, $action, $data) = @_;
+sub setSchedule {
+	my ($self, $name, $schedule, $action, $data) = @_;
 
-	my $prevShedule = $self->getShedule($name);
-	$prevShedule->dispose if $prevShedule;
+	my $prevSchedule = $self->getSchedule($name);
+	$prevSchedule->dispose if $prevSchedule;
 
-	my $se = $self->{sheduledEvents};
+	my $se = $self->{scheduledEvents};
 	lock($se);
 
 	$se->{$name} = shared_clone(
 		{   name    => $name,
-			shedule => $shedule,
+			schedule => $schedule,
 			action  => $action,
 			data    => $data,
 		}
@@ -485,7 +485,7 @@ sub setShedule {
 	return $self;
 }
 
-=item removeShedule($name) self
+=item removeSchedule($name) self
 
 Removes a scheduled task by name;
 
@@ -493,13 +493,13 @@ C<$name> String - The name of the scheduled task;
 
 =cut
 
-sub removeShedule {
+sub removeSchedule {
 	my ($self, $name) = @_;
 
-	my $prevShedule = $self->getShedule($name);
-	$prevShedule->dispose if $prevShedule;
+	my $prevSchedule = $self->getSchedule($name);
+	$prevSchedule->dispose if $prevSchedule;
 
-	my $se = $self->{sheduledEvents};
+	my $se = $self->{scheduledEvents};
 	lock($se);
 	delete $se->{$name};
 

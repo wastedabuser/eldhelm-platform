@@ -5,7 +5,7 @@ use threads;
 use threads::shared;
 use Eldhelm::Util::Tool;
 use Eldhelm::Util::Factory;
-use Eldhelm::Server::Shedule;
+use Eldhelm::Server::Schedule;
 use Data::Dumper;
 use Time::HiRes;
 use Time::HiRes qw(time usleep);
@@ -29,7 +29,7 @@ sub new {
 
 		$self->addInstance;
 		$self->init;
-		$self->initShedule;
+		$self->initSchedule;
 		$self->run;
 	}
 	return $self;
@@ -43,27 +43,27 @@ sub init {
 	$self->{interval}          = 100_000;
 }
 
-sub initShedule {
+sub initSchedule {
 	my ($self) = @_;
 
-	my $listed = $self->getConfig("server.shedule.action")      || [];
-	my $named  = $self->getConfig("server.shedule.namedAction") || {};
+	my $listed = $self->getConfig("server.schedule.action")      || [];
+	my $named  = $self->getConfig("server.schedule.namedAction") || {};
 
 	my $i = 0;
 	foreach (@$listed) {
-		$named->{"unnamed-shedule-$i"} = $_;
+		$named->{"unnamed-schedule-$i"} = $_;
 		$i++;
 	}
 
-	my $se = $self->{sheduledEvents};
+	my $se = $self->{scheduledEvents};
 	lock($se);
 
-	$self->{sheduledObjects} ||= {};
+	$self->{scheduledObjects} ||= {};
 	foreach my $id (keys %$named) {
 		my $obj = $named->{$id};
 		$se->{$id} = shared_clone(
 			{   name    => $id,
-				shedule => $obj->[0],
+				schedule => $obj->[0],
 				action  => $obj->[1],
 				data    => $obj->[2],
 			}
@@ -97,7 +97,7 @@ sub run {
 		if ($curTime - $lastSecTime >= 1) {
 			eval {
 				$self->checkTimeout;
-				$self->checkShedule;
+				$self->checkSchedule;
 			};
 			$self->error($@) if $@;
 
@@ -206,14 +206,14 @@ sub cleanUpSession {
 	return 1;
 }
 
-sub checkShedule {
+sub checkSchedule {
 	my ($self) = @_;
-	my $so = $self->{sheduledObjects};
+	my $so = $self->{scheduledObjects};
 	return unless $so;
 
 	my @list;
 	{
-		my $se = $self->{sheduledEvents};
+		my $se = $self->{scheduledEvents};
 		lock($se);
 		@list = map { [ $_, $se->{$_} ] } keys %$se;
 	}
@@ -224,7 +224,7 @@ sub checkShedule {
 			lock($v);
 			$id = $v->{uid} ||= md5_hex(rand().time);
 		}
-		my $s = $so->{$id} ||= Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Shedule", $v)->init;
+		my $s = $so->{$id} ||= Eldhelm::Util::Factory->instanceFromScalar("Eldhelm::Server::Schedule", $v)->init;
 
 		next unless $s->isTime;
 		$self->doJob($s->job);
@@ -234,8 +234,8 @@ sub checkShedule {
 	foreach (@objs) {
 		my $sobj = $so->{$_};
 		if ($sobj->get("disposed")) {
-			my ($n, $s, $a, $u) = $sobj->getList("name", "shedule", "action", "uid");
-			$self->log("cleaning up shedule $u($n) for $s $a");
+			my ($n, $s, $a, $u) = $sobj->getList("name", "schedule", "action", "uid");
+			$self->log("cleaning up schedule $u($n) for $s $a");
 			delete $so->{$_};
 		}
 	}

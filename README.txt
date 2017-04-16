@@ -16,7 +16,7 @@ Eldhelm platform features:
 - Extendable with other protocols
 - MVC framework + advanced routing engine
 - Publish-subscribe framework 
-- Task sheduler
+- Task scheduler
 - Advanced MySQL Database abstraction layer framework
 - A templating engine
 - Bulk mailer

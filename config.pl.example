@@ -154,16 +154,16 @@
 			# events => { initializeLogin => [ "call something" ] }
 		},
 		
-		# sheduled tasks
-		shedule => {
+		# scheduled tasks
+		schedule => {
 			action => [
-				# sheduled events
+				# scheduled events
 				# [ "12:00", "myController:myMethod" ],
 				# [ "6h", "myController:myMethod" ],
 				# [ "5m", "myController:myMethod" ],
 			],
 			namedAction => {
-				# named sheduled events - manipulate them at runtime
+				# named scheduled events - manipulate them at runtime
 				# myName => [ "15m", "myController:myMethod" ] 
 			}
 		},
