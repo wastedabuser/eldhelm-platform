@@ -18,6 +18,8 @@ sub new {
 	$self->loadDefinition($args{name}) if $args{name};
 	$self->createLayers($self->{definition}) if $self->{definition};
 
+	$self->{errorThreshold} ||= .0005;
+
 	return $self;
 }
 
@@ -119,7 +121,7 @@ sub train {
 		}
 	}
 	for ($i = $#layers ; $i > 0 ; $i--) {
-		foreach ($layers[$i]->neurons) {
+		foreach ($layers[$i]->nonBiasNeurons) {
 			$_->updateInputWeights($layers[ $i - 1 ]);
 		}
 	}
@@ -130,23 +132,34 @@ sub trainCsv {
 	$sep ||= ',';
 	my $lines = Eldhelm::Util::FileSystem->getFileContentsLines($path);
 	my $nl    = $self->layer->numNonBiasNeurons;
-	$self->log('Processing '.scalar(@$lines).' lines');
-	my $pln = 5000;
+	$self->log('Training set is '.scalar(@$lines).' lines');
+	my $pln = 10000;
 	my $num = 1;
-	foreach my $l (@$lines) {
-		$l =~ s/[\n\r]+$//;
-		my @columns = split /$sep/, $l;
-		my $input = [ @columns[ 0 .. $nl - 1 ] ];
-		my $output = [ @columns[ $nl .. $#columns ] ];
-		unless($num % $pln) {
-			$self->log("Training $num:");
-			$self->log('  Input  '.join '; ', @$input);
-			$self->log('  Output '.join '; ', @$output);
+	my $min = 1;
+	do {
+
+		foreach my $l (@$lines) {
+			$l =~ s/[\n\r]+$//;
+			my @columns = split /$sep/, $l;
+			my $input   = [ @columns[ 0 .. $nl - 1 ] ];
+			my $output  = [ @columns[ $nl .. $#columns ] ];
+			unless ($num % $pln) {
+				$self->log("Training $num:");
+				$self->log('  Input  '.join '; ', @$input);
+				$self->log('  Output '.join '; ', @$output);
+			}
+			$self->train($input, $output);
+			$self->log("Done $num; ERROR $self->{error}; MIN ERROR $min;") unless $num % $pln;
+
+			if ($self->{error} < $self->{errorThreshold}) {
+				$self->log("Done $num; ERROR $self->{error}; MIN ERROR $min; Trained good!");
+				last;
+			}
+
+			$min = $self->{error} if ($self->{error} < $min);
+			$num++;
 		}
-		$self->train($input, $output);
-		$self->log("Done $num; ERROR $self->{error};") unless $num % $pln;
-		$num++;
-	}
+	} while ($self->{error} >= $self->{errorThreshold});
 	$self->log('Done!');
 }
 

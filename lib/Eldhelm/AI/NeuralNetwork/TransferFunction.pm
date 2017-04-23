@@ -4,12 +4,12 @@ use strict;
 
 sub sigmoid {
 	my ($self, $val) = @_;
-	return 1.0 / (1.0 + exp($val));
+	return 1.0 / (1.0 + exp(-$val));
 }
 
 sub sigmoidDerivative {
 	my ($self, $val) = @_;
-	my $f = 1.0 / (1.0 + exp($val));
+	my $f = sigmoid($val);
 	return $f * (1 - $f);
 }
 
