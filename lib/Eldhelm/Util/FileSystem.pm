@@ -81,6 +81,23 @@ sub getFileContents {
 	return $content;
 }
 
+=item getFileContentsLines($path) String
+
+Reads a file and returns its contents as list of lines.
+
+C<$path> String - The file to be read.
+
+=cut
+
+sub getFileContentsLines {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($path) = @_;
+	open my $fr, $path or confess "Can not read '$path': $!";
+	my @lines = <$fr>;
+	close $fr;
+	return \@lines;
+}
+
 =item writeFileContents($path, $contents)
 
 Writes data to a file.
