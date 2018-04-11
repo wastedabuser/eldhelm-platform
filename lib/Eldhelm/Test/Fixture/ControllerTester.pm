@@ -6,7 +6,7 @@ use threads::shared;
 use Carp;
 use Eldhelm::Util::Factory;
 
-use base qw(Eldhelm::Test::Fixture::TestBench);
+use parent 'Eldhelm::Test::Fixture::TestBench';
 
 sub new {
 	my ($class, %args) = @_;
@@ -14,15 +14,15 @@ sub new {
 	my $self = $class->SUPER::new(%args);
 	bless $self, $class;
 
-	confess "No controller class supplied" unless $args{controller};
+	confess 'No controller class supplied' unless $args{controller};
 
 	$self->{controller} = Eldhelm::Util::Factory->instanceFromNotation(
-		"Eldhelm::Application::Controller",
+		'Eldhelm::Application::Controller',
 		$args{controller},
 		worker     => $self->{worker},
 		connection => $self->{connection},
 		data       => {},
-		$args{controllerArgs} ? %{ $args{controllerArgs} } : ()
+		$args{controllerArgs} ? %{ $args{controllerArgs} } : (),
 	);
 
 	return $self;
