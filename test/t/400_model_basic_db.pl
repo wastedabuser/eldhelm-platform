@@ -3,7 +3,6 @@ use strict;
 use lib '..';
 use lib '../..';
 use lib '../../platform/lib';
-use lib '../../platform-utils/lib';
 use lib '../lib';
 use lib '../../lib';
 
