@@ -26,6 +26,9 @@ use strict;
 use Carp;
 use Data::Dumper;
 
+use Exporter 'import';
+our @EXPORT_OK = qw(readFoldersList readFileList getFileContents getFileContentsLines doWithFile writeFileContents appendFileContents appendStructureToFile);
+
 =item readFoldersList($path)
 
 Returns the list of folders from the folder specified.
@@ -96,6 +99,24 @@ sub getFileContentsLines {
 	my @lines = <$fr>;
 	close $fr;
 	return \@lines;
+}
+
+=item doWithFile($path, $code) String
+
+Reads a file and applies a function on his handler and returns the result of that function.
+
+C<$path> String - The file to be read.
+C<$code> CodeRef - A function to run on the file ref.
+
+=cut
+
+sub doWithFile {
+	shift @_ if $_[0] eq __PACKAGE__;
+	my ($path, $code) = @_;
+	open my $fr, $path or confess "Can not read '$path': $!";
+	my $result = do { local $/ = undef; $code->($fr) };
+	close $fr;
+	return $result;
 }
 
 =item writeFileContents($path, $contents)

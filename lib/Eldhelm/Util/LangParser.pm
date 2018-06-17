@@ -336,7 +336,7 @@ sub indent {
 
 Converts the internal parsed structure to JSON stream.
 
-C<$callback> FunctionRef - Optional; Applies the callback when compiling every node;
+C<$callback> CodeRef - Optional; Applies the callback when compiling every node;
 
 =cut
 

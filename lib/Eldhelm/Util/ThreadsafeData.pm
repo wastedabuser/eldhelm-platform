@@ -456,7 +456,7 @@ C<$self> The caller object
 C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
 C<$dataRef> HashRef - A data structure;
 C<$key> String - The name of the property or it's dotted notation;
-C<$callback> FunctionRef - The callback to be applied on every item;
+C<$callback> CodeRef - The callback to be applied on every item;
 C<@options> Optional; Additionl arguments to the callback function;
 
 	# let's say
@@ -665,7 +665,7 @@ Applies a callback over the current object. This is usefult to create a theread-
 C<$self> The caller object
 C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
 C<$dataRef> HashRef - A data structure;
-C<$callback> FunctionRef - The callback to be applied on every item;
+C<$callback> CodeRef - The callback to be applied on every item;
 C<@options> Optional; Additionl arguments to the callback function;
 	
 	# let's say
@@ -733,7 +733,7 @@ C<$self> The caller object
 C<$baseRef> HashRef - A base data structure which will hold the advisory lock;
 C<$dataRef> HashRef - A data structure;
 C<$semaName> String - The name of the semaphore;
-C<$callback> FunctionRef - The callback to be applied on every item;
+C<$callback> CodeRef - The callback to be applied on every item;
 C<@options> Optional; Additionl arguments to the callback function;
 
 	# let's say

@@ -3,8 +3,10 @@ use lib '../lib';
 use strict;
 
 use Data::Dumper;
+use Digest::MD5;
+use Date::Format;;
 use Eldhelm::Util::CommandLine;
-use Eldhelm::Util::FileSystem;
+use Eldhelm::Util::FileSystem qw(readFileList doWithFile);
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
@@ -31,10 +33,16 @@ die "No production folder specified" unless $production;
 die "$test folder invalid"           unless -d $test;
 die "$production folder invalid"     unless -d $production;
 
-my @tList = Eldhelm::Util::FileSystem->readFileList($test);
+my @tList = readFileList($test);
 s/^$test// foreach @tList;
-my @pList = Eldhelm::Util::FileSystem->readFileList($production);
+my @pList = readFileList($production);
 s/^$production// foreach @pList;
+
+my $getCheckum = sub {
+	my $md5 = Digest::MD5->new;
+	$md5->addfile($_[0]);
+	return $md5->hexdigest;
+};
 
 sub getMeta {
 	my ($path, $list) = @_;
@@ -42,7 +50,7 @@ sub getMeta {
 	foreach my $f (@$list) {
 		my $p = "$path/$f";
 		my @s = stat($p);
-		$lookup->{$f} = [ $s[7], $s[9] ];
+		$lookup->{$f} = [ $s[7], $s[9], doWithFile($p, $getCheckum) ];
 	}
 	return $lookup;
 }
@@ -58,8 +66,11 @@ foreach my $f (keys %$tMap) {
 	}
 	my $t = $tMap->{$f};
 	my $p = $pMap->{$f};
-
-	if ($t->[0] != $p->[0] || $t->[1] > $p->[1]) {
+	
+	die "$f is 0b ... aborting!" unless $t->[0];
+	
+	if ($t->[2] ne $p->[2]) {
+		warn "$f; $p->[2] -> $t->[2]; $p->[0]b -> $t->[0]b; ".time2str('%d.%m.%Y %T', $p->[1])." -> ".time2str('%d.%m.%Y %T', $t->[1]).";\n";
 		push @manifest, $f;
 		next;
 	}
