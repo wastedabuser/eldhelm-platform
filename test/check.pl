@@ -46,10 +46,12 @@ if (!@ARGV || $ops{h} || $ops{help}) {
 }
 
 my @listed;
-if ($ops{prefix}) {
-	@listed = map { "$ops{prefix}$_" } @{ $ops{list} };
-} else {
-	@listed = @{ $ops{list} };
+if ($ops{list}) {
+	if ($ops{prefix}) {
+		@listed = map { "$ops{prefix}$_" } @{ $ops{list} };
+	} else {
+		@listed = @{ $ops{list} };
+	}
 }
 
 my $baseDir = '../..';
@@ -241,11 +243,13 @@ sub runDocCheck {
 	# return 0;
 }
 
+my $time = time;
+my $l = @sources;
 foreach my $s (@sources) {
 	$i++;
 	my @oks = (1, 1, 1, 1);
 
-	print "$i. Working on [$s]\n";
+	print "$i/$l. Working on [$s]\n";
 
 	if ($ops{syntax}) {
 		next unless $oks[0] = checkSyntax($s, $i);
@@ -273,6 +277,10 @@ my $failure = $oi != $i;
 my $hr = $failure ? '*' x 140 : '-' x 140;
 $hr .= "\n";
 
+my $delta = time - $time;
+my $minutes = int($delta / 60);
+my $seconds = int((($delta / 60) - $minutes) * 60);
+
 my $result;
 if (@errors) {
 	$result .= $hr;
@@ -289,7 +297,8 @@ $result .= "WARN=$fi/$i; " if $fi;
 $result .= "PASS=$oi/$i; ";
 $result .= "SKIPPED=$si; " if $si;
 $result .= 'ERRORS='.scalar(@errors).'; ' if @errors;
-$result .= "CHECKED=$i;\n";
+$result .= "CHECKED=$i;";
+$result .= "TIME=$minutes:$seconds;\n";
 $result .= $hr;
 
 if ($failure) {
