@@ -4,9 +4,9 @@ use strict;
 
 use Data::Dumper;
 use Digest::MD5;
-use Date::Format;;
+use Date::Format;
 use Eldhelm::Util::CommandLine;
-use Eldhelm::Util::FileSystem qw(readFileList doWithFile);
+use Eldhelm::Util::FileSystem qw(readFileList getFileContents);
 
 my $cmd = Eldhelm::Util::CommandLine->new(
 	argv    => \@ARGV,
@@ -38,11 +38,13 @@ s/^$test// foreach @tList;
 my @pList = readFileList($production);
 s/^$production// foreach @pList;
 
-my $getCheckum = sub {
-	my $md5 = Digest::MD5->new;
-	$md5->addfile($_[0]);
+sub getCheckum {
+	my $md5  = Digest::MD5->new;
+	my $data = getFileContents($_[0]);
+	$data =~ s/\r\n/\n/g;
+	$md5->add($data);
 	return $md5->hexdigest;
-};
+}
 
 sub getMeta {
 	my ($path, $list) = @_;
@@ -50,12 +52,12 @@ sub getMeta {
 	foreach my $f (@$list) {
 		my $p = "$path/$f";
 		my @s = stat($p);
-		$lookup->{$f} = [ $s[7], $s[9], doWithFile($p, $getCheckum) ];
+		$lookup->{$f} = [ $s[7], $s[9], getCheckum($p) ];
 	}
 	return $lookup;
 }
 
-my $tMap = getMeta($test, \@tList);
+my $tMap = getMeta($test,       \@tList);
 my $pMap = getMeta($production, \@pList);
 
 my @manifest;
@@ -66,11 +68,13 @@ foreach my $f (keys %$tMap) {
 	}
 	my $t = $tMap->{$f};
 	my $p = $pMap->{$f};
-	
+
 	die "$f is 0b ... aborting!" unless $t->[0];
-	
+
 	if ($t->[2] ne $p->[2]) {
-		warn "$f; $p->[2] -> $t->[2]; $p->[0]b -> $t->[0]b; ".time2str('%d.%m.%Y %T', $p->[1])." -> ".time2str('%d.%m.%Y %T', $t->[1]).";\n";
+		warn "$f; $p->[2] -> $t->[2]; $p->[0]b -> $t->[0]b; "
+			.time2str('%d.%m.%Y %T', $p->[1])." -> "
+			.time2str('%d.%m.%Y %T', $t->[1]).";\n";
 		push @manifest, $f;
 		next;
 	}
